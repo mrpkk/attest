@@ -19,10 +19,26 @@ from .schema import SchemaViolation, validate_against_schema
 SEVERITY_WEIGHT = {"critical": 40.0, "high": 15.0, "medium": 5.0, "low": 1.0}
 VIOLATION_WEIGHT = 8.0
 
+# сигнатуры, которых нет ни в одном честном ответе инструмента
+INJECTION_KINDS = {
+    "ignore_previous", "disregard_context", "forget_instructions", "prompt_injection",
+    "special_token_smuggle", "role_block_smuggle", "assistant_turn_smuggle",
+    "conceal_from_user", "conceal_from_user_ru", "exfiltrate_secrets", "exfiltrate_network",
+    "injection_in_data_field", "role_override",
+}
+
+# опасные команды, которых не бывает в честном ответе сервиса
+DANGEROUS_COMMANDS = {
+    "destructive_command", "remote_exec_pipe", "remote_exec_pipe_line", "obfuscated_exec",
+    "live_credential_shape", "aws_key_shape", "private_key_material", "base64_exfiltration",
+    "exfiltration_instruction", "metadata_endpoint", "mixed_script_word", "zero_width_smuggle",
+    "hidden_html",
+}
+
 CRITICAL_KINDS = {
     "exfiltrate_secrets", "exfiltrate_network", "live_credential_shape", "aws_key_shape",
     "private_key_material", "obfuscated_exec", "remote_exec_pipe", "remote_exec_pipe_line",
-    "injection_in_data_field",
+    "injection_in_data_field", "mixed_script_word", "exfiltration_instruction",
 }
 
 
@@ -60,7 +76,7 @@ def _score(violations: list[SchemaViolation], signals: list[PoisonSignal]) -> fl
 
 
 def _verdict(violations: list[SchemaViolation], signals: list[PoisonSignal], score: float) -> tuple[str, str]:
-    critical = [s for s in signals if s.kind in CRITICAL_KINDS or s.severity == "critical"]
+    critical = [s for s in signals if s.kind in CRITICAL_KINDS or s.kind in DANGEROUS_COMMANDS or s.severity == "critical"]
     if critical:
         return "reject", f"критичный сигнал: {critical[0].kind} @ {critical[0].where}"
     if not signals and not violations:
@@ -69,6 +85,17 @@ def _verdict(violations: list[SchemaViolation], signals: list[PoisonSignal], sco
         hard = [v for v in violations if v.rule in ("type", "required", "null", "depth", "empty", "size", "minimum", "maximum")]
         if hard:
             return "reject", f"нарушение контракта: {hard[0].rule} @ {hard[0].path}"
+    # сигнатурная инъекция = отказ, даже в доверенном поле: «ignore all previous
+    # instructions» не бывает в честном ответе инструмента
+    signature_attack = [s for s in signals if s.kind in INJECTION_KINDS]
+    if signature_attack:
+        return "reject", f"сигнатурная инъекция: {signature_attack[0].kind} @ {signature_attack[0].where}"
+
+    # два независимых сигнала высокой тяжести = скоординированная атака,
+    # а не единичная неточность формулировки
+    strong = [s for s in signals if s.severity == "high"]
+    if len(strong) >= 2:
+        return "reject", f"несколько независимых сигналов: {', '.join(s.kind for s in strong[:3])}"
     if score < 60:
         return "reject", f"доверие слишком низкое ({score:.0f}/100)"
     if score < 90:

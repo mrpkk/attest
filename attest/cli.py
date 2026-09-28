@@ -29,21 +29,41 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--key", help="HMAC-ключ")
     args = p.parse_args(argv)
 
-    raw = Path(args.file).read_text("utf-8") if args.file else sys.stdin.read()
+    if args.file:
+        path = Path(args.file)
+        if not path.is_file():
+            print(f"ошибка: файл не найден — {path}", file=sys.stderr)
+            return EXIT_REJECT
+        try:
+            raw = path.read_text("utf-8")
+        except OSError as e:
+            print(f"ошибка: не удалось прочитать {path} — {e}", file=sys.stderr)
+            return EXIT_REJECT
+    else:
+        raw = sys.stdin.read()
 
     if args.verify:
-        data = json.loads(raw)
-        rec = data["record"]
         from .provenance import ProvenanceRecord, Attestation
 
-        att = Attestation(
-            record=ProvenanceRecord(**rec),
-            signature=data["signature"],
-            algorithm=data.get("algorithm", "none"),
-        )
+        data = json.loads(raw)
+        # принимаем и полный результат (--json), и голую attestation
+        payload = data.get("attestation", data)
+        try:
+            att = Attestation(
+                record=ProvenanceRecord(**payload["record"]),
+                signature=payload["signature"],
+                algorithm=payload.get("algorithm", "none"),
+            )
+        except (KeyError, TypeError) as e:
+            print(f"ошибка: в файле нет корректной attestation ({e})", file=sys.stderr)
+            return EXIT_REJECT
         key = args.key.encode() if args.key else None
         ok = verify(att, key)
-        print("подпись валидна" if ok else "подпись НЕ валидна")
+        if ok:
+            r = att.record
+            print(f"подпись валидна: {r.source} verdict={r.verdict} trust={r.trust_score} sha256={r.content_hash[7:19]}")
+        else:
+            print("подпись НЕ валидна — содержимое изменено после проверки")
         return EXIT_OK if ok else EXIT_REJECT
 
     try:
@@ -52,7 +72,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ошибка: вход не JSON — {e}", file=sys.stderr)
         return EXIT_REJECT
 
-    schema = json.loads(Path(args.schema).read_text("utf-8")) if args.schema else None
+    if args.schema:
+        spath = Path(args.schema)
+        if not spath.is_file():
+            print(f"ошибка: схема не найдена — {spath}", file=sys.stderr)
+            return EXIT_REJECT
+        try:
+            schema = json.loads(spath.read_text("utf-8"))
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"ошибка: схема не читается — {e}", file=sys.stderr)
+            return EXIT_REJECT
+    else:
+        schema = None
+
     result = attest(artifact, schema, source=args.source)
 
     if args.json:
