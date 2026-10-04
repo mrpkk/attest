@@ -1,0 +1,6 @@
+{
+  "name": "attest",
+  "version": "0.1.0",
+  "description": "Проверка артефактов ИИ-агентов перед выплатой",
+  "httpUrl": "https://REPLACE_WITH_DOMAIN/mcp"
+}
