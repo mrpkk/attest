@@ -18,11 +18,20 @@ def verify(artifact, schema=None, source="mcp"):
     return run_attest(artifact, schema, source=source)
 
 
-def rpc(method, params=None, request_id=1):
+def rpc(method, params=None, request_id=1, bridge=None):
     message = {"jsonrpc": "2.0", "id": request_id, "method": method}
     if params is not None:
         message["params"] = params
-    return mcp.handle_request(message, verify)
+    return mcp.handle_request(message, verify, bridge)
+
+
+def stub_bridge(calls: list | None = None, result: dict | None = None):
+    """Заглушка моста: пишет вызовы и отдаёт заготовленный результат."""
+    def _bridge(**kwargs):
+        if calls is not None:
+            calls.append(kwargs)
+        return result if result is not None else {"summary": "ok"}
+    return _bridge
 
 
 class TestProtocol:
@@ -35,14 +44,57 @@ class TestProtocol:
         out = rpc("initialize", {"protocolVersion": mcp.PROTOCOL_VERSION})
         assert out["result"]["protocolVersion"] == mcp.PROTOCOL_VERSION
 
-    def test_tools_list_exposes_one_tool_with_schema(self):
+    def test_tools_list_exposes_tools_with_schema(self):
+        """Инструментов два с 06.10.2026: проверка артефакта и мост сделок."""
         out = rpc("tools/list")
         tools = out["result"]["tools"]
-        assert len(tools) == 1
-        tool = tools[0]
-        assert tool["name"] == "verify_artifact"
-        assert tool["inputSchema"]["required"] == ["artifact"]
-        assert "принят" in tool["description"].lower() or "выплат" in tool["description"].lower()
+        by_name = {t["name"]: t for t in tools}
+
+        assert "verify_artifact" in by_name
+        verify = by_name["verify_artifact"]
+        assert verify["inputSchema"]["required"] == ["artifact"]
+        assert "принят" in verify["description"].lower() or "выплат" in verify["description"].lower()
+
+        assert "bridge_check" in by_name
+        bridge = by_name["bridge_check"]
+        assert bridge["inputSchema"]["required"] == ["action"]
+        assert set(bridge["inputSchema"]["properties"]["action"]["enum"]) == {
+            "job", "deliver", "release", "refund", "verify", "trust",
+        }
+        # Мост двигает деньги, поэтому readOnlyHint обязан быть False:
+        # агент должен понимать, что это действие с побочным эффектом.
+        assert bridge["annotations"]["readOnlyHint"] is False
+        assert verify["annotations"]["readOnlyHint"] is True
+
+    def test_bridge_without_backend_is_refused(self):
+        """Мост не подключён — честная ошибка, а не тихий успех."""
+        out = rpc("tools/call", {"name": "bridge_check", "arguments": {"action": "trust"}})
+        assert out["error"]["code"] == mcp.JSONRPC_METHOD_NOT_FOUND
+
+    def test_bridge_rejects_unknown_action(self):
+        out = rpc("tools/call",
+                  {"name": "bridge_check", "arguments": {"action": "перевести_все"}},
+                  bridge=stub_bridge())
+        assert out["error"]["code"] == mcp.JSONRPC_INVALID_PARAMS
+
+    def test_bridge_passes_action_to_backend(self):
+        calls: list = []
+        rpc("tools/call",
+            {"name": "bridge_check",
+             "arguments": {"action": "deliver", "job_id": "j1",
+                           "agent": "a1", "artifact": {"ok": True}}},
+            bridge=stub_bridge(calls, {"verdict": {"accepted": True}, "summary": "ПРИНЯТО"}))
+        assert calls and calls[0]["action"] == "deliver"
+        assert calls[0]["job_id"] == "j1"
+        assert "action" not in calls[0] or calls[0].get("action") == "deliver"
+
+    def test_bridge_rejected_delivery_is_error_for_agent(self):
+        """Отклонённая сдача помечается isError — агент обязан её увидеть."""
+        out = rpc("tools/call",
+                  {"name": "bridge_check", "arguments": {"action": "deliver"}},
+                  bridge=stub_bridge(result={"verdict": {"accepted": False}, "summary": "ОТКАЗАНО"}))
+        assert out["result"]["isError"] is True
+        assert out["result"]["structuredContent"]["summary"] == "ОТКАЗАНО"
 
     def test_unknown_method_is_refused(self):
         out = rpc("completions/complete")

@@ -90,6 +90,54 @@ class RpcError(Exception):
         return error
 
 
+BRIDGE_TOOL: dict[str, Any] = {
+    "name": "bridge_check",
+    "title": "Мост: задача → работа → деньги",
+    "annotations": {
+        "title": "Мост: задача → работа → деньги",
+        # Не read-only: инструмент двигает состояние сделки и бюджет.
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    },
+    "description": (
+        "Провести сделку через мост: заказчик ставит задачу с бюджетом в "
+        "эскроу, агент сдаёт артефакт, мост проверяет его и выпускает "
+        "подписанный RECEIPT. Бюджет отпускается только после проверки. "
+        "RECEIPT проверяется третьей стороной без доступа к мосту — это то, "
+        "что делает слой переносимым между агентом, заказчиком и страховщиком. "
+        "Действия: job (создать), deliver (сдать и проверить), release "
+        "(принять), refund (отклонить), verify (проверить чужой receipt), "
+        "trust (репутация). Используйте, когда агент берёт оплачиваемую задачу "
+        "или когда нужно доказать третьей стороне, что работа выполнена."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "action": {
+                "type": "string",
+                "enum": ["job", "deliver", "release", "refund", "verify", "trust"],
+                "description": "Что сделать.",
+            },
+            "job_id": {"type": "string", "description": "ID задачи (кроме job)."},
+            "agent": {"type": "string", "description": "Идентификатор агента."},
+            "title": {"type": "string", "description": "Что нужно сделать (для job)."},
+            "spec": {"type": "object", "description": "Спецификация результата (для job)."},
+            "amount_minor": {
+                "type": "integer",
+                "description": "Бюджет в минорных единицах, 1 USDC = 1000000.",
+            },
+            "client": {"type": "string", "description": "Кто заказчик (для job)."},
+            "artifact": {"description": "Артефакт агента (для deliver)."},
+            "receipt": {"type": "object", "description": "Чужой receipt (для verify)."},
+            "db": {"type": "string", "description": "Путь к базе моста."},
+        },
+        "required": ["action"],
+    },
+}
+
+
 def _result(request_id: Any, result: Any) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": request_id, "result": result}
 
@@ -101,11 +149,14 @@ def _error(request_id: Any, error: RpcError) -> dict[str, Any]:
 def handle_request(
     message: Mapping[str, Any],
     verify: Callable[..., Any],
+    bridge: Callable[..., Any] | None = None,
 ) -> dict[str, Any]:
     """Обработать одно JSON-RPC сообщение.
 
     `verify` — функция проверки; подставляется снаружи, чтобы MCP-слой не
     зависел от HTTP-сервиса и проверялся в одиночку.
+    `bridge` — действие моста (опционально, добавлено 06.10.2026): тот же
+    приём, MCP-слой не знает про деньги и файлы.
     """
     if not isinstance(message, Mapping) or message.get("jsonrpc") != "2.0":
         return _error(
@@ -126,7 +177,7 @@ def handle_request(
                 "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
             })
         if method == "tools/list":
-            return _result(request_id, {"tools": [VERIFY_TOOL]})
+            return _result(request_id, {"tools": [VERIFY_TOOL, BRIDGE_TOOL]})
         # Пустые списки вместо «метод не найден»: так требуют все сканеры
         # каталогов. Отсутствие этих методов читается как сломанный сервер и
         # портит карточку листинга, хотя инструменты при этом работают.
@@ -137,7 +188,7 @@ def handle_request(
         if method == "resources/templates/list":
             return _result(request_id, {"resourceTemplates": []})
         if method == "tools/call":
-            return _result(request_id, _call_tool(params, verify))
+            return _result(request_id, _call_tool(params, verify, bridge))
         if method in ("notifications/initialized", "ping"):
             return {"jsonrpc": "2.0", "id": request_id, "result": {}}
         return _error(
@@ -150,13 +201,24 @@ def handle_request(
         return _error(request_id, RpcError(JSONRPC_INTERNAL, f"внутренняя ошибка: {exc}"))
 
 
-def _call_tool(params: Mapping[str, Any], verify: Callable[..., Any]) -> dict[str, Any]:
+def _call_tool(
+    params: Mapping[str, Any],
+    verify: Callable[..., Any],
+    bridge: Callable[..., Any] | None = None,
+) -> dict[str, Any]:
     name = params.get("name")
-    if name != VERIFY_TOOL["name"]:
-        raise RpcError(JSONRPC_METHOD_NOT_FOUND, f"инструмент {name!r} не существует")
     arguments = params.get("arguments") or {}
     if not isinstance(arguments, Mapping):
         raise RpcError(JSONRPC_INVALID_PARAMS, "arguments должны быть объектом")
+    if name == BRIDGE_TOOL["name"]:
+        if bridge is None:
+            raise RpcError(
+                JSONRPC_METHOD_NOT_FOUND,
+                "инструмент bridge_check недоступен: мост не подключён",
+            )
+        return _call_bridge(arguments, bridge)
+    if name != VERIFY_TOOL["name"]:
+        raise RpcError(JSONRPC_METHOD_NOT_FOUND, f"инструмент {name!r} не существует")
     if "artifact" not in arguments:
         raise RpcError(JSONRPC_INVALID_PARAMS, 'нужен аргумент "artifact"')
 
@@ -193,6 +255,39 @@ def _call_tool(params: Mapping[str, Any], verify: Callable[..., Any]) -> dict[st
     }
 
 
+def _call_bridge(arguments: Mapping[str, Any], bridge: Callable[..., Any]) -> dict[str, Any]:
+    """Провести действие моста и вернуть агенту структурированный результат.
+
+    Мост сознательно вынесен в колбэк: MCP-слой не знает про деньги и
+    файлы, он знает про контракт «дай действие, верни результат». Так его
+    можно подключить к любому хранилищу, включая тестовое.
+    """
+    action = arguments.get("action")
+    if action not in ("job", "deliver", "release", "refund", "verify", "trust"):
+        raise RpcError(JSONRPC_INVALID_PARAMS, f"неизвестное действие {action!r}")
+
+    kwargs = {k: v for k, v in arguments.items() if k != "action"}
+    try:
+        result = bridge(action=action, **kwargs)
+    except TypeError as exc:
+        raise RpcError(JSONRPC_INVALID_PARAMS, f"неверные аргументы: {exc}") from exc
+    except Exception as exc:  # noqa: BLE001
+        raise RpcError(JSONRPC_INTERNAL, f"мост: {exc}") from exc
+
+    payload = result if isinstance(result, dict) else {"result": str(result)}
+    is_error = action == "deliver" and payload.get("verdict", {}).get("accepted") is False
+    return {
+        "content": [
+            {
+                "type": "text",
+                "text": str(payload.get("summary") or f"{action}: выполнено"),
+            }
+        ],
+        "structuredContent": payload,
+        "isError": bool(is_error),
+    }
+
+
 def parse_body(raw: bytes) -> dict[str, Any] | list[dict[str, Any]]:
     """Разобрать тело: одиночный запрос или пакет."""
     try:
@@ -208,7 +303,11 @@ def parse_body(raw: bytes) -> dict[str, Any] | list[dict[str, Any]]:
     raise RpcError(JSONRPC_INVALID_REQUEST, "ожидался объект или массив")
 
 
-def respond(raw: bytes, verify: Callable[..., Any]) -> tuple[int, bytes] | None:
+def respond(
+    raw: bytes,
+    verify: Callable[..., Any],
+    bridge: Callable[..., Any] | None = None,
+) -> tuple[int, bytes] | None:
     """Полный цикл: тело → ответ. `None` означает «ответ не требуется»."""
     try:
         message = parse_body(raw)
@@ -217,10 +316,10 @@ def respond(raw: bytes, verify: Callable[..., Any]) -> tuple[int, bytes] | None:
     if isinstance(message, list):
         if not message:
             return 200, json.dumps(_error(None, RpcError(JSONRPC_INVALID_REQUEST, "пустой пакет"))).encode()
-        replies = [handle_request(item, verify) for item in message]
+        replies = [handle_request(item, verify, bridge) for item in message]
         replies = [item for item in replies if "id" in item or item.get("id") is not None]
         return 200, json.dumps(replies).encode()
-    reply = handle_request(message, verify)
+    reply = handle_request(message, verify, bridge)
     if message.get("id") is None:
         return None
     return 200, json.dumps(reply).encode()
