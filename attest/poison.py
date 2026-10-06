@@ -120,7 +120,22 @@ class PoisonSignal:
 
 
 def _normalize(text: str) -> str:
+    """Нормализация перед поиском сигнатур. Только NFKC — без замены
+    разделителей: глобальная замена `_`/`-` на пробел ломает сигнатуры
+    приватных ключей и деструктивных команд (проверено 06.10.2026:
+    5 тестов из tests/test_attest.py падают)."""
     return unicodedata.normalize("NFKC", text)
+
+
+def _normalize_key(text: str) -> str:
+    """Нормализация имён полей: разделители приводим к пробелу.
+
+    06.10.2026: в JSON имена полей пишут как `ignore_previous_instructions`,
+    а сигнатуры рассчитаны на «ignore previous instructions». Обфускация
+    через разделители — самый дешёвый обход сканера, поэтому для КЛЮЧЕЙ
+    нормализация отдельная и не трогает значения.
+    """
+    return re.sub(r"[_-]+", " ", unicodedata.normalize("NFKC", text))
 
 
 def _walk(node, path: str = "$"):
@@ -134,8 +149,49 @@ def _walk(node, path: str = "$"):
         yield path, node
 
 
+def _walk_keys(node, path: str = "$"):
+    """Отдать имена полей как проверяемый текст.
+
+    Дыра закрыта 06.10.2026: имя поля — тоже носитель данных. Инструкция
+    «ignore_previous_instructions» в КЛЮЧЕ читается движком агента не хуже,
+    чем в значении, а раньше _walk отдавал только значения, поэтому такой
+    яд проходил незамеченным.
+    """
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if isinstance(k, str):
+                yield f"{path}.<key>", k
+            yield from _walk_keys(v, f"{path}.{k}")
+    elif isinstance(node, list):
+        for i, v in enumerate(node[:500]):
+            yield from _walk_keys(v, f"{path}[{i}]")
+
+
 def _key_of(path: str) -> str:
     return path.rsplit(".", 1)[-1].split("[")[0].lower()
+
+
+def _scan_key(text: str, where: str) -> list[PoisonSignal]:
+    """Скан имени поля: нормализация разделителей + те же сигнатуры.
+
+    Отдельная функция, а не флаг в _scan_text: замена `_` на пробел ломает
+    сигнатуры приватных ключей и опасных команд, а для ключей она нужна.
+    """
+    norm = _normalize_key(text)
+    signals: list[PoisonSignal] = []
+
+    for pattern, name in COMPILED:
+        if pattern.search(norm):
+            signals.append(PoisonSignal(name, SEVERITY.get(name, "medium"), where,
+                                        f"имя поля: «{text[:60]}»"))
+            break
+
+    target = _structural_exfiltration(norm)
+    if target:
+        signals.append(PoisonSignal("key_exfiltration", "critical", where,
+                                    f"имя поля требует утечки: «{text[:60]}»"))
+
+    return signals
 
 
 def _scan_text(text: str, where: str) -> list[PoisonSignal]:
@@ -185,8 +241,22 @@ def _scan_text(text: str, where: str) -> list[PoisonSignal]:
 
 
 def scan_for_poison(artifact) -> list[PoisonSignal]:
-    """Просканировать артефакт на маркеры отравления контекста."""
-    return _dedupe(_scan(artifact))
+    """Просканировать артефакт на маркеры отравления контекста.
+
+    Сканируются и значения, и имена полей (см. _walk_keys): имя — тоже
+    носитель данных, инструкция в ключе читается агентом не хуже, чем
+    в значении. Дыра закрыта 06.10.2026, найдена тестом моста BRIDGE.
+    """
+    signals = _scan(artifact)
+    for key_path, key_text in _walk_keys(artifact):
+        for s in _scan_key(key_text, key_path):
+            if s.kind in ("ignore_previous", "disregard_context", "forget_instructions",
+                          "prompt_injection", "role_override", "conceal_from_user",
+                          "conceal_from_user_ru", "exfiltrate_secrets"):
+                s.severity = "critical"
+                s.kind = f"injection_in_key:{_key_of(key_path)}"
+            signals.append(s)
+    return _dedupe(signals)
 
 
 def _dedupe(signals: list[PoisonSignal]) -> list[PoisonSignal]:
