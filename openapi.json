@@ -1,0 +1,76 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "attest — слой доверия к артефактам и контрактам агентов",
+    "version": "0.1.0",
+    "description": "Проверка артефакта агента перед оплатой и аудит Solidity-контрактов по 14 известным классам уязвимостей."
+  },
+  "x402": {
+    "version": 1,
+    "network": "eip155:8453",
+    "chain_id": 8453,
+    "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "facilitator": "PayAI",
+    "note": "ETH не требуется: газ платит фасилитатор"
+  },
+  "paths": {
+    "/verify": {
+      "post": {
+        "summary": "Проверить артефакт агента",
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {
+            "type": "object",
+            "properties": {
+              "artifact": {"description": "Артефакт агента: объект, массив или строка"},
+              "schema": {"type": "object", "description": "Необязательная JSON Schema"}
+            },
+            "required": ["artifact"]}}}
+        },
+        "responses": {
+          "402": {"description": "Требуется оплата x402 (USDC на Base)"},
+          "200": {"description": "Вердикт проверенного артефакта"}
+        }
+      }
+    },
+    "/api/v1/contract-audit": {
+      "post": {
+        "summary": "Аудит Solidity-контракта",
+        "x402Price": "$0.005",
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {
+            "type": "object",
+            "properties": {
+              "source": {"type": "string", "description": "Исходный код Solidity"}
+            },
+            "required": ["source"]}}}
+        },
+        "responses": {
+          "402": {"description": "Требуется оплата x402"},
+          "200": {
+            "description": "Результат проверки",
+            "content": {"application/json": {"schema": {
+              "type": "object",
+              "properties": {
+                "clean": {"type": "boolean"},
+                "worst_severity": {"type": "string", "enum": ["none","low","medium","high","critical"]},
+                "risk_score": {"type": "integer", "minimum": 0, "maximum": 100},
+                "findings": {"type": "array", "items": {"type": "object"}}
+              }
+            }}}
+          }
+        }
+      }
+    },
+    "/api/v1/rules": {
+      "get": {
+        "summary": "Список проверяемых классов уязвимостей",
+        "responses": {"200": {"description": "Манифест правил сканера"}}
+      }
+    },
+    "/health": {
+      "get": {"summary": "Живость сервиса", "responses": {"200": {"description": "OK"}}}
+    }
+  }
+}

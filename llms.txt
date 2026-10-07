@@ -72,3 +72,33 @@ python3 -m pytest -q     # 138 passed
 - Репозиторий: https://github.com/mrpkk/attest
 - Связанный проект (оплата вызовов): https://github.com/mrpkk/agentpay
 - Спонсор: USDC, сеть Base, адрес в README
+## Аудит смарт-контрактов (verify-contract)
+
+Проверяет Solidity-исходник на 14 известных классов уязвимостей:
+reentrancy, delegatecall, selfdestruct, tx.origin, непроверенный
+low-level call, вывод средств без прав, block.timestamp, block.number,
+uninitialized proxy, слабый PRNG, ecrecover без проверки, публичный mint,
+assembly, .transfer.
+
+Цена: $0.005 за контракт. Себестоимость нулевая — процессорное время.
+Возвращает: risk_score 0-100, список находок с критичностью, строкой,
+объяснением и исправлением.
+
+ПОЧЕМУ СТОИТ ДЕШЕВО: Code4rena закрылся после 5 лет (1607 high-severity
+уязвимостей найдено, 26898 находок). Ручной аудит стоит $5K-$250K, малый
+протокол не аудируется вообще. Сканер — фильтр перед дорогим аудитом и
+средство прогонять проверку при каждом мерже.
+
+ГРАНИЦА: сканер работает по исходному коду, не исполняет контракт, не
+формальная верификация. Чистый результат означает «чисто по этим правилам»,
+а не «контракт безопасен». Точность против человеческого аудита ориентировочно
+40-60% для high-severity.
+
+ПРИМЕР ВЫЗОВА:
+    curl -X POST https://<host>/api/v1/contract-audit \
+      -H "Content-Type: application/json" \
+      -d '{"source": "pragma solidity ^0.8.20; contract C {...}"}'
+
+ОТВЕТ:
+    {"risk_score": 20, "worst_severity": "critical",
+     "findings": [{"rule": "reentrancy-eth", "line": 10, ...}]}

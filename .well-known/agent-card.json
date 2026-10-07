@@ -1,0 +1,127 @@
+{
+  "protocolVersion": "0.3.0",
+  "name": "attest",
+  "description": "Trust layer for AI agents: verify artifacts before payment, audit smart contracts, check receipts without a central server",
+  "url": "https://mrpkk.github.io/portfolio/demos/attest/verify",
+  "provider": {
+    "organization": "attest",
+    "url": "https://mrpkk.github.io/portfolio/demos/attest"
+  },
+  "version": "0.0.0",
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "defaultInputModes": [
+    "application/json"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ],
+  "authentication": {
+    "schemes": [
+      "x402"
+    ],
+    "credentials": "USDC on Base mainnet (eip155:8453). Без аккаунта и API-ключа: бесплатный лимит, потом вызов с заголовком PAYMENT-SIGNATURE (x402 v2) или X-PAYMENT (x402 v1)."
+  },
+  "payment": {
+    "protocol": "x402",
+    "network": "eip155:8453",
+    "asset": "USDC",
+    "discovery": "https://mrpkk.github.io/portfolio/demos/attest/.well-known/x402"
+  },
+  "skills": [
+    {
+      "id": "verify",
+      "name": "Verify artifact",
+      "description": "Verify an agent artifact before payment: schema, prompt injection in values and field names, provenance",
+      "tags": [
+        "verification",
+        "security",
+        "prompt-injection"
+      ],
+      "examples": [
+        "{\"artifact\": {\"city\": \"Berlin\", \"temp_c\": 18.5, \"conditions\": \"clear\"}, \"schema\": {\"type\": \"object\", \"required\": [\"city\", \"temp_c\"], \"properties\": {\"city\": {\"type\": \"string\"}, \"temp_c\": {\"type\": \"number\"}}}, \"source\": \"weather-tool\"}"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ],
+      "endpoint": "https://mrpkk.github.io/portfolio/demos/attest/api/v1/proxy/verify"
+    },
+    {
+      "id": "verify",
+      "name": "Verify artifact",
+      "description": "Audit a Solidity contract against 14 known vulnerability classes; returns risk score 0-100 with line-level findings",
+      "tags": [
+        "verification",
+        "security",
+        "prompt-injection"
+      ],
+      "examples": [
+        "{\"artifact\": {\"city\": \"Berlin\", \"temp_c\": 18.5, \"conditions\": \"clear\"}, \"schema\": {\"type\": \"object\", \"required\": [\"city\", \"temp_c\"], \"properties\": {\"city\": {\"type\": \"string\"}, \"temp_c\": {\"type\": \"number\"}}}, \"source\": \"weather-tool\"}"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ],
+      "endpoint": "https://mrpkk.github.io/portfolio/demos/attest/api/v1/proxy/contract-audit"
+    },
+    {
+      "id": "verify",
+      "name": "Verify artifact",
+      "description": "Check a signed receipt from BRIDGE without access to the bridge database: signature and artifact fingerprint",
+      "tags": [
+        "verification",
+        "security",
+        "prompt-injection"
+      ],
+      "examples": [
+        "{\"artifact\": {\"city\": \"Berlin\", \"temp_c\": 18.5, \"conditions\": \"clear\"}, \"schema\": {\"type\": \"object\", \"required\": [\"city\", \"temp_c\"], \"properties\": {\"city\": {\"type\": \"string\"}, \"temp_c\": {\"type\": \"number\"}}}, \"source\": \"weather-tool\"}"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ],
+      "endpoint": "https://mrpkk.github.io/portfolio/demos/attest/api/v1/proxy/bridge-check"
+    }
+  ],
+  "x402": {
+    "version": [
+      1,
+      2
+    ],
+    "network": "eip155:8453",
+    "chain_id": 8453,
+    "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "facilitator": "PayAI"
+  },
+  "services": [
+    {
+      "path": "/api/v1/proxy/verify",
+      "description": "Verify an agent artifact before payment: schema, prompt injection in values and field names, provenance",
+      "price_usd": 0.005,
+      "try_free": ""
+    },
+    {
+      "path": "/api/v1/proxy/contract-audit",
+      "description": "Audit a Solidity contract against 14 known vulnerability classes; returns risk score 0-100 with line-level findings",
+      "price_usd": 0.005,
+      "try_free": ""
+    },
+    {
+      "path": "/api/v1/proxy/bridge-check",
+      "description": "Check a signed receipt from BRIDGE without access to the bridge database: signature and artifact fingerprint",
+      "price_usd": 0.002,
+      "try_free": ""
+    }
+  ],
+  "docs": "https://mrpkk.github.io/portfolio/demos/attest/llms.txt"
+}

@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "resources": [
+    "https://mrpkk.github.io/portfolio/demos/attest/api/v1/proxy/verify",
+    "https://mrpkk.github.io/portfolio/demos/attest/api/v1/proxy/contract-audit",
+    "https://mrpkk.github.io/portfolio/demos/attest/api/v1/proxy/bridge-check"
+  ]
+}
