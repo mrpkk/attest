@@ -62,7 +62,19 @@
       `importorskip`) — CI зелёный, а половина тестов не выполняется.
       Проверено на чистой копии репо в чистом venv (без соседнего
       `../agentpay`, как в CI): `235 passed, 0 skipped`; selftest → 1 и 0;
-      SARIF → 1 run, 2 results, все поля находок на месте
+      SARIF → 1 run, 2 results, все поля находок на месте. Коммит `ddf44b9`.
+- [x] Д9 CI зелёный после фикса: run `37638890522` (`main`) → `success`,
+      3/3 джобы (`tests` 20s, `selftest` 17s, `audit` 16s). Повторная
+      проверка на этом же коммите: чистый venv + `pip install -e ".[dev]"`
+      → `235 passed`; selftest → 1 и 0; `actionlint 1.7.7` → exit 0.
+      **Принято решение (автопилот):** версии экшенов (`checkout@v4`,
+      `setup-python@v5`) НЕ бампить — аннотация про Node.js 20 лишь
+      предупреждение и CI не валит, а смена версий экшенов отдельное
+      изменение с риском. **Уязвимость, найденная автопилотом:** хук
+      `pre-commit install` прописал `INSTALL_PYTHON=/tmp/opencode/pc-venv/...`
+      — после перезагрузки /tmp пустой и коммиты блокируются. pre-commit
+      переустановлен в стабильный `/home/iamthat/.local/share/pre-commit-venv`,
+      хук перепрописан, `pre-commit run --all-files` → exit 0
 
 ---
 

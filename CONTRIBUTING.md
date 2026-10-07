@@ -4,19 +4,36 @@
 
 ## Что нужно
 
-- Python 3.10+
+- Python 3.11+ (`requires-python` в `pyproject.toml`)
 - **Живой прогон тестов** — критерий «готово» это вывод команды, а не обещание
 
 ## Как начать
 
 ```bash
-git clone https://github.com/mrpkk/REPO.git
-cd REPO
+git clone https://github.com/mrpkk/attest.git
+cd attest
 python3 -m pip install -e ".[dev]"
 python3 -m pytest tests/ -q
 ```
 
 Если тесты не зелёные до твоих правок — напиши, это важно.
+
+## pre-commit и CI
+
+Хуки локальные, без внешних репозиториев (нечего качать с сети):
+
+```bash
+python3 -m pip install pre-commit     # один раз
+pre-commit install                    # один раз в клоне
+pre-commit run --all-files             # прогон вручную
+```
+
+Каждый коммит прогоняет: `pytest -q -x`, аудит staged `*.sol` (код 1 валит
+коммит) и запрет секретов в diff'е. То же самое на каждый push делает
+GitHub Action `.github/workflows/audit.yml` — три джобы: тесты, selftest
+сканера (уязвимый образец → 1, чистый → 0) и аудит всех `*.sol` с выгрузкой
+SARIF. Если CI красный, а локально зелёно — сначала посмотри логи Action,
+а не откатывай тесты.
 
 ## Правила
 
