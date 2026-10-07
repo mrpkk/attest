@@ -50,6 +50,19 @@
       временных `*.sol` → код 1, SARIF валиден (1 run, 2 results),
       рабочие файлы удалены. Принято решение (автопилот): selftest-образцы
       генерируются в CI, уязвимый код не коммитится в репозиторий
+- [x] Д9 Починка первого запуска CI (run `37636004295`, `main`, failure):
+      джоба `selftest` была зелёной, `tests` падала на `ImportError:
+      agentpay`, `audit` — skipped. Причина: зависимости тестов нигде не
+      были объявлены. В `pyproject.toml` объявлено — `eth-account` как
+      рантайм-зависимость пакета (`attest/payment.py`, ленивый импорт), в
+      extra `dev` — `pycryptodome` (`Crypto.Hash.keccak` в тесте подписи) и
+      `agentpay @ git+https://github.com/mrpkk/agentpay.git` (публичный
+      репозиторий: клиентский x402 + сверка таблиц доменов). Без объявления
+      `test_payment.py` пропускался бы **молча** (module-level
+      `importorskip`) — CI зелёный, а половина тестов не выполняется.
+      Проверено на чистой копии репо в чистом venv (без соседнего
+      `../agentpay`, как в CI): `235 passed, 0 skipped`; selftest → 1 и 0;
+      SARIF → 1 run, 2 results, все поля находок на месте
 
 ---
 

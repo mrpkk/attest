@@ -3,7 +3,10 @@ name = "attest"
 version = "0.1.0"
 description = "Слой доверия к артефактам AI-агентов: схема, отравление контекста, provenance"
 requires-python = ">=3.11"
-dependencies = []
+# eth-account нужен пакету: attest/payment.py проверяет подпись EIP-712
+# эталонной реализацией (ленивый импорт внутри verify-функции). Без него
+# CI получал бы «зелёный» прогон с молча пропущенным test_payment.py.
+dependencies = ["eth-account>=0.9"]
 
 license = { text = "Apache-2.0" }
 keywords = ["ai-agents", "trust", "verification", "x402", "usdc"]
@@ -24,7 +27,15 @@ Issues = "https://github.com/mrpkk/attest/issues"
 Sponsor = "https://github.com/sponsors/mrpkk"
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+dev = [
+    "pytest>=7",
+    # pycryptodome — `Crypto.Hash.keccak` в тесте побайтового совпадения подписи
+    "pycryptodome>=3.19",
+    # agentpay — соседний репозиторий: клиентский x402 и таблицы доменов.
+    # Тесты сверяют наши константы с ним, поэтому он обязателен для прогона,
+    # а не «если вдруг установлен». Публичный репозиторий, pip тянет сам.
+    "agentpay @ git+https://github.com/mrpkk/agentpay.git",
+]
 
 [project.scripts]
 attest = "attest.cli:main"
