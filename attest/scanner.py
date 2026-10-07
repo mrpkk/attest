@@ -857,11 +857,11 @@ class Verdict:
         # регулярки, читатель отчёта должен это увидеть, а не догадываться.
         engine = f" · движок {self.engine.upper()}"
         if self.clean:
-            return (f"CLEAN · риск {self.score()}/100 · "
+            return (f"CLEAN · оценка {self.score()}/100 (100 = чисто) · "
                     f"{self.lines_checked} строк, {self.rules_run} правил{engine}")
         c = self.counts()
         parts = [f"{k}={v}" for k, v in c.items() if v]
-        return (f"{self.worst.upper()} · риск {self.score()}/100 · "
+        return (f"{self.worst.upper()} · оценка {self.score()}/100 (100 = чисто) · "
                 f"{len(self.findings)} находок ({', '.join(parts)}){engine}")
 
 

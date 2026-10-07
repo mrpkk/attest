@@ -192,7 +192,10 @@ def test_as_dict_shape():
 
 def test_summary_is_readable():
     s = check(VULNERABLE).summary()
-    assert "риск" in s and "находок" in s
+    assert "оценка" in s and "находок" in s
+    # 100 = чисто. Подпись обязана говорить это прямо: «риск 0/100»
+    # читается как «риска нет», хотя 0 здесь — худший балл.
+    assert "100 = чисто" in s
     assert "CLEAN" in check(CLEAN).summary()
 
 

@@ -84,6 +84,40 @@ class ConfigError(ValueError):
     """Вход не разобран: отказ проверки, а не находка и не «чисто»."""
 
 
+# ------------------------------------------------------------- проверка формы
+
+#: путь -> допустимые типы. Только структура: логические значения и их
+#: осмысленность проверяют сами правила (например, `true` как порог
+#: отсекает `_is_int`). Здесь ловится лишь то, из-за чего проверка
+#: упала бы с AttributeError на документе из чужого источника.
+_SHAPE: tuple[tuple[str, type | tuple[type, ...]], ...] = (
+    ("domain", dict),
+    ("domain.name", (str,)),
+    ("domain.version", (str,)),
+    ("domain.verifyingContract", (str,)),
+    ("multisig", dict),
+    ("multisig.address", (str,)),
+    ("multisig.owners", (list,)),
+    ("multisig.modules", (list,)),
+    ("roles", (list,)),
+    ("signature_policy", dict),
+    ("signature_policy.deadline", (int, str)),
+)
+
+
+def _validate_shape(cfg: dict) -> None:
+    """Отказ на структурно негодном документе: лучше честная ошибка,
+    чем находка на мусоре или падение с AttributeError."""
+    for path, expected in _SHAPE:
+        val, present = _get(cfg, path)
+        if not present or isinstance(val, expected):
+            continue
+        names = expected if isinstance(expected, tuple) else (expected,)
+        want = " или ".join(n.__name__ for n in names)
+        raise ConfigError(f"{path}: ожидалось {want}, получено "
+                          f"{type(val).__name__}")
+
+
 # ---------------------------------------------------------------- пути
 
 def _get(cfg: dict, path: str):
@@ -609,15 +643,15 @@ class ConfigVerdict(Verdict):
     def summary(self) -> str:
         engine = f" · движок {self.engine.upper()}"
         if self.clean:
-            return (f"CLEAN · риск {self.score()}/100 · "
+            return (f"CLEAN · оценка {self.score()}/100 (100 = чисто) · "
                     f"{self.lines_checked} строк, {self.rules_run} правил{engine}")
         c = self.counts()
         parts = [f"{k}={v}" for k, v in c.items() if v]
         if self.findings:
-            head = (f"{self.worst.upper()} · риск {self.score()}/100 · "
+            head = (f"{self.worst.upper()} · оценка {self.score()}/100 (100 = чисто) · "
                     f"{len(self.findings)} находок ({', '.join(parts)})")
         else:
-            head = (f"НЕ ПРОВЕРЕНО · риск {self.score()}/100 · "
+            head = (f"НЕ ПРОВЕРЕНО · оценка {self.score()}/100 (100 = чисто) · "
                     f"0 находок (поля документа отсутствуют)")
         if self.unverified:
             head += f" · без полей: {len(self.unverified)}"
@@ -644,6 +678,7 @@ def check_config(raw: str) -> ConfigVerdict:
 def check(cfg: dict, *, raw: str | None = None) -> ConfigVerdict:
     """Проверить словарь конфигурации. `raw` — исходный текст для номеров
     строк; без него берётся каноничная сериализация."""
+    _validate_shape(cfg)
     raw = raw if raw is not None else json.dumps(cfg, ensure_ascii=False,
                                                  indent=2)
     findings: list[Finding] = []
