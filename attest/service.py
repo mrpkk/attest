@@ -22,12 +22,14 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 from . import __version__
 from .core import attest
 from .payment import PaymentError
+from .x402 import atomic_to_usd, agent_card, discovery_document
 
 DEFAULT_FREE_DAILY = 20
 MAX_BODY_BYTES = 512 * 1024
@@ -214,6 +216,37 @@ fetch('/stats').then(r=>r.json()).then(d=>{if(d.free_remaining!==undefined)$('le
 
 BAZAAR_SERVICE_NAME = "attest"
 BAZAAR_TAGS = ["verification", "security", "mcp", "agent-safety"]
+
+# Манифесты (Д6): агент находит продукт по стандартным путям, без README
+# и без регистрации. Файлы лежат в корне репозитория, сервис отдаёт их же.
+MANIFEST_FILES = ("llms.txt", "SKILL.md", "openapi.json")
+MANIFEST_MIME = {
+    "llms.txt": "text/plain; charset=utf-8",
+    "SKILL.md": "text/markdown; charset=utf-8",
+    "openapi.json": "application/json; charset=utf-8",
+}
+VERIFY_DESCRIPTION = "Deterministic verification of an agent artifact"
+
+
+def resolve_manifest(name: str) -> Path | None:
+    """Найти файл манифеста.
+
+    Порядок: ATTEST_MANIFEST_DIR (тесты/деплой) → корень репозитория или
+    каталога установленного пакета → файлы, положенные внутрь пакета.
+    """
+    if name not in MANIFEST_FILES:
+        raise ValueError(f"неизвестный манифест: {name}")
+    candidates: list[Path] = []
+    env_dir = os.environ.get("ATTEST_MANIFEST_DIR")
+    if env_dir:
+        candidates.append(Path(env_dir) / name)
+    here = Path(__file__).resolve().parent
+    candidates.append(here.parent / name)
+    candidates.append(here / name)
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
 
 USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 USDC_BASE_SEPOLIA = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
@@ -421,7 +454,7 @@ def build_challenge(
     `pay_to` обязан быть задан. Молча пропущенный адрес — это либо
     «все платежи уйдут неизвестно куда», и подпись это не спасёт.
     """
-    if not pay_to or not re.fullmatch(r"0x[a-fA-F]{40}", pay_to):
+    if not pay_to or not re.fullmatch(r"0x[a-fA-F0-9]{40}", pay_to):
         raise ValueError("pay_to должен быть адресом 0x… из 40 шестнадцатеричных знаков")
     if price_atoms <= 0:
         raise ValueError("price_atoms должен быть положительным")
@@ -523,6 +556,18 @@ class AttestHandler(BaseHTTPRequestHandler):
                     "note": None if self.x402_pay_to else "кошелёк не настроен (ATTEST_PAY_TO пуст)",
                 },
             })
+        elif path in ("/.well-known/x402", "/.well-known/x402.json"):
+            self._send_json(200, self._x402_discovery_doc())
+        elif path == "/.well-known/agent-card.json":
+            self._send_json(200, agent_card(
+                name=BAZAAR_SERVICE_NAME,
+                description=VERIFY_DESCRIPTION,
+                base_url=self._base_url(),
+                services=self._catalog_services(),
+                version=__version__,
+            ))
+        elif path.lstrip("/") in MANIFEST_FILES:
+            self._serve_manifest(path.lstrip("/"))
         else:
             self._send_json(404, {"error": "нет такого пути", "path": path})
 
@@ -620,9 +665,8 @@ class AttestHandler(BaseHTTPRequestHandler):
                 "приём оплаты не настроен: кошелёк не задан (ATTEST_PAY_TO пуст)",
                 status=503,
             )
-        host = self.headers.get("Host") or "attest.local"
         token, challenge = build_challenge(
-            resource=f"http://{host}/verify",
+            resource=f"{self._base_url()}/verify",
             pay_to=self.x402_pay_to,
             price_atoms=self.x402_price_atoms,
         )
@@ -654,6 +698,98 @@ class AttestHandler(BaseHTTPRequestHandler):
             }
         return body
 
+    def _base_url(self) -> str:
+        """Абсолютный базовый URL, по которому нас видит клиент.
+
+        За прокси с HTTPS Host один, а схема — в X-Forwarded-Proto: собирать
+        `http://` из Host вслепую значит выдать клиенту resource, по которому
+        он подпишет платёж, а мы его при проверке не узнаем.
+        """
+        env = (os.environ.get("ATTEST_BASE_URL") or "").rstrip("/")
+        if env:
+            return env
+        host = self.headers.get("Host") or "attest.local"
+        proto = (self.headers.get("X-Forwarded-Proto") or "").split(",")[0].strip()
+        if proto in ("http", "https"):
+            scheme = proto
+        else:
+            scheme = "http" if host.startswith(("localhost", "127.", "[::1")) else "https"
+        return f"{scheme}://{host}"
+
+    def _catalog_services(self) -> list[dict[str, Any]]:
+        """Список услуг для каталогов: path + description + цена в USD."""
+        return [
+            {
+                "path": "/verify",
+                "description": VERIFY_DESCRIPTION,
+                "price_usd": atomic_to_usd(self.x402_price_atoms),
+            }
+        ]
+
+    def _serve_manifest(self, name: str) -> None:
+        """Отдать файл манифеста. Нет файла — честный 404, а не пустой 200."""
+        path = resolve_manifest(name)
+        if path is None:
+            self._send_json(404, {
+                "error": f"манифест {name} не найден",
+                "hint": "файлы лежат в корне репозитория; задайте ATTEST_MANIFEST_DIR",
+            })
+            return
+        body = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", MANIFEST_MIME[name])
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _x402_discovery_doc(self) -> dict[str, Any]:
+        """`.well-known/x402` — каталог в формате живого agentsvc.io.
+
+        accepts берём из того же build_challenge, что и заголовок
+        Payment-Required: каталог и реальный челлендж не могут разойтись.
+        """
+        base = self._base_url()
+        doc = discovery_document(base_url=base, services=self._catalog_services())
+        doc["x402Version"] = 2
+        doc["provider"] = BAZAAR_SERVICE_NAME
+        doc["facilitator"] = "PayAI"
+        doc["items"] = []
+        doc["total"] = 0
+        if self.x402_pay_to:
+            try:
+                _, challenge = build_challenge(
+                    resource=f"{base}/verify",
+                    pay_to=self.x402_pay_to,
+                    price_atoms=self.x402_price_atoms,
+                )
+            except (ValueError, TypeError) as exc:
+                doc["note"] = f"челлендж не собран: {exc}"
+            else:
+                doc["items"] = [{
+                    "resource": f"{base}/verify",
+                    "type": "http",
+                    "x402Version": 2,
+                    "method": "POST",
+                    "accepts": challenge["accepts"],
+                    "lastUpdated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "metadata": {
+                        "name": "Verify artifact",
+                        "description": VERIFY_DESCRIPTION,
+                        "mimeType": "application/json",
+                        "category": "security",
+                        "tags": BAZAAR_TAGS,
+                        "price_usd": atomic_to_usd(self.x402_price_atoms),
+                    },
+                }]
+                doc["total"] = 1
+        else:
+            doc["note"] = (
+                "кошелёк не настроен (ATTEST_PAY_TO пуст): список ресурсов есть, "
+                "цены и адреса каталог не отдаёт"
+            )
+        doc["docs"] = f"{base}/llms.txt"
+        return doc
+
     def _challenge_header(self) -> str | None:
         """Заголовок `Payment-Required` для исчерпавшего лимит, если есть кошелёк.
 
@@ -662,10 +798,9 @@ class AttestHandler(BaseHTTPRequestHandler):
         """
         if not self.x402_pay_to:
             return None
-        host = self.headers.get("Host") or "attest.local"
         try:
             token, _ = build_challenge(
-                resource=f"http://{host}/verify",
+                resource=f"{self._base_url()}/verify",
                 pay_to=self.x402_pay_to,
                 price_atoms=self.x402_price_atoms,
             )

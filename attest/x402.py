@@ -212,13 +212,81 @@ def discovery_document(
     }
 
 
+# Реальный пример вызова /verify: то же тело гоняется в тестах манифестов
+# и живёт в openapi.json / llms.txt / SKILL.md. Одно тело — нигде не разъезжается.
+VERIFY_EXAMPLE_REQUEST: dict[str, Any] = {
+    "artifact": {
+        "city": "Berlin",
+        "temp_c": 18.5,
+        "conditions": "clear",
+    },
+    "schema": {
+        "type": "object",
+        "required": ["city", "temp_c"],
+        "properties": {
+            "city": {"type": "string"},
+            "temp_c": {"type": "number"},
+        },
+    },
+    "source": "weather-tool",
+}
+
+
 def agent_card(*, name: str, description: str, base_url: str,
-               services: list[Mapping[str, Any]]) -> dict[str, Any]:
-    """`/.well-known/agent-card.json` — карточка сервиса для агентов."""
+               services: list[Mapping[str, Any]], version: str = "0.0.0",
+               example_request: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """
+    `/.well-known/agent-card.json` — карточка сервиса для агентов.
+
+    Формат — A2A-карточка в том виде, в каком её отдаёт живой agentsvc.io
+    (снята 07.10.2026): protocolVersion, provider, capabilities, skills[]
+    с примерами. Поля `x402`, `services`, `docs` сохранены — по ним карточку
+    читают наши же тесты и соседний agentpay.
+    """
+    example = dict(example_request) if example_request else dict(VERIFY_EXAMPLE_REQUEST)
     return {
+        # --- A2A-часть по образцу agentsvc.io ---
+        "protocolVersion": "0.3.0",
         "name": name,
         "description": description,
-        "url": base_url,
+        "url": f"{base_url}/verify",
+        "provider": {"organization": name, "url": base_url},
+        "version": version,
+        "capabilities": {
+            "streaming": False,
+            "pushNotifications": False,
+            "stateTransitionHistory": False,
+        },
+        "defaultInputModes": ["application/json"],
+        "defaultOutputModes": ["application/json"],
+        "authentication": {
+            "schemes": ["x402"],
+            "credentials": (
+                "USDC on Base mainnet (eip155:8453). Без аккаунта и API-ключа: "
+                "бесплатный лимит, потом вызов с заголовком PAYMENT-SIGNATURE "
+                "(x402 v2) или X-PAYMENT (x402 v1)."
+            ),
+        },
+        "payment": {
+            "protocol": "x402",
+            "network": NETWORK_BASE,
+            "asset": "USDC",
+            "discovery": f"{base_url}/.well-known/x402",
+        },
+        "skills": [
+            {
+                "id": "verify",
+                "name": "Verify artifact",
+                "description": s["description"],
+                "tags": ["verification", "security", "prompt-injection"],
+                "examples": [json.dumps(example, ensure_ascii=False)],
+                "inputModes": ["application/json"],
+                "outputModes": ["application/json"],
+                "endpoint": f"{base_url}{s['path']}",
+            }
+            for s in services
+        ],
+        # --- Наша расширенная часть (обратная совместимость) ---
         "x402": {
             "version": X402_VERSIONS,
             "network": NETWORK_BASE,
@@ -231,10 +299,9 @@ def agent_card(*, name: str, description: str, base_url: str,
                 "path": s["path"],
                 "description": s["description"],
                 "price_usd": s["price_usd"],
-                "try_free": f"{base_url}/api/v1/try{s['path'].split('/api/v1/proxy')[0]}"
-                if "/api/v1/proxy" in s["path"] else "",
+                "try_free": "",
             }
             for s in services
         ],
-        "docs": f"{base_url}/docs",
+        "docs": f"{base_url}/llms.txt",
     }

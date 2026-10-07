@@ -264,8 +264,12 @@ class TestExhaustion:
         import re as _re
 
         good = "0x" + "a" * 40
-        assert _re.fullmatch(r"0x[a-fA-F]{40}", good)
-        assert not _re.fullmatch(r"0x[a-fA-F]{40}", "0x" + "a" * 39)
+        # Реальный адрес PayAI/agentsvc — с цифрами внутри. Пропуск 0-9
+        # в классе знаков = челлендж не собирается (баг 07.10.2026).
+        real = "0x622efA6Ceb83a5b6EdBC931332f4db68B7f74F27"
+        assert _re.fullmatch(r"0x[a-fA-F0-9]{40}", good)
+        assert _re.fullmatch(r"0x[a-fA-F0-9]{40}", real)
+        assert not _re.fullmatch(r"0x[a-fA-F0-9]{40}", "0x" + "a" * 39)
 
     def test_exhaustion_without_wallet_stays_honest(self, server, monkeypatch):
         """Нет кошелька — не выдумываем адрес, а говорим прямо."""

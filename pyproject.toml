@@ -29,6 +29,7 @@ dev = ["pytest>=7"]
 [project.scripts]
 attest = "attest.cli:main"
 bridge = "bridge_cli:main"
+audit = "audit_cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]
