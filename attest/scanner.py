@@ -264,6 +264,81 @@ class Finding:
         }
 
 
+# ---------------------------------------------------------- векторы риска
+#
+# Доли стоимости потерь по векторам (источники — docs/RISK-SCORE-METHODOLOGY.md):
+#   инфраструктура 76% · логика 12% · дизайн 8% · экономика 4%
+# (TRM Labs за 2025: code exploits 12,1% стоимости, infrastructure 76%.)
+#
+# Раньше находка «одна критическая ошибка в коде» и «мультисиг на одном
+# ключе» стоили одинаково — для страховщика это неверно: убытки приходят
+# из инфраструктуры. Теперь вектор виден в отчёте и в JSON.
+
+VECTOR_INFRA = "infrastructure"
+VECTOR_LOGIC = "logic"
+VECTOR_DESIGN = "design"
+VECTOR_ECONOMIC = "economic"
+
+#: Доля стоимости потерь на вектор. Сумма = 100.
+VECTOR_LOSS_SHARE: dict[str, int] = {
+    VECTOR_INFRA: 76,
+    VECTOR_LOGIC: 12,
+    VECTOR_DESIGN: 8,
+    VECTOR_ECONOMIC: 4,
+}
+
+#: Правило → вектор. Ключи — ровно те, что отдают RULES.
+RULE_VECTOR: dict[str, str] = {
+    # инфраструктура: компрометация не логики, а контроля
+    "tx-origin": VECTOR_INFRA,
+    "ecrecover-zero-address": VECTOR_INFRA,
+    "uninitialized-proxy": VECTOR_INFRA,
+    "delegatecall": VECTOR_INFRA,
+    # логика контракта
+    "reentrancy-eth": VECTOR_LOGIC,
+    "arbitrary-send": VECTOR_LOGIC,
+    "public-mint": VECTOR_LOGIC,
+    "eth-transfer": VECTOR_LOGIC,
+    "unchecked-lowlevel": VECTOR_LOGIC,
+    # дизайн: то, что ломает композицию, а не исполнение
+    "block-timestamp": VECTOR_DESIGN,
+    "block-number": VECTOR_DESIGN,
+    "selfdestruct": VECTOR_DESIGN,
+    "assembly-inline": VECTOR_DESIGN,
+    # экономика: недетерминированность и предсказуемость
+    "weak-prng": VECTOR_ECONOMIC,
+    # инфраструктура: ключи, роли, мультисиг, политика подписи.
+    # Это тот самый слой, который стоит 76% потерь и который не смотрит
+    # ни один аудит кода.
+    "domain-chain-id": VECTOR_INFRA,
+    "domain-verifying-contract": VECTOR_INFRA,
+    "domain-mismatch": VECTOR_INFRA,
+    "domain-identifiers": VECTOR_INFRA,
+    "threshold-invalid": VECTOR_INFRA,
+    "threshold-minority": VECTOR_INFRA,
+    "threshold-single": VECTOR_INFRA,
+    "threshold-all-owners": VECTOR_INFRA,
+    "owners-duplicate": VECTOR_INFRA,
+    "role-overlap": VECTOR_INFRA,
+    "role-single-key": VECTOR_INFRA,
+    "upgrade-timelock": VECTOR_INFRA,
+    "owner-operator-concentration": VECTOR_INFRA,
+    "signature-no-deadline": VECTOR_INFRA,
+    "signature-age-long": VECTOR_INFRA,
+    "signature-no-nonce": VECTOR_INFRA,
+    "signature-expired": VECTOR_INFRA,
+}
+
+#: Штраф за находку по severity. Версия весов входит в отчёт: оценка
+#: обязана быть воспроизводима — без версии через год нельзя доказать,
+#: по каким правилам она считалась.
+SCORE_VERSION = "1.0"
+
+SEVERITY_PENALTY: dict[str, int] = {
+    "critical": 40, "high": 15, "medium": 6, "low": 2,
+}
+
+
 SEVERITY_ORDER = {"critical": 4, "high": 3, "medium": 2, "low": 1}
 # Комментарии и строки убираются ДВАЖДЫ: двумя паттернами, а не одним.
 # Найдено тестом: один паттерн с re.DOTALL съедал весь файл целиком,
@@ -829,16 +904,46 @@ class Verdict:
             c[f.severity] += 1
         return c
 
+    def penalty_total(self) -> int:
+        """Сумма штрафов. В отчёте идёт рядом со score: при насыщении
+        (оценка уперлась в 0) по самой оценке нельзя отличить три
+        критические находки от двадцати, а по штрафу — можно."""
+        return sum(SEVERITY_PENALTY.get(f.severity, 0) for f in self.findings)
+
     def score(self) -> int:
-        """Штраф за находки. 100 — чисто. Не «безопасность», а риск-скор."""
-        penalty = {"critical": 40, "high": 15, "medium": 6, "low": 2}
-        return max(0, 100 - sum(penalty[f.severity] for f in self.findings))
+        """Оценка 0-100, где 100 — чисто. Не «безопасность», а риск-скор."""
+        return max(0, 100 - self.penalty_total())
+
+    def vector_scores(self) -> dict[str, int]:
+        """Оценка по каждому вектору отдельно: сколько штрафа дал
+        инфраструктурный слой, сколько — логика кода. Страховщику
+        нужна эта разбивка, а не одно среднее число."""
+        out = {v: 100 for v in VECTOR_LOSS_SHARE}
+        for f in self.findings:
+            v = RULE_VECTOR.get(f.rule, VECTOR_LOGIC)
+            out[v] = max(0, out[v] - SEVERITY_PENALTY.get(f.severity, 0))
+        return out
+
+    def score_confidence(self) -> str:
+        """Насколько оценке можно верить. Непроверенное (unverified) —
+        это не «чисто»: пока поля не описаны, часть правил молчала."""
+        unv = getattr(self, "unverified", None) or []
+        if unv:
+            return "low" if len(unv) > 3 else "medium"
+        if not self.rules_run:
+            return "low"
+        return "high"
 
     def as_dict(self) -> dict:
         return {
             "clean": self.clean,
             "worst_severity": self.worst,
             "risk_score": self.score(),
+            "penalty_total": self.penalty_total(),
+            "score_version": SCORE_VERSION,
+            "score_confidence": self.score_confidence(),
+            "vector_scores": self.vector_scores(),
+            "vector_loss_share": dict(VECTOR_LOSS_SHARE),
             "counts": self.counts(),
             "lines_checked": self.lines_checked,
             "rules_run": self.rules_run,
