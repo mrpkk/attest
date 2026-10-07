@@ -75,6 +75,18 @@ def _re(p: str, flags: int = re.IGNORECASE) -> re.Pattern:
 
 # --------------------------------------------------------------- правила
 
+# ИЗМЕРЕНО 07.10.2026 на bhaga-protocol (38 файлов, 12 477 строк):
+# 137 из 221 находок регулярок — ложные, 121 из них дали block.timestamp
+# в сравнении с ДЕДЛАЙНОМ (claimDeadline, unlockTime, votingDelay).
+# Это корректный код: «прошёл ли срок», а не управление финансовой логикой.
+# Имена пишутся в разных стилях: claimDeadline, _claimDeadline, unlockTime,
+# votingDelay — поэтому (?i:) обязателен, иначе CamelCase не матчится.
+# Префикс идентификатора обязателен: claimDeadline, _claimDeadline,
+# unlockTime — ключевое слово стоит ВНУТРИ имени, а не в начале.
+_DEADLINE = (r"[A-Za-z0-9_$]*(?i:deadline|expir\w*|maturity|end_?time|until"
+             r"|closes_?at|unlock_?(time|at|date|ts)|voting_?delay|start_?block|valid_?until)")
+
+
 RULES: tuple[Rule, ...] = (
     # ---- critical: прямая потеря средств или контроля
     Rule(
@@ -153,6 +165,17 @@ RULES: tuple[Rule, ...] = (
         "        сдвиге времени в 15-минутном окне.",
         "Допуск ±15 минут на всю финансовую логику. Точное время — только для\n"
         "        статистики и задержек, не для расчёта выплат.",
+        # Сравнение с дедлайном — верный код (см. измерение выше).
+        # Обосновано измерением на bhaga-protocol (38 файлов, 12 477 строк):
+        #   а) timestamp в emit-событии и внутри keccak256 — безобидны,
+        #      на средства не влияют;
+        #   б) сравнение с ДЕДЛАЙНОМ в любом направлении — это проверка
+        #      «прошёл ли срок», а не управление финансовой логикой.
+        exclude_line=_re(r"emit\s+\w+\([^)]*block\.[a-z]+|"
+                         r"keccak256\s*\([^;]*block\.[a-z]+|"
+                         r"%s\s*[<>]=?\s*block\.|"
+                         r"block\.[^\n]*[<>]=?\s*\(?\s*%s"
+                         % (_DEADLINE, _DEADLINE)),
     ),
     Rule(
         "block-number",
@@ -203,6 +226,9 @@ RULES: tuple[Rule, ...] = (
         _re(r"function\s+mint\b"),
         "Если mint доступен всем, кто может вызвать — инфляция токена.",
         "Только owner или с лимитом на эпоху (cap).",
+        # Измерение: 3 ложных из-за отсутствия учёта right-above модификатора.
+        exclude_line=_re(r"onlyOwner|_?checkOwner|msg\.sender\s*!=|"
+                         r"require\s*\([^)]*sender"),
     ),
     Rule(
         "eth-transfer",
@@ -248,6 +274,7 @@ _STRING = re.compile(r'"(?:[^"\\]|\\.)*"', re.DOTALL)
 
 
 CONTEXT_LINES = 2   # строк вокруг находки, где ищем guard
+
 
 
 def _context(lines: list[str], line_no: int) -> str:
