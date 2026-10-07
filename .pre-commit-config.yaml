@@ -1,0 +1,32 @@
+# pre-commit для attest: локальные хуки, без внешних репозиториев —
+# нечего качать с сети, все проверки ходят в код репозитория.
+#
+# Установка (один раз):  pre-commit install
+# Запуск вручную:        pre-commit run --all-files
+#
+# Философия: хук не должен тормозить коммит минутами, поэтому тесты —
+# быстрые (235 тестов ≈ 1.5 с), а аудит — только по изменённым *.sol.
+
+repos:
+  - repo: local
+    hooks:
+      - id: pytest-fast
+        name: pytest (быстрый прогон)
+        entry: python3 -m pytest tests/ -q -x
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: audit-staged-sol
+        name: attest audit по staged *.sol
+        entry: bash -c 'status=0; for f in "$@"; do echo "→ $f"; python3 audit_cli.py "$f" --engine auto --quiet || status=1; done; exit $status' --
+        language: system
+        files: \.sol$
+        stages: [pre-commit]
+
+      - id: no-secrets
+        name: секреты не в коде (CONTRIBUTING.md, п.3)
+        entry: bash -c '! git diff --cached -U0 | grep -E "^\+" | grep -E "ghp_|sk-or-v1-|hf_|vk1\.a\.|AIza[0-9A-Za-z_-]{35}" | grep -v -E "pre-commit-config|audit\.yml"'
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
