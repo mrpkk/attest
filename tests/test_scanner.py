@@ -4,6 +4,7 @@ import pytest
 
 from attest.scanner import (
     check, scan, rules_manifest, RULES, Verdict, SEVERITY_ORDER,
+    ast_available, _AST_RULES,
 )
 
 VULNERABLE = """
@@ -183,8 +184,10 @@ def test_every_rule_has_severity_and_help():
 def test_as_dict_shape():
     d = check(VULNERABLE).as_dict()
     for k in ("clean", "worst_severity", "risk_score", "counts",
-              "lines_checked", "rules_run", "findings", "disclaimer"):
+              "lines_checked", "rules_run", "engine", "findings",
+              "disclaimer"):
         assert k in d
+    assert d["engine"] in ("ast", "regex")
 
 
 def test_summary_is_readable():
@@ -226,3 +229,63 @@ def test_realistic_multicontract_file():
     """
     keys = {f.rule for f in scan(src)}
     assert len(keys) >= 2
+
+
+# ------------------------------------- Д8: выбор движка и честность отчёта
+
+# Контракт компилируется (иначе AST построить нечем) и содержит настоящую
+# находку — чтобы проверка «движок отработал» не проходила на пустом наборе.
+COMPILED = """
+pragma solidity ^0.8.20;
+
+contract Compiled {
+    function probe(address target, bytes calldata data) external {
+        target.call(data);
+    }
+}
+"""
+
+BROKEN = "contract Broken { function f( {"   # не компилируется → regex
+
+
+def test_ast_engine_covers_all_rules():
+    """Контракт из докстринга `_AST_RULES`: наборы совпадают.
+
+    Если правило добавили только в RULES, AST о молчании найдёт его лишь
+    регулярками — и многстрочные конструкции снова станут ложными.
+    """
+    rule_keys = {r.key for r in RULES}
+    assert _AST_RULES == rule_keys, (
+        f"расхождение: только в RULES {sorted(rule_keys - _AST_RULES)}, "
+        f"только в _AST_RULES {sorted(_AST_RULES - rule_keys)}")
+
+
+def test_engine_reported_matches_availability():
+    """check() называет движок, который реально сработал."""
+    verdict = check(COMPILED)
+    assert verdict.engine == ("ast" if ast_available() else "regex")
+    assert verdict.engine.upper() in verdict.summary()
+    assert check(CLEAN).engine in ("ast", "regex")
+
+
+def test_engine_forced_regex():
+    assert check(COMPILED, engine="regex").engine == "regex"
+
+
+def test_engine_env_var(monkeypatch):
+    monkeypatch.setenv("ATTEST_SCANNER_ENGINE", "regex")
+    assert check(COMPILED).engine == "regex"
+    monkeypatch.setenv("ATTEST_SCANNER_ENGINE", "ast")
+    assert check(COMPILED).engine == ("ast" if ast_available() else "regex")
+
+
+def test_engine_raw_text_mode_is_regex():
+    """ignore_comments=False — просьба видеть комментарии, их AST не отдаёт."""
+    assert check(COMPILED, ignore_comments=False).engine == "regex"
+
+
+def test_engine_ast_falls_back_on_broken_code():
+    """engine="ast" на некомпилируемом коде не падает и не пропускает файл."""
+    v = check(BROKEN, engine="ast")
+    assert v.engine == "regex"
+    assert isinstance(v.findings, list)

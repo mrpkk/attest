@@ -25,18 +25,37 @@ SCANNER — поиск уязвимостей в Solidity по исходном�
 ЧЕСТНОСТЬ ОЦЕНКИ: сканер находит известные классы. Точность на реальных
 контрактах — ориентировочно 40-60% для high-severity находок против
 человеческого аудита. Это не «100% защита», это фильтр дешёвых ошибок.
+
+КАК СКАНИРУЕТСЯ (Д8, 07.10.2026): два движка под одними и теми же правилами.
+  · AST — solc разбирает исходник в дерево, правила читают структуру:
+    вызов, переменную, условие, порядок операторов в функции. Комментарии
+    и строки в нём отсутствуют физически, поэтому ложных срабатываний на
+    тексте не бывает в принципе.
+  · regex — исходное поведение по тексту, остаётся как фолбэк и как режим
+    `ignore_comments=False` (искать по сырому тексту явно просили регулярки).
+  Выбор: `engine="auto"` (по умолчанию) → AST, если установлен бинарь solc
+  и код компилируется, иначе regex. Принято решение (автопилот 07.10):
+  solc на лету НЕ скачиваем — это сеть и сюрприз в проде; контракт, который
+  не компилируется, всё равно сканируется, а не пропускается молча.
 """
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Iterable
 
 
 @dataclass(frozen=True)
 class Rule:
-    """Одно правило поиска. `severity` — цена находки, а не её громкость."""
+    """Одно правило поиска. `severity` — цена находки, а не её громкость.
+
+    `pattern` принадлежит движку regex. Движок AST читает те же `key`,
+    `severity`, `why`, `fix`, но находит место по структуре дерева — см.
+    `_AST_RULES` внизу файла.
+    """
 
     key: str
     title: str
@@ -196,6 +215,8 @@ RULES: tuple[Rule, ...] = (
     ),
 )
 
+RULE_INDEX = {r.key: r for r in RULES}
+
 
 # --------------------------------------------------------------- результат
 
@@ -249,8 +270,14 @@ def _strip_noise(code: str) -> str:
     return _BLOCK_COMMENT.sub(blank, _LINE_COMMENT.sub(blank, _STRING.sub(blank, code)))
 
 
-def scan(code: str, *, ignore_comments: bool = True) -> list[Finding]:
-    """Просканировать Solidity. Возвращает находки по убыванию критичности."""
+# --------------------------------------------- движок 1: регулярки (текст)
+#
+# Видят строку, не видят структуру. Поэтому окно CONTEXT_LINES вокруг
+# находки — эвристика, а проверка на три строки ниже вызова уже выпадает.
+# Остаётся основным инструментом для кода, который не компилируется, и
+# для режима ignore_comments=False.
+
+def _regex_findings(code: str, *, ignore_comments: bool = True) -> list[Finding]:
     src = _strip_noise(code) if ignore_comments else code
     lines = src.split("\n")
     out: list[Finding] = []
@@ -271,8 +298,483 @@ def scan(code: str, *, ignore_comments: bool = True) -> list[Finding]:
                 why=rule.why, fix=rule.fix, line=line_no, excerpt=excerpt,
             ))
 
-    out.sort(key=lambda f: (-SEVERITY_ORDER[f.severity], f.line))
     return out
+
+
+# ----------------------------------------------- движок 2: solc AST (дерево)
+#
+# Зачем второй движок. Регулярка не отличает `require(ok)` на строке ниже
+# вызова от `require(ok)` в другой функции: окно контекста ±2 строки — это
+# эвристика, и на многстрочных конструкциях она даёт ложные срабатывания
+# (проверено тестом test_multiline_check_outside_context_window). AST знает
+# напрямую, что именно проверяется и в каком порядке выполняются операторы.
+#
+# Порядок выбора — принято решение (автопилот, 07.10.2026):
+#   1. ignore_comments=False → всегда регулярки: запрос «искать по сырому
+#      тексту» включает комментарии, а AST их не видит в принципе;
+#   2. engine="auto" → AST, если установлен бинарь solc и код компилируется,
+#      иначе регулярки;
+#   3. engine="regex" / engine="ast" → принудительно; если AST построить
+#      нельзя, откат на регулярки: пропущенный контракт хуже неточной
+#      находки;
+#   4. solc на лету НЕ скачиваем — это сеть и сюрприз в проде. Контракт,
+#      который не компилируется (частая ситуация при сканировании чужих
+#      репозиториев), всё равно сканируется, а не молча пропускается.
+
+# Какие ключи правил умеет находить AST. Держать в согласии с RULES —
+# проверяется тестом test_ast_engine_covers_all_rules.
+#
+# Ловушки solc AST (найдены 07.10.2026, каждый пункт — молчаливый пропуск):
+#   * корень дерева под ключом `ast`, не `AST`;
+#   * Assignment: `leftHandSide`/`rightHandSide`, а не `lhs`/`rhs` —
+#     читать `lhs` значит не видеть присваиваний состоянию (reentrancy);
+#   * вызов вида `to.call{value: v}("")` завёрнут в `FunctionCallOptions`;
+#   * падение компиляции — не пропуск файла, а откат на regex.
+_AST_RULES = frozenset({
+    "reentrancy-eth", "delegatecall", "selfdestruct", "tx-origin",
+    "unchecked-lowlevel", "arbitrary-send", "block-timestamp",
+    "block-number", "uninitialized-proxy", "assembly-inline", "weak-prng",
+    "ecrecover-zero-address", "public-mint", "eth-transfer",
+})
+
+_LOWLEVEL = frozenset({"call", "delegatecall"})
+# Имена функций вывода средств: regex-правило arbitrary-send смотрит на них
+# же, чтобы поведение обоих движков совпадало.
+_SEND_FUNCS = frozenset({"withdraw", "rescueeth", "sendvalue", "transferout"})
+_GUARD_MODS = frozenset({"onlyowner", "_checkowner", "checkowner",
+                         "requireauth", "isauthorized"})
+_GUARD_CALLS = frozenset({"require", "assert"})
+_RNG_MEMBERS = frozenset({"timestamp", "prevrandao", "coinbase"})
+
+
+def _solc() -> tuple:
+    """(модуль solcx, установленные версии по убыванию) либо (None, [])."""
+    try:
+        import solcx
+        versions = sorted(solcx.get_installed_solc_versions(), reverse=True)
+    except Exception:
+        return None, []
+    return (solcx, versions) if versions else (None, [])
+
+
+def ast_available() -> bool:
+    """Доступен ли движок AST: нужен установленный бинарь solc."""
+    return _solc()[0] is not None
+
+
+@lru_cache(maxsize=64)
+def _compile_ast(code: str) -> dict | None:
+    """AST единого файла или None: solc нет / код не компилируется.
+
+    Кэш по тексту исходника: один и тот же контракт в тестах и в CLI
+    разбирается один раз. Словарь возвращается как есть — вызывающий его
+    не мутирует. Причина отказа не разбирается: и синтаксическая ошибка, и
+    несовпадение pragma ведут ровно в одно место — к regex-фолбэку.
+    """
+    solcx, versions = _solc()
+    if solcx is None:
+        return None
+    request = {
+        "language": "Solidity",
+        "sources": {"input.sol": {"content": code}},
+        "settings": {"outputSelection": {"*": {"": ["ast"]}}},
+    }
+    for version in versions:
+        try:
+            out = solcx.compile_standard(request, solc_version=version)
+        except Exception:
+            continue
+        # Ключ `ast` (lowercase) — так его отдаёт solc через solcx.
+        # Старая попытка читать "AST" молча возвращала None, и движок AST
+        # никогда не срабатывал: всё уходило в regex-фолбэк. Найдено
+        # проверкой вживую 07.10.2026, держим оба регистра на случай
+        # другой обёртки solc.
+        source = out.get("sources", {}).get("input.sol", {})
+        ast = source.get("ast") or source.get("AST")
+        if isinstance(ast, dict):
+            return ast
+    return None
+
+
+def _nodes(root) -> Iterable[dict]:
+    """Обойти все узлы дерева (dict внутри dict/list)."""
+    stack = [root]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, dict):
+            yield current
+            stack.extend(current.values())
+        elif isinstance(current, list):
+            stack.extend(current)
+
+
+def _offset(node: dict) -> int:
+    """Байтовый оффсет из `src` — solc считает байты, не символы."""
+    src = node.get("src")
+    if isinstance(src, str):
+        try:
+            return int(src.split(":", 1)[0])
+        except ValueError:
+            pass
+    return -1
+
+
+def _parent_map(root: dict) -> dict:
+    """id(дочернего) → родитель. AST — дерево, у узла один родитель."""
+    parents: dict = {}
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        for value in node.values():
+            if isinstance(value, dict):
+                parents[id(value)] = node
+                stack.append(value)
+            elif isinstance(value, list):
+                for item in value:
+                    if isinstance(item, dict):
+                        parents[id(item)] = node
+                        stack.append(item)
+    return parents
+
+
+def _key_of(parent: dict, child: dict) -> str | None:
+    """Ключ родителя, по которому лежит ребёнок (нужен для «условие это?»)."""
+    for key, value in parent.items():
+        if value is child:
+            return key
+        if isinstance(value, list) and any(item is child for item in value):
+            return key
+    return None
+
+
+def _call_target(call: dict) -> dict | None:
+    """Выражение-цель вызова, минуя обёртку `FunctionCallOptions`.
+
+    `to.call{value: v}("")` solc разворачивает как
+    FunctionCall → FunctionCallOptions → MemberAccess(call), поэтому
+    наивный `call["expression"]` возвращает обёртку, а не цель. Без
+    разворота такие вызовы не находились вовсе — проверено тестом
+    test_multiline_check_outside_context_window.
+    """
+    expr = call.get("expression")
+    while isinstance(expr, dict) and expr.get("nodeType") == "FunctionCallOptions":
+        expr = expr.get("expression")
+    return expr if isinstance(expr, dict) else None
+
+
+def _callee(call: dict) -> str:
+    """Имя вызываемой функции: `f()` → f, `x.g()` → g, `x.g{value:1}()` → g."""
+    expr = _call_target(call)
+    if not isinstance(expr, dict):
+        return ""
+    if expr.get("nodeType") == "MemberAccess":
+        return str(expr.get("memberName") or "")
+    return str(expr.get("name") or "")
+
+
+def _identifier_names(root) -> set[str]:
+    names: set[str] = set()
+    for node in _nodes(root):
+        if node.get("nodeType") == "Identifier":
+            names.add(str(node.get("name") or ""))
+    return names
+
+
+def _is_block_member(node: dict) -> bool:
+    """`block.timestamp` / `block.number` — base обязан быть `block`."""
+    if node.get("nodeType") != "MemberAccess":
+        return False
+    base = node.get("expression") or {}
+    return isinstance(base, dict) and base.get("name") == "block"
+
+
+def _lowlevel_calls(subtree: list[dict]) -> list[dict]:
+    calls = []
+    for node in subtree:
+        if node.get("nodeType") != "FunctionCall":
+            continue
+        expr = _call_target(node)
+        if isinstance(expr, dict) and expr.get("nodeType") == "MemberAccess" \
+                and expr.get("memberName") in _LOWLEVEL:
+            calls.append(node)
+    return calls
+
+
+def _writes_state(node: dict, locals_: set[str]) -> bool:
+    """Присваивание состоянию (не локальной переменной функции)."""
+    kind = node.get("nodeType")
+    if kind == "Assignment":
+        # solc 0.8.x отдаёт leftHandSide/rightHandSide; старые версии — lhs/rhs.
+        target = node.get("lhs") or node.get("leftHandSide")
+    elif kind == "UnaryOperation" and node.get("operator") in ("++", "--"):
+        target = node.get("subExpression")
+    else:
+        return False
+    if not isinstance(target, dict):
+        return False
+    return not (locals_ & _identifier_names(target))
+
+
+def _guarded_identifiers(root) -> set[str]:
+    """Переменные, чьё значение проверяется в require/assert/if."""
+    names: set[str] = set()
+    for node in _nodes(root):
+        kind = node.get("nodeType")
+        if kind == "FunctionCall" and _callee(node) in _GUARD_CALLS:
+            for arg in node.get("arguments") or []:
+                if isinstance(arg, dict):
+                    names |= _identifier_names(arg)
+        elif kind == "IfStatement":
+            cond = node.get("condition")
+            if isinstance(cond, dict):
+                names |= _identifier_names(cond)
+    return names
+
+
+def _mentions_msg_sender(node) -> bool:
+    for n in _nodes(node):
+        if n.get("nodeType") == "MemberAccess" and n.get("memberName") == "sender":
+            base = n.get("expression") or {}
+            if isinstance(base, dict) and base.get("name") == "msg":
+                return True
+    return False
+
+
+def _fn_is_guarded(fn: dict, body: dict) -> bool:
+    """Есть ли в функции проверка прав: модификатор, guard-функция или
+    require/assert про msg.sender. Аналог exclude_line у regex-правила."""
+    for mod in fn.get("modifiers") or []:
+        expr = (mod or {}).get("expression") or {}
+        if not isinstance(expr, dict):
+            continue
+        name = str(expr.get("name") or expr.get("memberName") or "").lower()
+        if name in _GUARD_MODS:
+            return True
+    for node in _nodes(body):
+        if node.get("nodeType") != "FunctionCall":
+            continue
+        name = _callee(node).lower()
+        if name in _GUARD_MODS:
+            return True
+        if name in _GUARD_CALLS and any(
+                isinstance(a, dict) and _mentions_msg_sender(a)
+                for a in node.get("arguments") or []):
+            return True
+    return False
+
+
+def _local_names(fn: dict, body: dict) -> set[str]:
+    """Параметры и локальные объявления: присваивание им — не состояние."""
+    names: set[str] = set()
+    for section in (fn.get("parameters") or {}, fn.get("returnParameters") or {}):
+        for param in section.get("parameters") or []:
+            if isinstance(param, dict) and param.get("name"):
+                names.add(param["name"])
+    for node in _nodes(body):
+        if node.get("nodeType") == "VariableDeclaration" and node.get("name"):
+            names.add(node["name"])
+    return names
+
+
+def _result_checked(call: dict, parents: dict, checked: set[str]) -> bool:
+    """Проверяется ли результат low-level вызова.
+
+    Три вида проверки, все — по структуре, а не по расстоянию в строках:
+      1. сам вызов внутри require/assert/if: `require(a.call(""))`;
+      2. результат сохранён в переменную, и эта переменная где-то в функции
+         участвует в require/if: `(bool ok,) = a.call(""); require(ok);`
+      3. присваивание в существующую переменную, которая так проверяется.
+    Возврат результата (`return ok;`) проверкой НЕ считается: иначе ломается
+    контракт, где success никем не проверяется — см.
+    test_realistic_multicontract_file.
+    """
+    node = call
+    while True:
+        parent = parents.get(id(node))
+        if parent is None:
+            return False
+        key = _key_of(parent, node)
+        kind = parent.get("nodeType")
+        if key == "arguments" and kind == "FunctionCall" \
+                and _callee(parent) in _GUARD_CALLS:
+            return True
+        if key == "condition" and kind == "IfStatement":
+            return True
+        if key == "initialValue" and kind == "VariableDeclarationStatement":
+            names = {d.get("name") for d in parent.get("declarations") or []
+                     if isinstance(d, dict) and d.get("name")}
+            return bool(names & checked)
+        # solc 0.8.x: rightHandSide/leftHandSide; старые версии: rhs/lhs.
+        if key in ("rhs", "rightHandSide") and kind == "Assignment":
+            lhs = parent.get("lhs") or parent.get("leftHandSide")
+            if isinstance(lhs, dict) and (_identifier_names(lhs) & checked):
+                return True
+        node = parent
+
+
+def _ast_findings(code: str) -> list[Finding] | None:
+    """Находки по AST. None — дерево построить не удалось, нужен regex-фолбэк."""
+    tree = _compile_ast(code)
+    if tree is None:
+        return None
+
+    lines = _strip_noise(code).split("\n")
+    raw = code.encode("utf-8", errors="replace")
+    out: list[Finding] = []
+    seen: set[tuple[str, int]] = set()
+
+    def add(key: str, node: dict) -> None:
+        rule = RULE_INDEX[key]
+        off = _offset(node)
+        if off < 0 or off > len(raw):
+            return
+        # Номер строки — по UTF-8 байтам: src у solc байтовый, а перенос
+        # строки занимает ровно один байт в обоих подсчётах.
+        line = raw.count(b"\n", 0, off) + 1
+        if not 1 <= line <= len(lines):
+            return
+        if (key, line) in seen:
+            return
+        seen.add((key, line))
+        out.append(Finding(
+            rule=rule.key, title=rule.title, severity=rule.severity,
+            why=rule.why, fix=rule.fix, line=line,
+            excerpt=lines[line - 1].strip()[:140],
+        ))
+
+    # ---- правила, которым нужен только узел
+    for node in _nodes(tree):
+        kind = node.get("nodeType")
+        if kind == "Identifier":
+            if node.get("name") == "_init":
+                add("uninitialized-proxy", node)
+        elif kind == "MemberAccess":
+            member = node.get("memberName")
+            base = node.get("expression") or {}
+            is_tx = isinstance(base, dict) and base.get("name") == "tx"
+            if member == "origin" and is_tx:
+                add("tx-origin", node)
+            elif member == "timestamp" and _is_block_member(node):
+                add("block-timestamp", node)
+            elif member == "number" and _is_block_member(node):
+                add("block-number", node)
+            # block.timestamp в контексте генератора случайных чисел —
+            # отдельное правило weak-prng, оно смотрит на функцию целиком
+        elif kind == "FunctionCall":
+            name = _callee(node)
+            if name == "selfdestruct":
+                add("selfdestruct", node)
+            elif name == "ecrecover":
+                add("ecrecover-zero-address", node)
+            elif name == "initialize":
+                add("uninitialized-proxy", node)
+            expr = _call_target(node) or {}
+            if expr.get("nodeType") == "MemberAccess":
+                member = expr.get("memberName")
+                if member == "delegatecall":
+                    add("delegatecall", node)
+                elif member == "transfer":
+                    add("eth-transfer", node)
+        elif kind == "InlineAssembly":
+            add("assembly-inline", node)
+        elif kind == "FunctionDefinition":
+            if node.get("name") == "mint":
+                add("public-mint", node)
+            elif node.get("name") == "initialize":
+                add("uninitialized-proxy", node)
+
+    # ---- правила, которым нужна функция целиком
+    for fn in _nodes(tree):
+        if fn.get("nodeType") != "FunctionDefinition":
+            continue
+        body = fn.get("body")
+        if not isinstance(body, dict):
+            continue
+        subtree = list(_nodes(body))
+        locals_ = _local_names(fn, body)
+        checked = _guarded_identifiers(body)
+        parents = _parent_map(body)
+
+        # слабый PRNG: детерминированный источник — только если в этой же
+        # функции есть деление по модулю либо переменная про «random»
+        uses_rand = False
+        for n in subtree:
+            if n.get("nodeType") == "BinaryOperation" and n.get("operator") == "%":
+                uses_rand = True
+                break
+            if n.get("nodeType") in ("Identifier", "VariableDeclaration") and \
+                    "random" in str(n.get("name") or "").lower():
+                uses_rand = True
+                break
+        if uses_rand:
+            for n in subtree:
+                if n.get("nodeType") == "MemberAccess" \
+                        and n.get("memberName") in _RNG_MEMBERS \
+                        and _is_block_member(n):
+                    add("weak-prng", n)
+
+        writes = sorted((n for n in subtree if _writes_state(n, locals_)),
+                        key=_offset)
+        for call in _lowlevel_calls(subtree):
+            off = _offset(call)
+            # CEI: состояние меняется ПОСЛЕ вызова → управление уходит
+            # атакующему, пока балансы ещё не обновлены.
+            if any(_offset(w) > off for w in writes):
+                add("reentrancy-eth", call)
+            if not _result_checked(call, parents, checked):
+                add("unchecked-lowlevel", call)
+
+        if str(fn.get("name") or "").lower() in _SEND_FUNCS \
+                and not _fn_is_guarded(fn, body):
+            add("arbitrary-send", fn)
+
+    return out
+
+
+# --------------------------------------------------------------- публичное
+
+def _run(code: str, *, ignore_comments: bool,
+         engine: str | None) -> tuple[list[Finding], str]:
+    """Выбрать движок, прогнать правила, вернуть (находки, кто нашёл).
+
+    Единственное место, где решается AST против regex: и `scan`, и `check`
+    идут через него, поэтому вердикт не может разойтись с печатью находок.
+    Второй возвращаемый элемент — «ast» либо «regex», то есть кто реально
+    сработал, а не кого просили. Он попадает в Verdict и JSON/SARIF: молчаливый
+    откат на регулярки — это то, что в отчёте должно быть видно, а не спрятано.
+    """
+    chosen = (engine or os.environ.get("ATTEST_SCANNER_ENGINE") or "auto")
+    chosen = chosen.strip().lower()
+    if chosen == "auto" and not ignore_comments:
+        # ignore_comments=False — явный запрос искать по сырому тексту,
+        # включая комментарии: AST их не видит и просьбу выполнить не может.
+        chosen = "regex"
+
+    if chosen in ("auto", "ast"):
+        found = _ast_findings(code)
+        if found is not None:
+            found.sort(key=lambda f: (-SEVERITY_ORDER[f.severity], f.line))
+            return found, "ast"
+        # Принудительный AST, а дерева нет (нет solc / код не компилируется):
+        # откатываемся на регулярки, а не молчим. Пропущенный контракт хуже
+        # неточной находки.
+
+    out = _regex_findings(code, ignore_comments=ignore_comments)
+    out.sort(key=lambda f: (-SEVERITY_ORDER[f.severity], f.line))
+    return out, "regex"
+
+
+def scan(code: str, *, ignore_comments: bool = True,
+         engine: str | None = None) -> list[Finding]:
+    """Просканировать Solidity. Возвращает находки по убыванию критичности.
+
+    engine: "auto" (по умолчанию) | "ast" | "regex". Можно закрепить и через
+    переменную окружения ATTEST_SCANNER_ENGINE. Какой движок реально
+    сработал, видно в `check(...).engine`.
+    """
+    return _run(code, ignore_comments=ignore_comments, engine=engine)[0]
 
 
 @dataclass
@@ -282,6 +784,7 @@ class Verdict:
     findings: list[Finding] = field(default_factory=list)
     lines_checked: int = 0
     rules_run: int = len(RULES)
+    engine: str = "regex"
 
     @property
     def clean(self) -> bool:
@@ -312,6 +815,7 @@ class Verdict:
             "counts": self.counts(),
             "lines_checked": self.lines_checked,
             "rules_run": self.rules_run,
+            "engine": self.engine,
             "findings": [f.as_dict() for f in self.findings],
             "disclaimer": (
                 "Сканер находит известные классы уязвимостей по исходному коду. "
@@ -322,18 +826,24 @@ class Verdict:
         }
 
     def summary(self) -> str:
+        # Движок в сводке не для красоты: если solc нет и сработали
+        # регулярки, читатель отчёта должен это увидеть, а не догадываться.
+        engine = f" · движок {self.engine.upper()}"
         if self.clean:
-            return f"CLEAN · риск {self.score()}/100 · {self.lines_checked} строк, {self.rules_run} правил"
+            return (f"CLEAN · риск {self.score()}/100 · "
+                    f"{self.lines_checked} строк, {self.rules_run} правил{engine}")
         c = self.counts()
         parts = [f"{k}={v}" for k, v in c.items() if v]
         return (f"{self.worst.upper()} · риск {self.score()}/100 · "
-                f"{len(self.findings)} находок ({', '.join(parts)})")
+                f"{len(self.findings)} находок ({', '.join(parts)}){engine}")
 
 
-def check(code: str, *, ignore_comments: bool = True) -> Verdict:
-    v = Verdict(findings=scan(code, ignore_comments=ignore_comments),
-                lines_checked=len(code.split("\n")))
-    return v
+def check(code: str, *, ignore_comments: bool = True,
+          engine: str | None = None) -> Verdict:
+    findings, used = _run(code, ignore_comments=ignore_comments, engine=engine)
+    return Verdict(findings=findings,
+                   lines_checked=len(code.split("\n")),
+                   engine=used)
 
 
 def rules_manifest() -> list[dict]:
