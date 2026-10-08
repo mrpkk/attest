@@ -10,6 +10,8 @@ __version__ = "0.1.0"
 from .schema import SchemaViolation, validate_against_schema
 from .poison import PoisonSignal, scan_for_poison
 from .provenance import Attestation, ProvenanceRecord, sign, verify
+from .state import (JournalError, Snapshot, StateLog, StateVerdict,
+                    replay, sign_snapshot, verify_snapshot, verify_state)
 
 __all__ = [
     "SchemaViolation",
@@ -18,6 +20,14 @@ __all__ = [
     "scan_for_poison",
     "Attestation",
     "ProvenanceRecord",
+    "JournalError",
+    "Snapshot",
+    "StateLog",
+    "StateVerdict",
+    "replay",
+    "sign_snapshot",
+    "verify_snapshot",
+    "verify_state",
     "sign",
     "verify",
     "attest",
