@@ -441,6 +441,8 @@ def build_challenge(
     tags: list[str] | None = None,
     icon_url: str | None = None,
     discoverable: bool = True,
+    network: str = BASE_NETWORK,
+    asset: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Собрать настоящий челлендж x402 v2: (заголовок, тело-челлендж).
 
@@ -450,6 +452,11 @@ def build_challenge(
 
     `discoverable=True` добавляет расширение bazaar: именно оно делает сервис
     видимым в каталоге после первой оплаты, без всякой регистрации.
+
+    `network` и `asset` позволяют выставить счёт в другой сети — прежде
+    всего в Base Sepolia (eip155:84532), чтобы платёжный путь можно было
+    проверить бесплатно: публичный facilitator mainnet не держит. По
+    умолчанию поведение прежнее — mainnet и настоящий USDC.
 
     `pay_to` обязан быть задан. Молча пропущенный адрес — это либо
     «все платежи уйдут неизвестно куда», и подпись это не спасёт.
@@ -478,9 +485,9 @@ def build_challenge(
         "resource": resource_info,
         "accepts": [{
             "scheme": "exact",
-            "network": "eip155:8453",
+            "network": network,
             "amount": str(price_atoms),
-            "asset": USDC_BASE,
+            "asset": asset or USDC_BASE,
             "payTo": pay_to,
             "maxTimeoutSeconds": int(max_timeout_seconds),
             "extra": {"name": "USD Coin", "version": "2"},
