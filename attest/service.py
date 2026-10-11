@@ -508,6 +508,22 @@ class _Response:
     content_type: str = "application/json; charset=utf-8"
 
 
+# Префикс для размещения за общим доменом: rta.lat/attest/health работает так же,
+# как отдельный поддомен attest.rta.lat. Нужен там, где DNS-запись создать
+# нельзя — Cloudflare-токен привязан к чужому IP и не даёт добавить запись.
+PATH_PREFIXES = ("/attest",)
+
+
+def route_path(raw: str) -> str:
+    """Снять префикс и хвостовой слеш — дальше сравнение идёт как раньше."""
+    path = urlparse(raw).path
+    for prefix in PATH_PREFIXES:
+        if path == prefix or path.startswith(prefix + "/"):
+            path = path[len(prefix):]
+            break
+    return path.rstrip("/") or "/"
+
+
 class AttestHandler(BaseHTTPRequestHandler):
     """Обработчик запросов. Состояние живёт в атрибутах класса — один сервер."""
 
@@ -535,7 +551,7 @@ class AttestHandler(BaseHTTPRequestHandler):
         return self.client_address[0] if self.client_address else "unknown"
 
     def do_GET(self) -> None:  # noqa: N802
-        path = urlparse(self.path).path.rstrip("/") or "/"
+        path = route_path(self.path)
         if path == "/":
             page = LANDING.replace("__FREE_LIMIT__", str(self.free_tier.daily_limit))
             self._send(200, page.encode(), "text/html; charset=utf-8")
@@ -585,7 +601,7 @@ class AttestHandler(BaseHTTPRequestHandler):
         return data
 
     def do_POST(self) -> None:  # noqa: N802
-        path = urlparse(self.path).path.rstrip("/") or "/"
+        path = route_path(self.path)
         if path == "/mcp":
             self._handle_mcp()
             return
