@@ -28,6 +28,8 @@ from urllib.parse import urlparse
 
 from . import __version__
 from .core import attest
+from .emptiness import (emptiness_score, emptiness_verdict,
+                           scan_for_emptiness)
 from .payment import PaymentError
 from .x402 import atomic_to_usd, agent_card, discovery_document
 
@@ -712,6 +714,25 @@ class AttestHandler(BaseHTTPRequestHandler):
         body = result.as_dict()
         body["free_remaining"] = self.free_tier.remaining(self.client_id())
         body["paid"] = paid is not None
+        # Проверка формы отвечает на вопрос «правильно ли оформлено».
+        # Этот блок — на второй: «есть ли что оформлять».
+        try:
+            hollow = scan_for_emptiness(
+                payload["artifact"],
+                schema if isinstance(schema, dict) else None,
+            )
+            score = emptiness_score(hollow)
+            body["emptiness"] = {
+                "score": score,
+                "verdict": emptiness_verdict(score, hollow),
+                "signals": [s.as_dict() for s in hollow[:12]],
+                "note": ("Отсутствие сигналов не доказывает осмысленность — "
+                         "значит лишь, что грубые признаки не сработали."),
+            }
+        except Exception as exc:  # noqa: BLE001
+            # Детектор пустоты не имеет права ломать проверку: если он
+            # сломался, клиент должен получить свой результат, а не 500.
+            body["emptiness"] = {"error": f"{type(exc).__name__}: {exc}"}
         if paid is not None:
             body["payment"] = {
                 "payer": paid.payer,
