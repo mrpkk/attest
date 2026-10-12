@@ -14,6 +14,11 @@ from typing import Any
 
 from .poison import PoisonSignal, scan_for_poison
 from .provenance import Attestation, new_record, sign, verify
+from .generation import GenerationContext, chain_hash as make_chain_hash
+from .provenance import digest as _content_hash
+
+_GEN_FIELDS = ("model", "model_version", "prompt", "parameters",
+              "generated_at", "generator", "generator_version")
 from .schema import SchemaViolation, validate_against_schema
 
 SEVERITY_WEIGHT = {"critical": 40.0, "high": 15.0, "medium": 5.0, "low": 1.0}
@@ -103,18 +108,32 @@ def _verdict(violations: list[SchemaViolation], signals: list[PoisonSignal], sco
     return "accept", f"незначительные замечания ({score:.0f}/100)"
 
 
-def attest(artifact: Any, schema: dict[str, Any] | None = None, source: str = "unknown", sign_it: bool = True) -> AttestResult:
+def attest(artifact: Any, schema: dict[str, Any] | None = None, source: str = "unknown", sign_it: bool = True,
+    generation: "dict[str, Any] | None" = None,
+) -> AttestResult:
     """Проверить артефакт и вернуть вердикт с подписью."""
     violations = validate_against_schema(artifact, schema)
     signals = scan_for_poison(artifact)
     score = _score(violations, signals)
     verdict, reason = _verdict(violations, signals, score)
 
+    # Привязка считается от хэша содержимого, который new_record посчитает
+    # тем же способом. Считаем заранее, чтобы chain_hash вошёл в подпись,
+    # а не существовал рядом с ней.
+    chain = None
+    if isinstance(generation, dict):
+        chain = make_chain_hash(
+            _content_hash(artifact),
+            GenerationContext(**{k: v for k, v in generation.items()
+                                 if k in _GEN_FIELDS}),
+        )
+
     record = new_record(
         source=source,
         artifact=artifact,
         verdict=verdict,
         trust_score=score,
+        chain_hash=chain,
         violations=[v.as_dict() for v in violations],
         signals=[s.as_dict() for s in signals],
     )

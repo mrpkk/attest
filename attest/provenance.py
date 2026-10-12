@@ -35,6 +35,9 @@ class ProvenanceRecord:
     trust_score: float
     violations: list[dict[str, str]] = field(default_factory=list)
     signals: list[dict[str, str]] = field(default_factory=list)
+    # Привязка к условиям генерации. None означает «условия не переданы»,
+    # и это обязано быть видно, а не молча выглядеть как «привязка есть».
+    chain_hash: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -87,6 +90,7 @@ def new_record(
     trust_score: float,
     violations: list[dict[str, str]] | None = None,
     signals: list[dict[str, str]] | None = None,
+    chain_hash: str | None = None,
 ) -> ProvenanceRecord:
     return ProvenanceRecord(
         attestation_id=str(uuid.uuid4()),
@@ -97,4 +101,5 @@ def new_record(
         trust_score=round(trust_score, 3),
         violations=violations or [],
         signals=signals or [],
+        chain_hash=chain_hash,
     )

@@ -28,6 +28,11 @@ from urllib.parse import urlparse
 
 from . import __version__
 from .core import attest
+from .generation import GenerationContext, verify_chain
+from .provenance import digest as _digest
+
+_GEN_FIELDS = ("model", "model_version", "prompt", "parameters",
+              "generated_at", "generator", "generator_version")
 from .emptiness import (emptiness_score, emptiness_verdict,
                            scan_for_emptiness)
 from .payment import PaymentError
@@ -706,10 +711,12 @@ class AttestHandler(BaseHTTPRequestHandler):
 
     def _verify_result(self, payload: dict, source: str, paid) -> dict[str, Any]:
         schema = payload.get("schema")
+        generation = payload.get("generation")
         result = attest(
             payload["artifact"],
             schema if isinstance(schema, dict) else None,
             source=source[:200],
+            generation=generation if isinstance(generation, dict) else None,
         )
         body = result.as_dict()
         body["free_remaining"] = self.free_tier.remaining(self.client_id())
@@ -733,6 +740,28 @@ class AttestHandler(BaseHTTPRequestHandler):
             # Детектор пустоты не имеет права ломать проверку: если он
             # сломался, клиент должен получить свой результат, а не 500.
             body["emptiness"] = {"error": f"{type(exc).__name__}: {exc}"}
+
+        gen = payload.get("generation")
+        if isinstance(gen, dict):
+            ctx = GenerationContext(
+                **{k: v for k, v in gen.items() if k in _GEN_FIELDS})
+            body["generation"] = {
+                "context": ctx.as_dict(),
+                "chain": verify_chain(
+                    {"chain_hash": result.attestation.record.chain_hash,
+                     "content_hash": _digest(payload["artifact"])},
+                    ctx),
+            }
+        else:
+            # Условия не переданы. Молчать об этом нельзя: иначе клиент
+            # решит, что привязка есть и проверена.
+            body["generation"] = {
+                "chain": {"status": "NO_CHAIN", "bound": False,
+                          "detail": "условия генерации не переданы — "
+                                    "привязки нет"},
+                "hint": "передай generation: {model, model_version, prompt, "
+                        "parameters, generated_at, generator}",
+            }
         if paid is not None:
             body["payment"] = {
                 "payer": paid.payer,
