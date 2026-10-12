@@ -121,6 +121,96 @@ class FreeTier:
         self._used.pop(client, None)
 
 
+_VERIFY_GET_HTML = """<!doctype html><meta charset=utf-8><title>attest</title>
+<style>body{background:#0b0d12;color:#e8ecf4;font:16px/1.6 system-ui,sans-serif;
+max-width:720px;margin:60px auto;padding:0 24px}code{background:#141821;padding:2px 6px;
+border-radius:5px;color:#f0a35e}.b{background:#141821;border:1px solid #1f242e;border-radius:12px;
+padding:18px 20px;margin:18px 0}a{color:#f0a35e}</style>
+<h1 style="font-size:24px">/verify принимает POST</h1>
+<p>Это API, а не страница. Открытая в браузере ссылка отправляет GET,
+и сервер отвечает <code>404</code> &mdash; то есть и должен: проверять
+нечего, запрос не содержит артефакта.</p>
+<div class=b><b>Живой пример в браузере:</b><br>
+<a href="/demo">/demo &mdash; форма, где можно проверить свой артефакт</a></div>
+<div class=b><b>Из командной строки:</b>
+<pre style="background:#141821;padding:12px;border-radius:9px;overflow:auto">curl -X POST __BASE__/verify \\
+  -H 'Content-Type: application/json' \\
+  -d '{"artifact":{"findings":["находка"]},"source":"demo"}'</pre></div>
+"""
+
+DEMO = """<!doctype html><meta charset=utf-8><title>attest — проверка артефакта</title>
+<style>
+ body{background:#0b0d12;color:#e8ecf4;font:15px/1.6 system-ui,sans-serif;max-width:900px;margin:48px auto;padding:0 24px}
+ h1{font-size:26px;margin-bottom:4px} .s{color:#969eac;font-size:14px}
+ .g{display:grid;gap:14px;grid-template-columns:1fr 1fr;margin:22px 0}
+ .c{background:#141821;border:1px solid #1f242e;border-radius:12px;padding:16px 18px}
+ .c h2{font-size:15px;margin:0 0 10px;color:#f0a35e}
+ textarea{width:100%;height:90px;background:#0b0d12;color:#e8ecf4;border:1px solid #2a3140;
+   border-radius:8px;padding:10px;font:13px ui-monospace,monospace;box-sizing:border-box}
+ button{background:#f0a35e;color:#0b0d12;border:0;border-radius:8px;padding:10px 18px;
+   font-weight:600;cursor:pointer;margin-top:12px}
+ pre{background:#0b0d12;border:1px solid #1f242e;border-radius:10px;padding:14px;
+   overflow:auto;font-size:12.5px;max-height:400px;white-space:pre-wrap;word-break:break-word}
+ .q{background:#141821;border-left:3px solid #f0a35e;padding:12px 16px;border-radius:8px;margin:18px 0}
+ label{display:block;font-size:13px;color:#969eac;margin:10px 0 4px}
+</style>
+<h1>attest — проверка артефакта агента</h1>
+<p class=s>Бесплатно __FREE_LIMIT__ проверок в сутки. Дальше 0.005 USDC по x402.</p>
+
+<div class=q><b>Четыре слоя проверки:</b> форма есть? есть ли что оформлять? из чего
+это выросло? было ли действие разрешено? Каждый слой отвечает на свой вопрос
+и не подменяет остальные.</div>
+
+<div class=g>
+ <div class=c><h2>1. Артефакт — живой</h2>
+  <label>JSON артефакта</label>
+  <textarea id="art">{"summary":"Выполнен анализ","findings":["находка раз","находка два","находка три"]}</textarea>
+  <button onclick="run('art')">Проверить форму и пустоту</button></div>
+ <div class=c><h2>2. Условия генерации</h2>
+  <label>Модель</label><input id="model" value="claude-sonnet-4" style="width:100%;background:#0b0d12;color:#e8ecf4;border:1px solid #2a3140;border-radius:8px;padding:8px">
+  <label>Промпт</label><input id="prompt" value="Найди уязвимости в контракте" style="width:100%;background:#0b0d12;color:#e8ecf4;border:1px solid #2a3140;border-radius:8px;padding:8px">
+  <button onclick="runGen()">Проверить и заверять</button></div>
+ <div class=c><h2>3. Разрешение — мандат</h2>
+  <label>Сумма действия (в минорных единицах)</label>
+  <input id="amt" value="50000" style="width:100%;background:#0b0d12;color:#e8ecf4;border:1px solid #2a3140;border-radius:8px;padding:8px">
+  <label>Лимит по мандату</label>
+  <input id="lim" value="100000" style="width:100%;background:#0b0d12;color:#e8ecf4;border:1px solid #2a3140;border-radius:8px;padding:8px">
+  <button onclick="runAuth()">Проверить разрешение</button></div>
+ <div class=c><h2>4. Подпись — проверь сам</h2>
+  <p style="font-size:13.5px;color:#969eac;margin:0">Подпись Ed25519: публичный ключ
+  едет в ответе. Проверять можно без нашего сервиса и без секрета.</p>
+  <pre id="vk" style="max-height:110px">выполни проверку — покажу заверяние</pre></div>
+</div>
+
+<h2 style="font-size:16px;margin-top:28px">Ответ</h2>
+<pre id="out">нажми любую кнопку выше</pre>
+
+<script>
+const B = location.origin;
+async function post(body){
+  const r = await fetch(B+"/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  return r.json();
+}
+function show(d){
+  document.getElementById("out").textContent = JSON.stringify(d,null,2);
+  if(d.attestation){document.getElementById("vk").textContent =
+    JSON.stringify({algorithm:d.attestation.algorithm,public_key:(d.attestation.public_key||"").slice(0,32)+"...",signature:(d.attestation.signature||"").slice(0,32)+"..."},null,2);}
+}
+function parse(id){ try{return JSON.parse(document.getElementById(id).value)}catch(e){alert("JSON не разобран: "+e.message);throw e} }
+async function run(){ show(await post({artifact:parse("art"),source:"demo"})) }
+async function runGen(){
+  show(await post({artifact:parse("art"),source:"demo",
+    generation:{model:document.getElementById("model").value,model_version:"2026-05",
+      prompt:document.getElementById("prompt").value,parameters:{temperature:0.2,max_tokens:2000},
+      generated_at:Date.now()/1000,generator:"demo"}})) }
+async function runAuth(){
+  const amt=+document.getElementById("amt").value, lim=+document.getElementById("lim").value;
+  show(await post({artifact:parse("art"),source:"demo",
+    mandate:{payee_id:"0xAAA",audience:"c7",max_amount_minor:lim,currency:"USDC",valid_from:1000,valid_until:2000000},
+    action:{payee_id:"0xAAA",audience:"c7",amount_minor:amt,currency:"USDC",at:1500,intent:"transfer"}})) }
+</script>
+"""
+
 LANDING = """<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -573,6 +663,16 @@ class AttestHandler(BaseHTTPRequestHandler):
             })
         elif path == "/mcp":
             self._send_json(405, {"error": "используйте POST /mcp"})
+        elif path == "/demo":
+            self._send_html(DEMO.replace("__FREE_LIMIT__",
+                                         str(self.free_tier.daily_limit)))
+        elif path == "/verify":
+            # Раньше здесь был 404 на GET, и это выглядело как поломка.
+            # На деле /verify принимает только POST, а открыть его в
+            # браузере — значит отправить GET. Страница-заглушка объясняет
+            # это и даёт ссылку на живой пример, вместо того чтобы
+            # заставлять догадываться.
+            self._send_html(_VERIFY_GET_HTML)
         elif path == "/pricing":
             self._send_json(200, {
                 "free_limit": self.free_tier.daily_limit,
@@ -956,6 +1056,9 @@ class AttestHandler(BaseHTTPRequestHandler):
             if not chunk:
                 break
             remaining -= len(chunk)
+
+    def _send_html(self, html: str) -> None:
+        self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
 
     def _send_json(
         self, status: int, body: Any, extra_headers: dict[str, str] | None = None
