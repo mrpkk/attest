@@ -53,6 +53,10 @@ def main(argv: list[str] | None = None) -> int:
                 record=ProvenanceRecord(**payload["record"]),
                 signature=payload["signature"],
                 algorithm=payload.get("algorithm", "none"),
+                # Публичный ключ едет в заверянии. Без него Ed25519
+                # проверить нечем, и отказ выглядел бы как «подпись
+                # изменена» — а это разные вещи.
+                public_key=payload.get("public_key", ""),
             )
         except (KeyError, TypeError) as e:
             print(f"ошибка: в файле нет корректной attestation ({e})", file=sys.stderr)

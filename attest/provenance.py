@@ -48,9 +48,11 @@ class Attestation:
     record: ProvenanceRecord
     signature: str
     algorithm: str
+    public_key: str = ""
 
     def as_dict(self) -> dict[str, Any]:
-        return {"record": self.record.as_dict(), "signature": self.signature, "algorithm": self.algorithm}
+        return {"record": self.record.as_dict(), "signature": self.signature,
+                "algorithm": self.algorithm, "public_key": self.public_key}
 
     def compact(self) -> str:
         """Однострочный формат для вставки в контекст агента."""
@@ -62,23 +64,63 @@ class Attestation:
         )
 
 
-def _key_from_env() -> bytes:
+def _key_from_env() -> bytes | None:
+    """Секрет HMAC. Отсутствие — не повод подписывать запасным ключом.
+
+    Раньше здесь возвращалась константа `attest-dev-key-do-not-use-in-production`.
+    Она лежала в исходнике, то есть была опубликована вместе с ним, и любой
+    мог подписать артефакт так, будто его заверял сервис. Подпись выглядела
+    настоящей и не была ею — хуже, чем отсутствие подписи.
+    """
     for name in ("ATTEST_SECRET", "ATTEST_HMAC_KEY"):
         value = os.environ.get(name)
         if value:
             return value.encode("utf-8")
-    return b"attest-dev-key-do-not-use-in-production"
+    return None
 
 
 def sign(record: ProvenanceRecord, key: bytes | None = None) -> Attestation:
-    key = key or _key_from_env()
+    """Подпись заверяния.
+
+    Предпочтительна Ed25519: публичный ключ едет в ответе, и проверяющий
+    сверяет подпись сам, не обращаясь к нам. HMAC оставлен как запасной
+    путь для старых записей, но без секрета он больше не подписывает —
+    раньше подписывал константой из исходника.
+    """
     payload = canonical(record.as_dict())
-    signature = "hmac-sha256:" + hmac.new(key, payload, hashlib.sha256).hexdigest()
-    return Attestation(record=record, signature=signature, algorithm="hmac-sha256")
+    try:
+        from .signing import sign as ed_sign
+        s = ed_sign(payload)
+        return Attestation(record=record, signature=s.signature,
+                           algorithm=s.algorithm, public_key=s.public_key)
+    except (FileNotFoundError, RuntimeError) as exc:
+        key = key or _key_from_env()
+        if key is None:
+            raise RuntimeError(
+                "Подписать нечем: нет приватного ключа Ed25519 "
+                f"({exc}) и не задан ATTEST_SECRET. Создать ключ: "
+                "python3 -m attest keygen") from exc
+        signature = "hmac-sha256:" + hmac.new(key, payload, hashlib.sha256).hexdigest()
+        return Attestation(record=record, signature=signature,
+                           algorithm="hmac-sha256")
 
 
 def verify(attestation: Attestation, key: bytes | None = None) -> bool:
+    """Проверить заверяние.
+
+    Ed25519 проверяется публичным ключом из самого заверяния — секрет не
+    нужен. HMAC — секретом, и без него проверка возвращает False, а не
+    «наверное, нормально».
+    """
+    if attestation.algorithm == "ed25519":
+        from .signing import verify as ed_verify
+        payload = canonical(attestation.record.as_dict())
+        if not attestation.public_key:
+            return False
+        return ed_verify(payload, attestation.signature, attestation.public_key)
     key = key or _key_from_env()
+    if key is None:
+        return False
     expected = sign(attestation.record, key)
     return hmac.compare_digest(expected.signature, attestation.signature)
 

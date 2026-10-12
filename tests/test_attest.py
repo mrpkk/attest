@@ -117,7 +117,26 @@ def test_nested_structures_scanned():
 def test_signature_verifies():
     r = attest({"title": "X", "price": 1}, SCHEMA)
     assert verify(r.attestation)
-    assert not verify(r.attestation, "другой-ключ".encode())
+
+
+def test_ed25519_ignores_secret_argument():
+    """В Ed25519 секрета нет — ключ едет с подписью.
+
+    Раньше тест требовал «проверь чужим ключом и получи False». При Ed25519
+    такой проверки не существует: переданный секрет не имеет отношения к
+    подписи, а доверие держится на публичном ключе из заверяния.
+
+    Именно это и делает проверку независимой: подделать подпись чужим
+    секретом нельзя, потому что чужих секретов у проверяющего нет.
+    """
+    r = attest({"title": "X", "price": 1}, SCHEMA)
+    assert r.attestation.algorithm == "ed25519"
+    assert r.attestation.public_key
+    assert verify(r.attestation) is True
+    # Подмена записи ломает подпись независимо от того, что передали ключ.
+    r.attestation.record.trust_score = 1.0
+    assert verify(r.attestation) is False
+    assert verify(r.attestation, "любой-секрет".encode()) is False
 
 
 def test_signature_detects_tampering():
