@@ -84,29 +84,29 @@ def _score(violations: list[SchemaViolation], signals: list[PoisonSignal]) -> fl
 def _verdict(violations: list[SchemaViolation], signals: list[PoisonSignal], score: float) -> tuple[str, str]:
     critical = [s for s in signals if s.kind in CRITICAL_KINDS or s.kind in DANGEROUS_COMMANDS or s.severity == "critical"]
     if critical:
-        return "reject", f"критичный сигнал: {critical[0].kind} @ {critical[0].where}"
+        return "reject", f"critical signal: {critical[0].kind} @ {critical[0].where}"
     if not signals and not violations:
-        return "accept", "схема в порядке, признаков отравления нет"
+        return "accept", "schema is valid, no poisoning signals"
     if violations:
         hard = [v for v in violations if v.rule in ("type", "required", "null", "depth", "empty", "size", "minimum", "maximum")]
         if hard:
-            return "reject", f"нарушение контракта: {hard[0].rule} @ {hard[0].path}"
+            return "reject", f"contract violation: {hard[0].rule} @ {hard[0].path}"
     # сигнатурная инъекция = отказ, даже в доверенном поле: «ignore all previous
     # instructions» не бывает в честном ответе инструмента
     signature_attack = [s for s in signals if s.kind in INJECTION_KINDS]
     if signature_attack:
-        return "reject", f"сигнатурная инъекция: {signature_attack[0].kind} @ {signature_attack[0].where}"
+        return "reject", f"signature injection: {signature_attack[0].kind} @ {signature_attack[0].where}"
 
     # два независимых сигнала высокой тяжести = скоординированная атака,
     # а не единичная неточность формулировки
     strong = [s for s in signals if s.severity == "high"]
     if len(strong) >= 2:
-        return "reject", f"несколько независимых сигналов: {', '.join(s.kind for s in strong[:3])}"
+        return "reject", f"multiple independent signals: {', '.join(s.kind for s in strong[:3])}"
     if score < 60:
-        return "reject", f"доверие слишком низкое ({score:.0f}/100)"
+        return "reject", f"trust score too low ({score:.0f}/100)"
     if score < 90:
-        return "review", f"есть замечания, требуется взгляд человека ({score:.0f}/100)"
-    return "accept", f"незначительные замечания ({score:.0f}/100)"
+        return "review", f"has findings, needs a human look ({score:.0f}/100)"
+    return "accept", f"minor findings ({score:.0f}/100)"
 
 
 def attest(artifact: Any, schema: dict[str, Any] | None = None, source: str = "unknown", sign_it: bool = True,

@@ -53,7 +53,7 @@ def _as_int(value: Any, field: str) -> int:
     try:
         return int(value)
     except (TypeError, ValueError) as exc:
-        raise ValueError(f"поле {field!r}: ожидалось целое, получено {value!r}") from exc
+        raise ValueError(f"field {field!r}: expected an integer, got {value!r}") from exc
 
 
 def check_authority(mandate: dict[str, Any], action: dict[str, Any]
@@ -68,40 +68,40 @@ def check_authority(mandate: dict[str, Any], action: dict[str, Any]
     if missing:
         return AuthorityVerdict(
             False, "no_mandate", dict(mandate), dict(action),
-            note=f"в мандате нет полей: {', '.join(missing)}")
+            note=f"mandate is missing fields: {', '.join(missing)}")
 
     amt = _as_int(action.get("amount_minor", 0), "action.amount_minor")
     at = _as_int(action.get("at", 0), "action.at")
 
     if amt > _as_int(mandate["max_amount_minor"], "mandate.max_amount_minor"):
         return AuthorityVerdict(False, "amount", dict(mandate), dict(action),
-                                note=f"сумма {amt} превышает лимит "
+                                note=f"amount {amt} exceeds the limit "
                                      f"{mandate['max_amount_minor']}")
     if action.get("payee_id") != mandate["payee_id"]:
         return AuthorityVerdict(False, "payee", dict(mandate), dict(action),
-                                note="получатель не тот, что указан в мандате")
+                                note="payee differs from the one in the mandate")
     if action.get("audience") != mandate["audience"]:
         return AuthorityVerdict(False, "audience", dict(mandate), dict(action),
-                                note="аудитория не та")
+                                note="audience differs")
     if action.get("currency") != mandate["currency"]:
         return AuthorityVerdict(False, "currency", dict(mandate), dict(action),
-                                note="валюта не та")
+                                note="currency differs")
 
     valid_from = _as_int(mandate["valid_from"], "mandate.valid_from")
     valid_until = _as_int(mandate["valid_until"], "mandate.valid_until")
     if not (valid_from <= at <= valid_until):
         return AuthorityVerdict(False, "window", dict(mandate), dict(action),
-                                note=f"момент {at} вне окна "
+                                note=f"moment {at} is outside the window "
                                      f"[{valid_from}, {valid_until}]")
 
     allowed_intents = mandate.get("allowed_intents") or ()
     if allowed_intents and action.get("intent") not in allowed_intents:
         return AuthorityVerdict(False, "intent", dict(mandate), dict(action),
-                                note=f"намерение {action.get('intent')!r} не "
-                                     f"перечислено в мандате")
+                                note=f"intent {action.get('intent')!r} is not "
+                                     f"listed in the mandate")
 
     return AuthorityVerdict(True, "-", dict(mandate), dict(action),
-                            note="действие укладывается в мандат")
+                            note="action fits within the mandate")
 
 
 def authority_hash(mandate: dict[str, Any], action: dict[str, Any]) -> str:

@@ -105,8 +105,8 @@ def _scan_stub(node: Any, path: str, where: str) -> list[EmptinessSignal]:
         severity="high" if only else "low",
         where=where,
         evidence=text.strip()[:60] or "(пусто)",
-        detail=("поле целиком состоит из заглушки" if only
-                else "встречается слово-заглушка: " + ", ".join(hits[:3])),
+        detail=("the field consists entirely of a placeholder" if only
+                else "placeholder word found: " + ", ".join(hits[:3])),
     )]
 
 
@@ -115,13 +115,13 @@ def _scan_blank(node: Any, path: str, where: str) -> list[EmptinessSignal]:
     if isinstance(node, str) and not node.strip():
         out.append(EmptinessSignal(
             "blank_string", "medium", where, repr(node)[:60],
-            "строка без символов — форма соблюдена, содержания нет"))
+            "whitespace-only string: form satisfied, content absent"))
     if isinstance(node, list) and not node:
         out.append(EmptinessSignal(
-            "empty_list", "medium", where, "[]", "пустой список"))
+            "empty_list", "medium", where, "[]", "empty list"))
     if isinstance(node, dict) and not node:
         out.append(EmptinessSignal(
-            "empty_object", "medium", where, "{}", "пустой объект"))
+            "empty_object", "medium", where, "{}", "empty object"))
     return out
 
 
@@ -136,7 +136,7 @@ def _scan_truncation(node: Any, path: str, where: str) -> list[EmptinessSignal]:
         return []
     return [EmptinessSignal(
         "truncated", "high", where, stripped[-50:],
-        "вывод обрезан на границе лимита: последние символы — " + ", ".join(marks[:2]))]
+        "output cut at the limit: trailing characters are " + ", ".join(marks[:2]))]
 
 
 def _uniform_ratio(value: Any) -> tuple[float, int] | None:
@@ -170,9 +170,9 @@ def _scan_uniform(node: Any, path: str, where: str) -> list[EmptinessSignal]:
     sev = "high" if share >= 0.9 else "medium"
     return [EmptinessSignal(
         "uniform_list", sev, where,
-        f"{int(share * size)} из {size} элементов совпадают",
-        f"список наполнен копиями: доля одинаковых {share:.0%}. "
-        "Схема соблюдена, но элементы не различаются")]
+        f"{int(share * size)} of {size} items are identical",
+        f"list filled with copies: {share:.0%} identical. "
+        "The schema holds, but the items are indistinguishable")]
 
 
 def _scan_repetition(node: Any, path: str, where: str) -> list[EmptinessSignal]:
@@ -187,7 +187,7 @@ def _scan_repetition(node: Any, path: str, where: str) -> list[EmptinessSignal]:
     return [EmptinessSignal(
         "repetitive_text", "medium", where,
         f"{len(words)} слов, уникальных {unique:.0%}",
-        "уникальных слов меньше трети — текст почти наверняка заполнен повтором")]
+        "fewer than a third of words are unique: the text is very likely filler")]
 
 
 def _scan_default(node: Any, path: str, where: str, schema: Any) -> list[EmptinessSignal]:
@@ -209,7 +209,7 @@ def _scan_default(node: Any, path: str, where: str, schema: Any) -> list[Emptine
             out.append(EmptinessSignal(
                 "schema_default", "medium", f"{where}.{key}",
                 str(default)[:60],
-                "обязательное поле не заполнено: стоит значение по умолчанию из схемы"))
+                "required field left unfilled: it holds the schema default"))
     return out
 
 
@@ -248,8 +248,8 @@ def scan_for_emptiness(artifact: Any, schema: dict[str, Any] | None = None
                             out.append(EmptinessSignal(
                                 "enum_first_value", "low", f"$.{key}",
                                 str(first)[:60],
-                                "поле стоит на первом значении перечисления — "
-                                "часто признак невыбранного варианта"))
+                                "field sits on the first enum value — "
+                                "often a sign the option was never chosen"))
     return _dedupe(out)
 
 

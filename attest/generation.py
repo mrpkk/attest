@@ -151,17 +151,17 @@ def verify_chain(attestation_record: dict[str, Any],
     if stated is None and recomputed is None:
         return {"status": "NO_CHAIN",
                 "bound": False,
-                "detail": "условия генерации не переданы — привязки нет"}
+                "detail": "generation conditions were not supplied — there is no binding"}
     if stated is None:
         return {"status": "CHAIN_ADDED_AFTER_SIGNING", "bound": False,
-                "detail": "подпись сделана без привязки, условия переданы позже"}
+                "detail": "signed without a binding; conditions were supplied later"}
     if recomputed is None:
         return {"status": "CHAIN_MISSING_CONDITIONS", "bound": False,
-                "detail": "в привязке заявлены условия, но передать их нечем"}
+                "detail": "conditions are claimed in the binding but none can be supplied"}
     if stated == recomputed:
         return {"status": "CHAIN_VERIFIED", "bound": True,
-                "detail": "условия генерации совпадают с подписанными"}
+                "detail": "generation conditions match the signed ones"}
     return {"status": "CHAIN_MISMATCH", "bound": False,
-            "detail": "условия не совпадают с подписанными — "
-                      "артефакт получен из других условий либо подпись подделана",
+            "detail": "conditions do not match the signed ones — "
+                      "the artifact came from different conditions, or the signature is forged",
             "stated": stated, "recomputed": recomputed}

@@ -49,12 +49,12 @@ def _type_ok(value: Any, expected: str) -> bool:
 
 def _validate(value: Any, schema: dict[str, Any], path: str, depth: int, out: list[SchemaViolation]) -> None:
     if depth > MAX_DEPTH:
-        out.append(SchemaViolation(path, "depth", f"превышена глубина {MAX_DEPTH}"))
+        out.append(SchemaViolation(path, "depth", f"depth exceeds {MAX_DEPTH}"))
         return
 
     expected = schema.get("type")
     if isinstance(expected, str) and not _type_ok(value, expected):
-        out.append(SchemaViolation(path, "type", f"ожидался {expected}, получен {type(value).__name__}"))
+        out.append(SchemaViolation(path, "type", f"expected {expected}, got {type(value).__name__}"))
         return
     if isinstance(expected, list) and not any(_type_ok(value, t) for t in expected):
         out.append(SchemaViolation(path, "type", f"ожидался один из {expected}, получен {type(value).__name__}"))
@@ -62,17 +62,17 @@ def _validate(value: Any, schema: dict[str, Any], path: str, depth: int, out: li
 
     if isinstance(value, str):
         if len(value) > MAX_STRING:
-            out.append(SchemaViolation(path, "size", f"строка {len(value)} > {MAX_STRING}"))
+            out.append(SchemaViolation(path, "size", f"string {len(value)} > {MAX_STRING}"))
         pattern = schema.get("pattern")
         if pattern:
             try:
                 if not re.search(pattern, value):
-                    out.append(SchemaViolation(path, "pattern", f"не совпало с /{pattern}/"))
+                    out.append(SchemaViolation(path, "pattern", f"did not match /{pattern}/"))
             except re.error:
                 pass
         enum = schema.get("enum")
         if isinstance(enum, list) and value not in enum:
-            out.append(SchemaViolation(path, "enum", f"значение не входит в enum[{len(enum)}]"))
+            out.append(SchemaViolation(path, "enum", f"value not in enum[{len(enum)}]"))
         return
 
     if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -117,7 +117,7 @@ def _basic_invariants(artifact: Any, path: str, depth: int, out: list[SchemaViol
     на 50 уровней вложенности — это всё способы сломать контекст.
     """
     if depth > MAX_DEPTH:
-        out.append(SchemaViolation(path, "depth", f"превышена глубина {MAX_DEPTH}"))
+        out.append(SchemaViolation(path, "depth", f"depth exceeds {MAX_DEPTH}"))
         return
     if isinstance(artifact, str):
         if len(artifact) > MAX_STRING:

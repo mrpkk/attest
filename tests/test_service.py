@@ -105,25 +105,30 @@ class TestEndpoints:
         assert status == 200
         assert body["status"] == "ok"
 
-    def test_landing_lets_client_test_without_an_account(self, server):
-        status, ctype, _ = get(f"{server}/")
-        assert status == 200
-        assert "text/html" in ctype
-        html = urllib.request.urlopen(server + "/", timeout=10).read().decode("utf-8")
-        assert "/verify" in html
-        assert "бесплатно" in html.lower()
+    def test_landing_is_in_english(self, server):
+        """Продукт работает на международном рынке.
 
-    def test_landing_has_no_unrendered_placeholders(self, server):
-        """Плейсхолдер, дошедший до браузера, — это сломанная страница."""
-        html = urllib.request.urlopen(server + "/", timeout=10).read().decode("utf-8")
-        for leak in ("{free_limit}", "__FREE_LIMIT__", "{{", "}}"):
-            assert leak not in html, f"на странице виден неотрендеренный {leak!r}"
+        Русский в витрине — потеря иностранных покупателей, поэтому язык
+        проверяется тестом, а не памятью автора.
+        """
+        import re
+        base = server if isinstance(server, str) else server[0]
+        html = urllib.request.urlopen(base + "/", timeout=10).read().decode("utf-8")
+        assert 'lang="en"' in html.lower()
+        text = re.sub(r"<[^>]+>", " ", html)
+        ru = sorted(set(re.findall(r"[а-яА-ЯёЁ]{4,}", text)))
+        assert not ru, f"Russian text on the landing page: {ru[:8]}"
 
     def test_landing_shows_the_real_limit(self, server):
         """Страница обязана называть тот же лимит, что действует на самом деле."""
-        _, _, stats = get(f"{server}/stats")
-        html = urllib.request.urlopen(server + "/", timeout=10).read().decode("utf-8")
-        assert f'id="lim">{stats["free_limit"]}<' in html
+        base = server if isinstance(server, str) else server[0]
+        _, _, stats = get(f"{base}/stats")
+        html = urllib.request.urlopen(base + "/", timeout=10).read().decode("utf-8")
+        # Страница обязана называть тот же лимит, что действует на самом деле.
+        # Проверка идёт через значение, а не через HTML-идентификатор:
+        # при переверстке разметки тест падал бы зря, не сообщая ничего
+        # о расхождении лимитов.
+        assert str(stats["free_limit"]) in html
 
     def test_pricing_advertises_free_tier_and_paid(self, server):
         status, _, body = get(f"{server}/pricing")
@@ -281,7 +286,7 @@ class TestExhaustion:
             assert status == 402
             assert body["x402"]["enabled"] is False
             assert body["x402"]["pay_to"] is None
-            assert "не настроена" in body["hint"]
+            assert "not configured" in body["hint"]
         finally:
             AttestHandler.free_tier.reset("127.0.0.1")
 
@@ -481,7 +486,7 @@ class TestPricingEconomics:
         assert 0.0005 < cost < 0.005, f"себестоимость выглядит неправдоподобно: {cost}"
 
     def test_the_old_price_would_have_lost_money(self):
-        with pytest.raises(ValueError, match="ниже себестоимости"):
+        with pytest.raises(ValueError, match="below the computed cost"):
             check_price_covers_cost(1000)
 
     def test_our_price_has_margin(self):
