@@ -15,6 +15,7 @@ from typing import Any
 from .poison import PoisonSignal, scan_for_poison
 from .provenance import Attestation, new_record, sign, verify
 from .generation import GenerationContext, chain_hash as make_chain_hash
+from .authority import authority_hash as make_authority_hash, check_authority
 from .provenance import digest as _content_hash
 
 _GEN_FIELDS = ("model", "model_version", "prompt", "parameters",
@@ -110,6 +111,8 @@ def _verdict(violations: list[SchemaViolation], signals: list[PoisonSignal], sco
 
 def attest(artifact: Any, schema: dict[str, Any] | None = None, source: str = "unknown", sign_it: bool = True,
     generation: "dict[str, Any] | None" = None,
+    payload_mandate: "dict[str, Any] | None" = None,
+    payload_action: "dict[str, Any] | None" = None,
 ) -> AttestResult:
     """Проверить артефакт и вернуть вердикт с подписью."""
     violations = validate_against_schema(artifact, schema)
@@ -120,6 +123,18 @@ def attest(artifact: Any, schema: dict[str, Any] | None = None, source: str = "u
     # Привязка считается от хэша содержимого, который new_record посчитает
     # тем же способом. Считаем заранее, чтобы chain_hash вошёл в подпись,
     # а не существовал рядом с ней.
+    # Разрешение считается независимо от формы артефакта. Отказ здесь не
+    # делает артефакт недействительным — он делает его неразрешённым, и
+    # это разные утверждения.
+    auth_hash = None
+    auth = None
+    mandate = payload_mandate
+    if isinstance(mandate, dict):
+        act = payload_action if isinstance(payload_action, dict) else {}
+        verdict_auth = check_authority(mandate, act)
+        auth = verdict_auth.as_dict()
+        auth_hash = make_authority_hash(mandate, act)
+
     chain = None
     if isinstance(generation, dict):
         chain = make_chain_hash(
@@ -134,6 +149,8 @@ def attest(artifact: Any, schema: dict[str, Any] | None = None, source: str = "u
         verdict=verdict,
         trust_score=score,
         chain_hash=chain,
+        authority_hash=auth_hash,
+        authority=auth,
         violations=[v.as_dict() for v in violations],
         signals=[s.as_dict() for s in signals],
     )

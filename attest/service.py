@@ -717,6 +717,8 @@ class AttestHandler(BaseHTTPRequestHandler):
             schema if isinstance(schema, dict) else None,
             source=source[:200],
             generation=generation if isinstance(generation, dict) else None,
+            payload_mandate=payload.get("mandate"),
+            payload_action=payload.get("action"),
         )
         body = result.as_dict()
         body["free_remaining"] = self.free_tier.remaining(self.client_id())
@@ -740,6 +742,19 @@ class AttestHandler(BaseHTTPRequestHandler):
             # Детектор пустоты не имеет права ломать проверку: если он
             # сломался, клиент должен получить свой результат, а не 500.
             body["emptiness"] = {"error": f"{type(exc).__name__}: {exc}"}
+
+        auth = body.get("attestation", {}).get("record", {}).get("authority")
+        if auth is not None:
+            body["authority"] = auth
+            body["authority_hash"] = body["attestation"]["record"].get(
+                "authority_hash")
+        else:
+            # Мандат не предъявлен. Молчать об этом нельзя: иначе «нет
+            # проверки разрешения» выглядит как «разрешение есть».
+            body["authority"] = {
+                "allowed": False, "rule": "no_mandate",
+                "note": "мандат не передан — разрешение не проверялось",
+            }
 
         gen = payload.get("generation")
         if isinstance(gen, dict):

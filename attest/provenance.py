@@ -38,6 +38,12 @@ class ProvenanceRecord:
     # Привязка к условиям генерации. None означает «условия не переданы»,
     # и это обязано быть видно, а не молча выглядеть как «привязка есть».
     chain_hash: str | None = None
+    # Проверка разрешения. Заверяется вместе с артефактом: подпись должна
+    # говорить не «это подписано», а «это подписано И это было разрешено».
+    # Проверять мандат, но не заверять его — значит оставить дыру, где к
+    # артефакту прикладывается чужое полномочие.
+    authority_hash: str | None = None
+    authority: dict[str, Any] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -133,6 +139,8 @@ def new_record(
     violations: list[dict[str, str]] | None = None,
     signals: list[dict[str, str]] | None = None,
     chain_hash: str | None = None,
+    authority_hash: str | None = None,
+    authority: dict[str, Any] | None = None,
 ) -> ProvenanceRecord:
     return ProvenanceRecord(
         attestation_id=str(uuid.uuid4()),
@@ -144,4 +152,6 @@ def new_record(
         violations=violations or [],
         signals=signals or [],
         chain_hash=chain_hash,
+        authority_hash=authority_hash,
+        authority=authority,
     )
