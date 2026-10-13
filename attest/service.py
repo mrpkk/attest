@@ -627,6 +627,40 @@ class _Response:
 PATH_PREFIXES = ("/attest",)
 
 
+def _base_url() -> str:
+    """Публичный адрес: в sitemap обязаны быть абсолютные URL."""
+    import os
+    return os.environ.get("ATTEST_BASE_URL",
+                          "https://attest.rta.lat").rstrip("/")
+
+
+def _robots() -> str:
+    """Краулеров пускаем: индексация витрины — это трафик.
+
+    Закрыт только `/mcp`: это потоковый endpoint для машин, а не документ.
+    """
+    return ("User-agent: *\n"
+            "Allow: /\n"
+            "Disallow: /mcp\n"
+            f"Sitemap: {_base_url()}/sitemap.xml\n")
+
+
+def _sitemap() -> str:
+    """Карта сайта: без неё краулер не знает, что обходить.
+
+    `/subscribe` и `/verify` в карту не идут: это endpoints, а не
+    документы. Их индексация бессмысленна.
+    """
+    base = _base_url()
+    urls = "".join(
+        f"<url><loc>{base}{page}</loc></url>"
+        for page in ("", "/demo", "/pricing", "/health")
+    )
+    return ('<?xml version="1.0" encoding="UTF-8"?>'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+            f"{urls}</urlset>")
+
+
 def route_path(raw: str) -> str:
     """Снять префикс и хвостовой слеш — дальше сравнение идёт как раньше."""
     path = urlparse(raw).path
@@ -682,6 +716,12 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/demo":
             self._send_html(DEMO.replace("__FREE_LIMIT__",
                                          str(self.free_tier.daily_limit)))
+        elif path == "/robots.txt":
+            self._send(200, _robots().encode("utf-8"),
+                          "text/plain; charset=utf-8")
+        elif path == "/sitemap.xml":
+            self._send(200, _sitemap().encode("utf-8"),
+                          "application/xml; charset=utf-8")
         elif path == "/subscribe":
             return self._handle_subscribe(describe_only=True)
         elif path == "/verify":
