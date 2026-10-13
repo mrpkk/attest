@@ -141,6 +141,17 @@ def verify(payload: bytes, signature: str, public: str) -> bool:
         return False
 
 
+def public_key_b64(path: Path | None = None) -> str:
+    """Публичный ключ в том же виде, в каком его кладёт `sign()`.
+
+    `public_key()` отдаёт сырые байты, а `verify()` ждёт base64. Две формы
+    одного ключа — источник ошибок вида «подпись не сходится» при полностью
+    исправном ключе, поэтому для проверки пользоваться только этой.
+    """
+    import base64
+    return base64.b64encode(public_key(path)).decode("ascii")
+
+
 def key_fingerprint() -> str:
     """Короткий отпечаток ключа — чтобы показывать, каким ключом подписано."""
     import hashlib

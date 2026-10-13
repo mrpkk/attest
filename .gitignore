@@ -17,3 +17,5 @@ htmlcov/
 .DS_Store
 *.log
 logs/
+
+attest/__pycache__/

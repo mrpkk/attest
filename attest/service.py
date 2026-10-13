@@ -28,6 +28,9 @@ from urllib.parse import urlparse
 
 from . import __version__
 from .core import attest
+from .signing import public_key_b64
+from . import entitlement
+from .entitlement import HEADER as ENT_HEADER, issue as issue_entitlement, redeem, describe as entitlement_describe
 from .generation import GenerationContext, verify_chain
 from .provenance import digest as _digest
 
@@ -54,12 +57,10 @@ PRICING = {
         "network": "base",
         "what": "check beyond the free tier, paid per call over x402",
     },
-    "subscription": {
-        "price": "9",
-        "currency": "USDC",
-        "unit": "per month",
-        "what": "removes the limit, suitable for CI pipelines",
-    },
+    # Раньше здесь стояло «9 USDC в месяц» без кода приёма: тариф был виден
+    # в прайсе и не выдавался. Объявленная цена, которую нельзя оплатить,
+    # хуже отсутствующей — покупатель уходит и запоминает.
+    "subscription": entitlement_describe(),
 }
 
 
@@ -681,6 +682,8 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/demo":
             self._send_html(DEMO.replace("__FREE_LIMIT__",
                                          str(self.free_tier.daily_limit)))
+        elif path == "/subscribe":
+            return self._handle_subscribe(describe_only=True)
         elif path == "/verify":
             # Раньше здесь был 404 на GET, и это выглядело как поломка.
             # На деле /verify принимает только POST, а открыть его в
@@ -727,6 +730,8 @@ class AttestHandler(BaseHTTPRequestHandler):
         if path == "/mcp":
             self._handle_mcp()
             return
+        if path == "/subscribe":
+            return self._handle_subscribe()
         if path != "/verify":
             self._send_json(404, {"error": "no such path", "path": path})
             return
@@ -746,6 +751,19 @@ class AttestHandler(BaseHTTPRequestHandler):
 
         # v2 спецификация называет заголовок PAYMENT-SIGNATURE, v1 — X-PAYMENT.
         # Берём оба: клиент может прийти по любой из версий.
+        # Предоплаченный доступ проверяется ДО списания бесплатного
+        # счётчика: у подписчика лимита нет вовсе, а не «есть, но не
+        # тратится».
+        ent_token = self.headers.get(entitlement.HEADER)
+        ent_ok, ent_why = redeem(ent_token, trusted_key=public_key_b64())
+        if ent_ok:
+            return self._handle_entitled(payload, source, ent_why)
+        # Токен предъявлен и не прошёл. Молча списать проверку по
+        # бесплатному тарифу здесь хуже: покупатель решит, что оплатил,
+        # и будет искать ошибку там, где её нет.
+        if ent_token:
+            print(f"attest: entitlement отвергнут: {ent_why}")
+
         payment_header = self.headers.get("PAYMENT-SIGNATURE") or self.headers.get("X-PAYMENT")
         try:
             self.free_tier.spend(client)
@@ -800,6 +818,71 @@ class AttestHandler(BaseHTTPRequestHandler):
             return
         status, body = answer
         self._send(status, body, "application/json; charset=utf-8")
+
+    def _handle_entitled(self, payload: dict, source: str,
+                         detail: str = "") -> None:
+        """Путь подписчика: лимита нет, ответ помечен действительным доступом."""
+        schema = payload.get("schema")
+        generation = payload.get("generation")
+        result = attest(
+            payload["artifact"],
+            schema if isinstance(schema, dict) else None,
+            source=source[:200],
+            generation=generation if isinstance(generation, dict) else None,
+            payload_mandate=payload.get("mandate"),
+            payload_action=payload.get("action"),
+        )
+        body = result.as_dict()
+        body["free_remaining"] = -1          # -1 = лимита нет
+        body["paid"] = True
+        body["entitlement"] = {"valid": True, "detail": detail}
+        self._send_json(200, body)
+
+    def _handle_subscribe(self, describe_only: bool = False) -> None:
+        """Купить 30 дней неограниченного доступа за один платёж.
+
+        x402 умеет оплату за вызов и ничего больше: ни периодичности, ни
+        автосписания. Поэтому тариф здесь — предоплата, а не подписка в
+        обычном смысле, и `/pricing` говорит об этом прямо. Иначе мы бы
+        обещали покупателю списание, которого не происходит.
+        """
+        if describe_only:
+            return self._send_json(200, {"subscription":
+                                         entitlement_describe()})
+        if not self.x402_pay_to:
+            return self._send_json(503, {
+                "error": "payment is not configured: no wallet set "
+                         "(ATTEST_PAY_TO is empty)"})
+        head = (self.headers.get("PAYMENT-SIGNATURE")
+                or self.headers.get("X-PAYMENT"))
+        if not head:
+            challenge = self._challenge_header(
+                amount_atoms=int(entitlement.PRICE_USD * 1_000_000),
+                resource=f"{self._base_url()}/subscribe")
+            return self._send_json(
+                402,
+                {"error": "pay 9 USDC for 30 days of unlimited access",
+                 "subscription": entitlement_describe(),
+                 "header": entitlement.HEADER},
+                extra_headers={"Payment-Required": challenge}
+                if challenge else None)
+        try:
+            payment = self._verify_payment(head)
+        except PaymentError as exc:
+            return self._send_json(exc.status, {"error": exc.reason})
+        granted = issue_entitlement(self.client_id(),
+                                    entitlement.DEFAULT_DAYS)
+        self._send_json(200, {
+            "subscription": entitlement_describe(),
+            "entitlement_token": granted["token"],
+            "valid_until": granted["valid_until"],
+            "header": entitlement.HEADER,
+            "how": ("send the token in the "
+                    f"{entitlement.HEADER} header on every request"),
+            "payment": {"payer": payment.payer,
+                        "amount_atoms": payment.amount_atoms,
+                        "pay_to": payment.pay_to},
+        })
 
     def _verify_payment(self, header_value: str):
         """Проверить оплату по челленджу, который мы сами же и выставили."""
@@ -993,8 +1076,13 @@ class AttestHandler(BaseHTTPRequestHandler):
         doc["docs"] = f"{base}/llms.txt"
         return doc
 
-    def _challenge_header(self) -> str | None:
-        """Заголовок `Payment-Required` для исчерпавшего лимит, если есть кошелёк.
+    def _challenge_header(self, amount_atoms: int | None = None,
+                          resource: str | None = None) -> str | None:
+        """Заголовок `Payment-Required` с челленджем x402.
+
+        Сумму и ресурс можно задать: подписка на 30 дней — другой товар с
+        другой ценой, и выставлять ей челлендж на стоимость одного вызова
+        значило бы продавать её за 0,005 USDC.
 
         Ошибка конфигурации не должна ронять сервис: клиент всё равно получит
         402 и текстовое объяснение, просто без машиночитаемого челленджа.
@@ -1003,9 +1091,10 @@ class AttestHandler(BaseHTTPRequestHandler):
             return None
         try:
             token, _ = build_challenge(
-                resource=f"{self._base_url()}/verify",
+                resource=resource or f"{self._base_url()}/verify",
                 pay_to=self.x402_pay_to,
-                price_atoms=self.x402_price_atoms,
+                price_atoms=(self.x402_price_atoms if amount_atoms is None
+                             else amount_atoms),
             )
         except (ValueError, TypeError) as exc:
             print(f"attest: x402-челлендж не собран: {exc}")
