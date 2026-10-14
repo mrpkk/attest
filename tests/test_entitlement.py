@@ -106,3 +106,75 @@ class EntitlementTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MetricsTests(unittest.TestCase):
+    """Метрики: единственный способ узнать, сработал ли канал.
+
+    Без них подача в каталог — трата времени: 130 посетителей витрины дали
+    ноль клиентов, и мы не смогли сказать, почему.
+    """
+
+    def test_source_comes_from_ref(self):
+        from attest.metrics import channel_of
+        self.assertEqual(channel_of("?ref=apify", None), "apify")
+
+    def test_source_falls_back_to_referer(self):
+        from attest.metrics import channel_of
+        self.assertEqual(
+            channel_of("", "https://glama.ai/mcp/servers"), "glama")
+
+    def test_no_source_is_direct_not_empty(self):
+        # «Пришёл сам» — тоже данные. Пустая строка потеряла бы этот факт.
+        from attest.metrics import channel_of
+        self.assertEqual(channel_of("", None), "direct")
+
+    def test_ref_wins_over_referer(self):
+        # Мы управляем ref в листинге; Referer может подменить посредник.
+        from attest.metrics import channel_of
+        self.assertEqual(
+            channel_of("?ref=dify", "https://example.com"), "dify")
+
+    def test_unknown_host_is_recorded_not_dropped(self):
+        from attest.metrics import channel_of
+        self.assertEqual(channel_of("", "https://example.com/x"), "example.com")
+
+    def test_revenue_is_counted_in_atoms(self):
+        from attest.metrics import Metrics
+        m = Metrics()
+        m.payment("apify", 5000)
+        m.payment("apify", 5000)
+        s = m.snapshot()
+        self.assertEqual(s["revenue_atoms"], 10000)
+        self.assertEqual(s["successful_paid_actions"], 2)
+
+    def test_free_and_paid_checks_are_distinguishable(self):
+        from attest.metrics import Metrics
+        m = Metrics()
+        m.check("dify", paid=False)
+        m.check("dify", paid=True)
+        s = m.snapshot()
+        self.assertEqual(s["checks_free"], 1)
+        self.assertEqual(s["checks_paid"], 1)
+
+    def test_survives_restart(self):
+        # Сервис перезапускается при каждой правке. Счётчики в памяти
+        # обнулились бы ровно тогда, когда нужны.
+        import tempfile
+        from unittest import mock
+        from attest import metrics as mod
+        with tempfile.TemporaryDirectory() as d:
+            with mock.patch.object(mod, "STATE_PATH",
+                                   __import__("pathlib").Path(d) / "m.json"):
+                m = mod.Metrics()
+                m.payment("windmill", 5000)
+                m.save()
+                again = mod.Metrics()
+                again.load()
+                self.assertEqual(again.snapshot()["revenue_atoms"], 5000)
+
+    def test_no_negative_revenue_from_garbage(self):
+        from attest.metrics import Metrics
+        m = Metrics()
+        m.payment("x", -1)
+        self.assertEqual(m.snapshot()["revenue_atoms"], 0)

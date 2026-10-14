@@ -28,6 +28,7 @@ from urllib.parse import urlparse
 
 from . import __version__
 from .core import attest
+from .metrics import METRICS, channel_of
 from .signing import public_key_b64
 from . import entitlement
 from .entitlement import HEADER as ENT_HEADER, issue as issue_entitlement, redeem, describe as entitlement_describe
@@ -737,6 +738,11 @@ class AttestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         path = route_path(self.path)
+        # Показ страницы — верх воронки. Считаем ДО обработчиков: они
+        # возвращают управление и до этой точки дело не доходит.
+        if path in ("/", "/demo", "/pricing"):
+            METRICS.view(channel_of(self.path, self.headers.get("Referer")))
+            METRICS.save()
         if path == "/":
             page = _with_schema(LANDING).replace("__FREE_LIMIT__", str(self.free_tier.daily_limit))
             self._send(200, page.encode(), "text/html; charset=utf-8")
@@ -754,6 +760,8 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/demo":
             self._send_html(DEMO.replace("__FREE_LIMIT__",
                                          str(self.free_tier.daily_limit)))
+        elif path == "/metrics":
+            self._send_json(200, METRICS.snapshot())
         elif path == "/robots.txt":
             self._send(200, _robots().encode("utf-8"),
                           "text/plain; charset=utf-8")
@@ -845,6 +853,8 @@ class AttestHandler(BaseHTTPRequestHandler):
         payment_header = self.headers.get("PAYMENT-SIGNATURE") or self.headers.get("X-PAYMENT")
         try:
             self.free_tier.spend(client)
+            METRICS.check(channel_of(self.path, self.headers.get("Referer")),
+                          paid=False)
         except FreeTierExhausted as exc:
             if not payment_header:
                 token = self._challenge_header()
@@ -856,6 +866,9 @@ class AttestHandler(BaseHTTPRequestHandler):
                 return
             try:
                 payment = self._verify_payment(payment_header)
+                METRICS.payment(
+                    channel_of(self.path, self.headers.get("Referer")),
+                    int(getattr(payment, "amount_atoms", 0) or 0))
             except PaymentError as exc:
                 self._send_json(exc.status, {"error": exc.reason, "paid": False})
                 return
