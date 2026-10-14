@@ -78,6 +78,44 @@ def _env_int(name: str, default: int) -> int:
 FREE_DAILY_LIMIT = _env_int("ATTEST_FREE_DAILY", DEFAULT_FREE_DAILY)
 
 
+
+def _schema_block() -> str:
+    """Разметка товара для поиска: тип, имя, цена, где найти."""
+    data = {
+    "@type": "SoftwareApplication",
+    "name": "attest",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Any",
+    "description": "Four-layer verification for AI agent artifacts: schema, emptiness, generation conditions and mandate authority. Ed25519-signed and verifiable without trusting the service.",
+    "url": "https://attest.rta.lat/",
+    "offers": {
+        "@type": "AggregateOffer",
+        "lowPrice": "0",
+        "highPrice": "9",
+        "priceCurrency": "USDC"
+    }
+}
+    data["@context"] = "https://schema.org"
+    return ('<script type="application/ld+json">'
+            + json.dumps(data, ensure_ascii=False) + "</script>")
+
+
+def _with_schema(html: str) -> str:
+    """Вставить разметку в HTML. Идемпотентно: повторный вызов не дублирует."""
+    if not isinstance(html, str) or "application/ld+json" in html:
+        return html
+    block = _schema_block()
+    lowered = html.lower()
+    for marker in ("</head>", "<body", "</title>"):
+        pos = lowered.find(marker)
+        if pos != -1:
+            return html[:pos] + block + html[pos:]
+    import re
+    m = re.search(r"<meta[^>]+charset[^>]*>", html, re.IGNORECASE)
+    if m:
+        return html[:m.end()] + block + html[m.end():]
+    return block + html
+
 class FreeTierExhausted(Exception):
     """Бесплатные проверки кончились; дальше — по x402."""
 
@@ -700,7 +738,7 @@ class AttestHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         path = route_path(self.path)
         if path == "/":
-            page = LANDING.replace("__FREE_LIMIT__", str(self.free_tier.daily_limit))
+            page = _with_schema(LANDING).replace("__FREE_LIMIT__", str(self.free_tier.daily_limit))
             self._send(200, page.encode(), "text/html; charset=utf-8")
         elif path == "/health":
             self._send_json(200, {"status": "ok", "version": __version__})
