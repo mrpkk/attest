@@ -53,8 +53,9 @@ class TestProtocol:
         assert "verify_artifact" in by_name
         verify = by_name["verify_artifact"]
         assert verify["inputSchema"]["required"] == ["artifact"]
-        assert "принят" in verify["description"].lower() or "выплат" in verify["description"].lower()
-
+        assert "verdict" in verify["description"].lower()
+        assert "pay" in verify["description"].lower(), (
+            "описание должно объяснять агенту, зачем проверять перед оплатой")
         assert "bridge_check" in by_name
         bridge = by_name["bridge_check"]
         assert bridge["inputSchema"]["required"] == ["action"]

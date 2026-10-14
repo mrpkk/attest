@@ -31,35 +31,38 @@ VERIFY_TOOL: dict[str, Any] = {
     # Аннотации обязательны: Anthropic не примет листинг без них, Smithery и
     # Cursor рисуют их бейджами. Наш инструмент ничего не меняет — он только
     # читает, поэтому readOnlyHint=true, и это же важно сказать агенту явно.
-    "title": "Проверка артефакта агента",
+    "title": "Verify an AI agent artifact",
     "annotations": {
-        "title": "Проверка артефакта агента",
+        "title": "Verify an AI agent artifact",
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
         "openWorldHint": False,
     },
     "description": (
-        "Проверить артефакт, полученный от ИИ-агента, до выплаты: инъекции "
-        "в данные, нарушения схемы, опасные команды, происхождение. "
-        "Возвращает вердикт accept/review/reject, доверие 0-100, конкретные "
-        "находки и подпись. Проверка по правилам, без LLM: одинаковый артефакт "
-        "даёт одинаковый результат. Используйте перед принятием работы от "
-        "другого агента и перед оплатой."
+        "Verify an artifact produced by an AI agent before accepting or "
+        "paying for it. Four independent layers: schema conformance, whether "
+        "there is anything inside (uniform lists, stubs, truncations), "
+        "provenance bound to the artifact hash, and whether a signed mandate "
+        "permitted the action. Returns a verdict (accept/review/reject), a "
+        "0-100 trust score, concrete findings and an Ed25519 signature. "
+        "Rule-based, no LLM: the same artifact always yields the same "
+        "result. Use before accepting work from another agent and before "
+        "payment."
     ),
     "inputSchema": {
         "type": "object",
         "properties": {
             "artifact": {
-                "description": "Артефакт агента: объект, массив или строка.",
+                "description": "The agent artifact: object, array or string.",
             },
             "schema": {
                 "type": "object",
-                "description": "Необязательная JSON Schema, которой артефакт должен удовлетворять.",
+                "description": "Optional JSON Schema the artifact must satisfy.",
             },
             "source": {
                 "type": "string",
-                "description": "Откуда артефакт — для записи в аттестации.",
+                "description": "Where the artifact came from, recorded in the attestation.",
             },
         },
         "required": ["artifact"],
@@ -92,9 +95,9 @@ class RpcError(Exception):
 
 BRIDGE_TOOL: dict[str, Any] = {
     "name": "bridge_check",
-    "title": "Мост: задача → работа → деньги",
+    "title": "Bridge: task to work to money",
     "annotations": {
-        "title": "Мост: задача → работа → деньги",
+        "title": "Bridge: task to work to money",
         # Не read-only: инструмент двигает состояние сделки и бюджет.
         "readOnlyHint": False,
         "destructiveHint": False,
@@ -102,15 +105,16 @@ BRIDGE_TOOL: dict[str, Any] = {
         "openWorldHint": True,
     },
     "description": (
-        "Провести сделку через мост: заказчик ставит задачу с бюджетом в "
-        "эскроу, агент сдаёт артефакт, мост проверяет его и выпускает "
-        "подписанный RECEIPT. Бюджет отпускается только после проверки. "
-        "RECEIPT проверяется третьей стороной без доступа к мосту — это то, "
-        "что делает слой переносимым между агентом, заказчиком и страховщиком. "
-        "Действия: job (создать), deliver (сдать и проверить), release "
-        "(принять), refund (отклонить), verify (проверить чужой receipt), "
-        "trust (репутация). Используйте, когда агент берёт оплачиваемую задачу "
-        "или когда нужно доказать третьей стороне, что работа выполнена."
+        "Settle a job between two agents through an escrow bridge. The "
+        "client posts a task with a budget held in escrow, the worker "
+        "delivers an artifact, the bridge verifies it and issues a signed "
+        "RECEIPT. The budget is released only after verification passes. "
+        "The RECEIPT is verifiable by a third party without access to the "
+        "bridge, which is what makes it portable between worker, client and "
+        "insurer. Actions: job (create), deliver (submit and verify), "
+        "release (accept), refund (reject), verify (check someone else's "
+        "receipt), trust (reputation). Use when an agent takes on paid work, "
+        "or when you need to prove to a third party that the work was done."
     ),
     "inputSchema": {
         "type": "object",
@@ -118,20 +122,20 @@ BRIDGE_TOOL: dict[str, Any] = {
             "action": {
                 "type": "string",
                 "enum": ["job", "deliver", "release", "refund", "verify", "trust"],
-                "description": "Что сделать.",
+                "description": "What to do.",
             },
-            "job_id": {"type": "string", "description": "ID задачи (кроме job)."},
-            "agent": {"type": "string", "description": "Идентификатор агента."},
-            "title": {"type": "string", "description": "Что нужно сделать (для job)."},
-            "spec": {"type": "object", "description": "Спецификация результата (для job)."},
+            "job_id": {"type": "string", "description": "Job ID (any action except job)."},
+            "agent": {"type": "string", "description": "Agent identifier."},
+            "title": {"type": "string", "description": "What needs to be done (for job)."},
+            "spec": {"type": "object", "description": "Expected result specification (for job)."},
             "amount_minor": {
                 "type": "integer",
-                "description": "Бюджет в минорных единицах, 1 USDC = 1000000.",
+                "description": "Budget in minor units; 1 USDC = 1000000.",
             },
-            "client": {"type": "string", "description": "Кто заказчик (для job)."},
-            "artifact": {"description": "Артефакт агента (для deliver)."},
-            "receipt": {"type": "object", "description": "Чужой receipt (для verify)."},
-            "db": {"type": "string", "description": "Путь к базе моста."},
+            "client": {"type": "string", "description": "Who the client is (for job)."},
+            "artifact": {"description": "The agent artifact (for deliver)."},
+            "receipt": {"type": "object", "description": "A third party receipt (for verify)."},
+            "db": {"type": "string", "description": "Path to the bridge database."},
         },
         "required": ["action"],
     },
@@ -218,7 +222,7 @@ def _call_tool(
             )
         return _call_bridge(arguments, bridge)
     if name != VERIFY_TOOL["name"]:
-        raise RpcError(JSONRPC_METHOD_NOT_FOUND, f"инструмент {name!r} не существует")
+        raise RpcError(JSONRPC_METHOD_NOT_FOUND, f"no such tool: {name!r}")
     if "artifact" not in arguments:
         raise RpcError(JSONRPC_INVALID_PARAMS, 'нужен аргумент "artifact"')
 
