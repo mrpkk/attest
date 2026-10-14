@@ -666,6 +666,35 @@ class _Response:
 PATH_PREFIXES = ("/attest",)
 
 
+def _server_card() -> dict:
+    """Карта сервера для каталогов MCP (SEP-1649).
+
+    Каталог Smithery сканирует сервер сам, но если сканирование не
+    проходит — за авторизацией, из-за WAF или по таймауту — он читает
+    эту карту вместо сканирования. Карта статична и не требует, чтобы
+    сканер достучался до /mcp.
+
+    Отдаём инструменты ровно те, что реально есть, из одного источника
+    с самим сервером: расхождение между картой и /mcp читается как обман.
+    """
+    from .mcp import BRIDGE_TOOL, VERIFY_TOOL
+    tools = []
+    for tool in (VERIFY_TOOL, BRIDGE_TOOL):
+        tools.append({
+            "name": tool["name"],
+            "description": tool["description"],
+            "inputSchema": tool["inputSchema"],
+        })
+    return {
+        "serverInfo": {"name": "attest", "version": "0.1.0"},
+        "authentication": {"required": False, "schemes": []},
+        "tools": tools,
+        "resources": [],
+        "prompts": [],
+    }
+
+
+
 def _base_url() -> str:
     """Публичный адрес: в sitemap обязаны быть абсолютные URL."""
     import os
@@ -762,6 +791,8 @@ class AttestHandler(BaseHTTPRequestHandler):
                                          str(self.free_tier.daily_limit)))
         elif path == "/metrics":
             self._send_json(200, METRICS.snapshot())
+        elif path == "/.well-known/mcp/server-card.json":
+            self._send_json(200, _server_card())
         elif path == "/robots.txt":
             self._send(200, _robots().encode("utf-8"),
                           "text/plain; charset=utf-8")
