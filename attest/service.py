@@ -666,6 +666,27 @@ class _Response:
 PATH_PREFIXES = ("/attest",)
 
 
+def _glama_claim() -> dict:
+    """Подтверждение владения доменом для каталога Glama.
+
+    Glama показывает токен в интерфейсе, и его надо опубликовать по
+    /.well-known/glama.json. Токен стабилен и привязан к аккаунту:
+    один и тот же годится для всех доменов.
+
+    Glama перепроверяет файл ежедневно и при пропаже даёт семь дней на
+    восстановление — поэтому токен живёт в конфигурации, а не в коде.
+    """
+    import os
+    token = os.environ.get("GLAMA_CLAIM_TOKEN", "").strip()
+    if not token:
+        return {}
+    return {
+        "$schema": "https://glama.ai/mcp/schemas/connector.json",
+        "claim": token,
+    }
+
+
+
 def _server_card() -> dict:
     """Карта сервера для каталогов MCP (SEP-1649).
 
@@ -791,6 +812,12 @@ class AttestHandler(BaseHTTPRequestHandler):
                                          str(self.free_tier.daily_limit)))
         elif path == "/metrics":
             self._send_json(200, METRICS.snapshot())
+        elif path == "/.well-known/glama.json":
+            card = _glama_claim()
+            if card:
+                self._send_json(200, card)
+            else:
+                self._send_json(404, {"error": "claim token not configured"})
         elif path == "/.well-known/mcp/server-card.json":
             self._send_json(200, _server_card())
         elif path == "/robots.txt":
