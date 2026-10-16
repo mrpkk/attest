@@ -377,3 +377,26 @@ class TestSepoliaDomain:
         with pytest.raises(TokenDomainUnknown):
             eip712_domain("eip155:84532", USDC_BASE.lower())
         assert eip712_domain("eip155:84532", USDC_BASE_SEPOLIA).chain_id == 84532
+
+    def test_challenge_extra_name_matches_network(self):
+        """`extra.name` в челлендже обязан совпадать с доменом сети.
+
+        Найдено живым платежом 16.10.2026: на Sepolia в челлендже стоял
+        «USD Coin» (mainnet-имя), то есть клиент, доверяющий челленджу,
+        подписал бы неверный домен."""
+        from attest.service import (
+            BASE_SEPOLIA_NETWORK, USDC_BASE, USDC_BASE_SEPOLIA, build_challenge,
+        )
+
+        _, ch_main = build_challenge(
+            resource="https://x/verify", pay_to="0x" + "ab" * 20, price_atoms=5000
+        )
+        assert ch_main["accepts"][0]["extra"]["name"] == "USD Coin"
+        assert ch_main["accepts"][0]["asset"] == USDC_BASE
+
+        _, ch_sep = build_challenge(
+            resource="https://x/verify", pay_to="0x" + "ab" * 20, price_atoms=5000,
+            network=BASE_SEPOLIA_NETWORK, asset=USDC_BASE_SEPOLIA,
+        )
+        assert ch_sep["accepts"][0]["extra"]["name"] == "USDC"
+        assert ch_sep["accepts"][0]["asset"] == USDC_BASE_SEPOLIA

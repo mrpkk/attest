@@ -632,6 +632,16 @@ def build_challenge(
         resource_info["tags"] = tags
         if icon_url:
             resource_info["iconUrl"] = icon_url
+    # Имя токена в домене EIP-712 зависит от сети («USD Coin» на mainnet,
+    # «USDC» на Sepolia) — берём из VERIFIED_DOMAINS, чтобы челлендж и
+    # проверка подписи не разъезжались. Найдено живым платежом 16.10.2026:
+    # челлендж говорил «USD Coin» на Sepolia — клиент, доверяющий челленджу,
+    # подписал бы неверный домен и фасилитор отклонил бы платёж.
+    try:
+        _tok_dom = eip712_domain(network, asset or USDC_BASE)
+        _extra = {"name": _tok_dom.name, "version": _tok_dom.version}
+    except TokenDomainUnknown:
+        _extra = {"name": "USD Coin", "version": "2"}
     challenge: dict[str, Any] = {
         "x402Version": 2,
         "resource": resource_info,
@@ -642,7 +652,7 @@ def build_challenge(
             "asset": asset or USDC_BASE,
             "payTo": pay_to,
             "maxTimeoutSeconds": int(max_timeout_seconds),
-            "extra": {"name": "USD Coin", "version": "2"},
+            "extra": _extra,
         }],
     }
     if discoverable:
