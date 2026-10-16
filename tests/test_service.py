@@ -622,3 +622,43 @@ class TestFreeMethodParsing:
         assert not self._is_free([
             {"jsonrpc": "2.0", "id": 1, "method": "ping"}, "мусор",
         ])
+
+
+class TestArticleRoute:
+    """Статья отдаётся и её показы считаются.
+
+    Регрессия: `/article` отдавался, но не попадал в список страниц, которые
+    считают показы. Ссылка с `?ref=hn` работала, метрика оставалась нулевой —
+    трафик из HN был бы неотличим от прямого.
+    """
+
+    def test_article_is_served(self, server):
+        code, ctype, _ = get(f"{server}/article")
+        assert code == 200
+        assert "html" in ctype
+
+    def test_article_contains_substance(self, server):
+        with urllib.request.urlopen(f"{server}/article", timeout=10) as r:
+            html = r.read().decode("utf-8")
+        assert "injection_in_data_field" in html
+        assert "<table>" in html
+        assert "**" not in html, " markdown не отрендерен"
+
+    def test_article_has_canonical_and_og(self, server):
+        with urllib.request.urlopen(f"{server}/article", timeout=10) as r:
+            html = r.read().decode("utf-8")
+        assert 'rel="canonical"' in html
+        assert 'property="og:title"' in html
+
+    def test_article_view_is_counted(self, server):
+        from attest.metrics import METRICS
+        before = METRICS.views.get("hn", 0)
+        with urllib.request.urlopen(f"{server}/article?ref=hn", timeout=10):
+            pass
+        assert METRICS.views.get("hn", 0) == before + 1, \
+            "показ статьи не посчитан — атрибуция канала не работает"
+
+    def test_article_is_in_sitemap(self, server):
+        with urllib.request.urlopen(f"{server}/sitemap.xml", timeout=10) as r:
+            sm = r.read().decode("utf-8")
+        assert "/article" in sm

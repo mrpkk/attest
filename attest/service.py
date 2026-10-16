@@ -821,7 +821,7 @@ class AttestHandler(BaseHTTPRequestHandler):
         path = route_path(self.path)
         # Показ страницы — верх воронки. Считаем ДО обработчиков: они
         # возвращают управление и до этой точки дело не доходит.
-        if path in ("/", "/demo", "/pricing"):
+        if path in ("/", "/demo", "/pricing", "/article"):
             METRICS.view(channel_of(self.path, self.headers.get("Referer")))
             METRICS.save()
         if path == "/":
