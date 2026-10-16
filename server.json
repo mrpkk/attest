@@ -12,7 +12,7 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://REPLACE_WITH_DOMAIN/mcp"
+      "url": "https://attest.rta.lat/mcp"
     }
   ]
 }
