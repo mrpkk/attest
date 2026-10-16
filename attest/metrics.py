@@ -40,6 +40,13 @@ STATE_PATH = Path(os.environ.get(
 
 # Каталоги, куда подаёмся. Ссылку с таким `ref` даём в листинге — тогда
 # видно, какой канал привёл человека, а не только что «кто-то пришёл».
+# Как часто счётчики сбрасываются на диск. Проверки идут пачками, платежи
+# сохраняются всегда и независимо от этого числа.
+SAVE_THROTTLE_SEC = 2.0
+
+# Потолок на число каналов: `ref` приходит от клиента.
+MAX_CHANNELS = 512
+
 KNOWN_CHANNELS = (
     "apify", "apilayer", "dify", "rapidapi", "glama", "smithery",
     "mcpso", "businessmcp", "pulsemcp", "windmill", "storebot",
@@ -58,33 +65,64 @@ class Metrics:
     first_event: float = 0.0
     last_event: float = 0.0
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _last_save: float = field(default=0.0, repr=False)
 
     # ---- запись -------------------------------------------------------
 
     def view(self, channel: str) -> None:
         with self._lock:
-            self.views[channel] = self.views.get(channel, 0) + 1
+            self._bounded(self.views, channel)
             self._touch()
+        self._save_if_due()
 
     def check(self, channel: str, paid: bool) -> None:
         key = f"{channel}:{'paid' if paid else 'free'}"
         with self._lock:
-            self.checks[key] = self.checks.get(key, 0) + 1
+            self._bounded(self.checks, key)
             if paid:
-                self.paid[channel] = self.paid.get(channel, 0) + 1
+                self._bounded(self.paid, channel)
             self._touch()
+        # Проверок много, а ценность каждой события невелика — пишем с
+        # троттлингом, иначе каждый вызов ударяет по диску.
+        self._save_if_due()
 
     def payment(self, channel: str, atoms: int) -> None:
         with self._lock:
             self.revenue_atoms += max(0, atoms)
-            self.paid[channel] = self.paid.get(channel, 0) + 1
+            self._bounded(self.paid, channel)
             self._touch()
+        # Деньги сохраняем сразу и без троттлинга: потерянная на перезапуске
+        # выручка — это не «неточная метрика», а потерянные деньги.
+        self.save()
 
     def _touch(self) -> None:
         now = time.time()
         if not self.first_event:
             self.first_event = now
         self.last_event = now
+
+    def _bounded(self, table: dict[str, int], channel: str) -> None:
+        """Счётчик канала с потолком по числу ключей.
+
+        `ref` приходит от клиента: без ограничения тысяча запросов с
+        разными `ref` превращают словарь в память на вырост. Старые каналы
+        вытесняются, а не игнорируются — иначе метрика замрёт молча.
+        """
+        # Перенос в конец = «только что видели». Вытесняем самый давний,
+        # а не самый редкий: иначе живой канал с малым счётчиком исчезнет
+        # раньше, чем заведомый мусор.
+        previous = table.pop(channel, 0)
+        table[channel] = previous + 1
+        if len(table) > MAX_CHANNELS:
+            table.pop(next(iter(table)), None)
+
+    def _save_if_due(self) -> None:
+        with self._lock:
+            now = time.time()
+            if now - self._last_save < SAVE_THROTTLE_SEC:
+                return
+            self._last_save = now
+        self.save()
 
     # ---- чтение -------------------------------------------------------
 
@@ -128,6 +166,7 @@ class Metrics:
 
     def save(self) -> None:
         with self._lock:
+            self._last_save = time.time()
             payload = {
                 "views": self.views, "checks": self.checks,
                 "paid": self.paid, "revenue_atoms": self.revenue_atoms,
