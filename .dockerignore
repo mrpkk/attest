@@ -1,0 +1,14 @@
+tests/
+tools/
+*.md
+!README.md
+.git/
+.github/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.env.*
+state/
+*.db
+*.jsonl

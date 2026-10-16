@@ -6,7 +6,12 @@ requires-python = ">=3.11"
 # eth-account нужен пакету: attest/payment.py проверяет подпись EIP-712
 # эталонной реализацией (ленивый импорт внутри verify-функции). Без него
 # CI получал бы «зелёный» прогон с молча пропущенным test_payment.py.
-dependencies = ["eth-account>=0.9"]
+dependencies = [
+  "eth-account>=0.9",
+  # Ed25519-подпись entitlement-токенов (attest/signing.py). На хосте пакет
+  # был установлен случайно, и сборка образа вскрыла, что он не объявлен.
+  "cryptography>=42",
+]
 
 license = { text = "Apache-2.0" }
 keywords = ["ai-agents", "trust", "verification", "x402", "usdc"]
