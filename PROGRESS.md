@@ -132,7 +132,7 @@
 ## Спринт 7 · Продвижение
 
 - [x] S7.1 Достижимость площадок из сети владельца (проверено 16.10.2026): 200 — smithery.ai, mcp.directory, mcp.so, glama.ai, hub.docker.com, x402.org, facilitator.payai.network, registry.modelcontextprotocol.io, windmill.dev (301, жив). ❌ pulsemcp.com — 403 (Cloudflare против IP-класса); ❌ docker-mcp.io — мёртв (timeout). Все ключевые каналы из таблицы дистрибуции достижимы
-- [ ] S7.2 Статья: «инструкция в поле description — не то же, что инструкция в content»
+- [x] S7.2 Статья: `docs/THE-SAME-SENTENCE-DIFFERENT-FIELDS.md` — каждая таблица сверена с живым выводом сканера, включая найденное ограничение «disregard the prior context»
 - [x] S7.3 SEO на `/`: `robots.txt` 200, `sitemap.xml` 200, JSON-LD, OG — 7/7 доменов
 
 ---
