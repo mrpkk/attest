@@ -774,7 +774,7 @@ def _sitemap() -> str:
     base = _base_url()
     urls = "".join(
         f"<url><loc>{base}{page}</loc></url>"
-        for page in ("", "/demo", "/pricing", "/health")
+        for page in ("", "/demo", "/pricing", "/article", "/health")
     )
     return ('<?xml version="1.0" encoding="UTF-8"?>'
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
@@ -827,6 +827,11 @@ class AttestHandler(BaseHTTPRequestHandler):
         if path == "/":
             page = _with_schema(LANDING).replace("__FREE_LIMIT__", str(self.free_tier.daily_limit))
             self._send(200, page.encode(), "text/html; charset=utf-8")
+        elif path == "/article":
+            # Статья живёт на своём домене, а не в репозитории: ссылка на
+            # неё идёт в HN и каталоги, и она же работает на SEO.
+            from .article import ARTICLE_HTML
+            self._send(200, ARTICLE_HTML.encode(), "text/html; charset=utf-8")
         elif path == "/health":
             self._send_json(200, {"status": "ok", "version": __version__})
         elif path == "/stats":
