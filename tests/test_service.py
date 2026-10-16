@@ -500,3 +500,125 @@ class TestPricingEconomics:
         with pytest.raises(ValueError):
             check_price_covers_cost(breakeven_atoms - 1000)
         check_price_covers_cost(int(cost * 1e6 * 3))
+
+
+# ── Обнаружение не тарифицируется ────────────────────────────────────────
+# Регрессия: квота списывалась ДО разбора запроса, поэтому при исчерпанном
+# лимите initialize/tools/list отдавали 402, и каталоги (Glama, официальный
+# реестр MCP) считали живой сервер мёртвым. Именно это закрывало все листинги.
+
+
+class TestDiscoveryIsFree:
+    """initialize и tools/list обязаны работать при нулевом остатке квоты."""
+
+    @staticmethod
+    def _init_body() -> dict:
+        return {
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-06-18", "capabilities": {},
+                "clientInfo": {"name": "test", "version": "1"},
+            },
+        }
+
+    @pytest.fixture
+    def exhausted(self, server):
+        """Подменяем тариф на исчерпанный и возвращаем как было."""
+        original = AttestHandler.free_tier
+        dead = FreeTier(daily_limit=20)
+        dead._used["127.0.0.1"] = (FreeTier._day(), 20)
+        AttestHandler.free_tier = dead
+        yield dead
+        AttestHandler.free_tier = original
+
+    def test_initialize_works_when_quota_exhausted(self, server, exhausted):
+        status, _ = post(f"{server}/mcp", self._init_body())
+        assert status == 200, "каталог должен видеть сервер даже при нуле квоты"
+
+    def test_tools_list_works_when_quota_exhausted(self, server, exhausted):
+        post(f"{server}/mcp", self._init_body())
+        status, body = post(f"{server}/mcp",
+                            {"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+        assert status == 200
+        assert "tools" in body.get("result", {})
+
+    def test_ping_works_when_quota_exhausted(self, server, exhausted):
+        status, _ = post(f"{server}/mcp",
+                         {"jsonrpc": "2.0", "id": 3, "method": "ping"})
+        assert status == 200
+
+    def test_real_work_is_still_charged(self, server, exhausted):
+        """Квота не отменена: tools/call обязан требовать оплату."""
+        status, body = post(f"{server}/mcp", {
+            "jsonrpc": "2.0", "id": 4, "method": "tools/call",
+            "params": {"name": "verify", "arguments": {}},
+        })
+        assert status == 402
+        assert body.get("x402", {}).get("network")
+
+    def test_discovery_does_not_consume_quota(self, server, exhausted):
+        for _ in range(30):
+            status, _ = post(f"{server}/mcp", self._init_body())
+            assert status == 200
+        assert exhausted.used("127.0.0.1") == 20, "обнаружение не тратит квоту"
+
+
+class TestFreeMethodParsing:
+    """Разбор запроса: что именно считается обнаружением."""
+
+    @staticmethod
+    def _is_free(payload) -> bool:
+        from attest.service import _is_free_method
+        raw = payload if isinstance(payload, bytes) else \
+            json.dumps(payload).encode()
+        return _is_free_method(raw)
+
+    @pytest.mark.parametrize("method", [
+        "initialize", "tools/list", "resources/list", "prompts/list",
+        "ping", "notifications/initialized", "notifications/cancelled",
+    ])
+    def test_discovery_methods_are_free(self, method):
+        assert self._is_free({"jsonrpc": "2.0", "id": 1, "method": method})
+
+    @pytest.mark.parametrize("method", [
+        "tools/call", "resources/read", "prompts/get", "attest/verify",
+        "custom/expensive",
+    ])
+    def test_work_methods_are_charged(self, method):
+        assert not self._is_free({"jsonrpc": "2.0", "id": 1, "method": method})
+
+    def test_unknown_method_is_charged(self):
+        """Не знаем метод — считаем работой: ошибка в сторону платности."""
+        assert not self._is_free({"jsonrpc": "2.0", "id": 1, "method": "??"})
+
+    def test_missing_method_is_charged(self):
+        assert not self._is_free({"jsonrpc": "2.0", "id": 1})
+
+    def test_malformed_body_is_charged(self):
+        assert not self._is_free(b"{not json at all")
+
+    def test_empty_object_is_charged(self):
+        assert not self._is_free({})
+
+    def test_empty_batch_is_charged(self):
+        """Пустой батч не должен обходить квоту через all() на пустом списке."""
+        assert not self._is_free([])
+
+    def test_batch_of_discovery_is_free(self):
+        assert self._is_free([
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize"},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+        ])
+
+    def test_batch_with_work_is_charged(self):
+        """Одна работа в батче делает весь батч платным — иначе обход."""
+        assert not self._is_free([
+            {"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+             "params": {"name": "verify"}},
+        ])
+
+    def test_batch_with_garbage_item_is_charged(self):
+        assert not self._is_free([
+            {"jsonrpc": "2.0", "id": 1, "method": "ping"}, "мусор",
+        ])

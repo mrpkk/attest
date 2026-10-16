@@ -716,6 +716,27 @@ def _server_card() -> dict:
 
 
 
+# Методы MCP, не тратящие квоту: обнаружение, а не работа.
+FREE_METHODS = frozenset({
+    "initialize", "tools/list", "resources/list", "prompts/list",
+    "ping", "notifications/initialized", "notifications/cancelled",
+})
+
+
+def _is_free_method(raw: bytes) -> bool:
+    """Бесплатна ли операция. Не разобрали — считаем платной."""
+    try:
+        payload = json.loads(raw.decode("utf-8", "ignore") or "{}")
+    except (ValueError, TypeError):
+        return False
+    if isinstance(payload, list):
+        if not payload:
+            return False
+        return all(isinstance(x, dict) and x.get("method") in FREE_METHODS
+                   for x in payload)
+    return isinstance(payload, dict) and payload.get("method") in FREE_METHODS
+
+
 def _base_url() -> str:
     """Публичный адрес: в sitemap обязаны быть абсолютные URL."""
     import os
@@ -950,11 +971,19 @@ class AttestHandler(BaseHTTPRequestHandler):
             self._send_json(400, {"error": f"body must be 1..{MAX_BODY_BYTES} bytes"})
             return
         raw = self.rfile.read(length)
-        try:
-            self.free_tier.spend(self.client_id())
-        except FreeTierExhausted as exc:
-            self._send_json(402, self._exhausted_body(exc, self.client_id()))
-            return
+        # Обнаружение не тарифицируется. initialize и tools/list —
+        # рукопожатие и перечисление: каталог обязан иметь право
+        # убедиться, что сервер жив, не платя квоты. Раньше квота
+        # списывалась ДО разбора запроса, и при исчерпании каталог
+        # получал 402 и помечал сервер нерабочим.
+        #
+        # Платной остаётся работа: tools/call. Не разобрали — работа.
+        if not _is_free_method(raw):
+            try:
+                self.free_tier.spend(self.client_id())
+            except FreeTierExhausted as exc:
+                self._send_json(402, self._exhausted_body(exc, self.client_id()))
+                return
 
         def verify(artifact, schema, source):
             return attest(artifact, schema, source=source)
