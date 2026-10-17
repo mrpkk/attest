@@ -44,6 +44,73 @@ STATE_PATH = Path(os.environ.get(
 # сохраняются всегда и независимо от этого числа.
 SAVE_THROTTLE_SEC = 2.0
 
+# Потраченные nonce платежей. Раньше жили только в памяти обработчика:
+# перезапуск сервиса возвращал их к жизни, и оплаченный платёж можно было
+# предъявить второй раз. Подкласс set — потому что payment.py зовёт .add()
+# и проверяет вхождение; менять этот интерфейс ради персистентности не нужно.
+NONCES_PATH = STATE_PATH.with_name("nonces.json")
+
+
+class SpentNonces(set):
+    """Множество потраченных nonce, переживающее перезапуск."""
+
+    SAVE_THROTTLE_SEC = 1.0
+
+    def __init__(self, path: Path | None = None) -> None:
+        super().__init__()
+        self._path = path
+        self._last_save = 0.0
+        self._load()
+
+    def _load(self) -> None:
+        if not self._path:
+            return
+        try:
+            data = json.loads(self._path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        if isinstance(data, list):
+            super().update(str(n) for n in data)
+        elif isinstance(data, dict) and isinstance(data.get("seen"), list):
+            super().update(str(n) for n in data["seen"])
+
+    def _save(self, force: bool = False) -> None:
+        if not self._path:
+            return
+        now = time.time()
+        if not force and now - self._last_save < self.SAVE_THROTTLE_SEC:
+            return
+        self._last_save = now
+        try:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self._path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(sorted(self), ensure_ascii=False),
+                           encoding="utf-8")
+            tmp.replace(self._path)
+        except OSError as exc:
+            print(f"attest: потраченные nonce не сохранены: {exc}")
+
+    def add(self, nonce: str) -> None:      # type: ignore[override]
+        was_new = nonce not in self
+        super().add(nonce)
+        if was_new:
+            self._save()
+
+    def update(self, *args, **kwargs) -> None:   # type: ignore[override]
+        super().update(*args, **kwargs)
+        self._save()
+
+
+_SPENT: SpentNonces | None = None
+
+
+def spent_nonces() -> SpentNonces:
+    """Потраченные nonce — один объект на процесс, читается с диска однажды."""
+    global _SPENT
+    if _SPENT is None:
+        _SPENT = SpentNonces(NONCES_PATH)
+    return _SPENT
+
 # Потолок на число каналов: `ref` приходит от клиента.
 MAX_CHANNELS = 512
 

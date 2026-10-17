@@ -199,3 +199,46 @@ class TestChannelFlood:
             m.view(f"ref-{i}")
         m.view("давно")
         assert m.views["давно"] == 1
+
+
+class TestSpentNoncesSurviveRestart:
+    """Потраченный nonce платежа не должен воскресать при перезапуске.
+
+    До 17.10.2026 множество жило только в памяти обработчика. Перезапуск
+    сервиса его очищал — и подпись, за которую уже заплатили, принималась
+    второй раз. Для бесплатного тарифа это терпимо, для платного — прямая
+    потеря денег.
+    """
+
+    def test_spent_nonce_survives_restart(self, tmp_path):
+        from attest.metrics import SpentNonces
+
+        path = tmp_path / "nonces.json"
+        first = SpentNonces(path)
+        first.add("0xоплачено")
+        assert "0xоплачено" in first
+
+        second = SpentNonces(path)      # как после перезапуска
+        assert "0xоплачено" in second, (
+            "потраченный nonce вернулся к жизни — оплаченный платёж "
+            "принимается второй раз")
+
+    def test_fresh_nonce_is_not_in_store(self, tmp_path):
+        from attest.metrics import SpentNonces
+        store = SpentNonces(tmp_path / "nonces.json")
+        assert "0xновый" not in store
+
+    def test_corrupt_file_does_not_break_service(self, tmp_path):
+        from attest.metrics import SpentNonces
+        path = tmp_path / "nonces.json"
+        path.write_text("{не json", encoding="utf-8")
+        store = SpentNonces(path)       # не должно бросить
+        store.add("0xновый")
+        assert "0xновый" in store
+
+    def test_no_path_keeps_old_behaviour(self):
+        """Путь не задан — только память. Так работают тесты и встраивание."""
+        from attest.metrics import SpentNonces
+        store = SpentNonces(None)
+        store.add("0xчто-то")
+        assert "0xчто-то" in store

@@ -28,7 +28,7 @@ from urllib.parse import urlparse
 
 from . import __version__
 from .core import attest
-from .metrics import METRICS, channel_of
+from .metrics import METRICS, channel_of, spent_nonces
 from .signing import public_key_b64
 from . import entitlement
 from .entitlement import HEADER as ENT_HEADER, issue as issue_entitlement, redeem, describe as entitlement_describe
@@ -819,9 +819,9 @@ class AttestHandler(BaseHTTPRequestHandler):
     x402_rpc_url: str | None = os.environ.get("ATTEST_RPC_URL") or None
     confirm_timeout_seconds: float = 3.0
     # nonce'ы уже оплаченных платежей: повтор той же подписи оплатой не считается.
-    # В памяти процесса — при перезапуске защита ослабевает, что для бесплатного
-    # тарифа приемлемо, а для платного потребовало бы постоянного хранилища.
-    _seen_nonces: set[str] = set()
+    # С 17.10.2026 лежат на диске (metrics.SpentNonces): раньше перезапуск
+    # возвращал их к жизни, и оплаченный платёж принимался второй раз.
+    _seen_nonces = staticmethod(spent_nonces)
 
     def log_message(self, fmt: str, *args: Any) -> None:
         if os.environ.get("ATTEST_QUIET"):
@@ -1185,7 +1185,7 @@ class AttestHandler(BaseHTTPRequestHandler):
             requirement,
             header_value,
             domain,
-            seen_nonces=self._seen_nonces,
+            seen_nonces=self._seen_nonces(),
         )
         # Подпись сошлась — но это только разрешение. Пока авторизация не
         # отправлена в цепь, денег нет.
