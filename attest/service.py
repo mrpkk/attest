@@ -1124,10 +1124,12 @@ class AttestHandler(BaseHTTPRequestHandler):
             "paymentRequirements": {
                 "scheme": "exact",
                 "network": requirement.network,
-                # И amount, и maxAmountRequired: без amount фасилитатор
-                # отвечает 500 "Cannot convert undefined to a BigInt".
+                # Только amount. maxAmountRequired — поле v1: при
+                # x402Version 2 в payload фасилитатор PayAI отвечает
+                # invalid_payment_requirements «got V1 ('maxAmountRequired')»
+                # и платеж не проводится. Проверено вживую 17.10.2026
+                # против facilitator.payai.network/settle.
                 "amount": str(requirement.amount_atoms),
-                "maxAmountRequired": str(requirement.amount_atoms),
                 "resource": requirement.resource,
                 "description": "Deterministic verification of an agent artifact",
                 "mimeType": "application/json",
