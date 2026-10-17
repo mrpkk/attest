@@ -405,6 +405,12 @@ USDC_BASE_SEPOLIA = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
 BASE_NETWORK = "eip155:8453"
 BASE_SEPOLIA_NETWORK = "eip155:84532"
 
+# Контракт USDC по сети: нужен там, где актив не задан явно.
+USDC_BY_NETWORK = {
+    BASE_NETWORK: USDC_BASE,
+    BASE_SEPOLIA_NETWORK: USDC_BASE_SEPOLIA,
+}
+
 
 class TokenDomainUnknown(ValueError):
     """Домен EIP-712 токена не подтверждён — подпись строить и проверять нельзя."""
@@ -799,6 +805,19 @@ class AttestHandler(BaseHTTPRequestHandler):
     pricing = PRICING
     x402_pay_to: str | None = os.environ.get("ATTEST_PAY_TO") or None
     x402_price_atoms: int = _env_int("ATTEST_PRICE_ATOMS", 5000)
+    # Сеть счёта. Раньше сеть была жёстко mainnet, а ATTEST_NETWORK в конфиге
+    # службы не читался нигде: переменная совпадала с умолчанием и потому
+    # молчала ровно тогда, когда её меняют на тестнет. Из-за этого платёжный
+    # путь нельзя было проверить, не имея настоящих денег.
+    x402_network: str = os.environ.get("ATTEST_NETWORK") or BASE_NETWORK
+    x402_asset: str | None = os.environ.get("ATTEST_ASSET") or None
+    # Адрес фасилитатора, который отправляет подписанную авторизацию в цепь.
+    # Без него подпись проверяется и НЕ оплачивается: клиент получает услугу,
+    # а деньги не двигаются. Раньше переменной не было вовсе, и сервис молча
+    # отдавал платную работу бесплатно.
+    x402_facilitator: str | None = os.environ.get("ATTEST_FACILITATOR") or None
+    x402_rpc_url: str | None = os.environ.get("ATTEST_RPC_URL") or None
+    confirm_timeout_seconds: float = 3.0
     # nonce'ы уже оплаченных платежей: повтор той же подписи оплатой не считается.
     # В памяти процесса — при перезапуске защита ослабевает, что для бесплатного
     # тарифа приемлемо, а для платного потребовало бы постоянного хранилища.
@@ -1077,9 +1096,76 @@ class AttestHandler(BaseHTTPRequestHandler):
                         "pay_to": payment.pay_to},
         })
 
+    def _settle(self, header_value: str, requirement, domain) -> dict:
+        """Отправить подписанную авторизацию в цепь через фасилитатор.
+
+        Локальная проверка подписи доказывает НАМЕРЕНИЕ заплатить. Деньги
+        переходят только когда авторизацию отправит кто-то с газом — за это
+        отвечает фасилитатор. Без этого шага сервис отдавал платную работу
+        бесплатно: подпись сходилась, счётчик выручки рос, баланс клиента
+        не менялся. Проверено на Base Sepolia 17.10.2026.
+        """
+        if not self.x402_facilitator:
+            raise PaymentError(
+                "расчёт не настроен: не задан ATTEST_FACILITATOR. "
+                "Принимать оплату без него нельзя — деньги не перейдут.",
+                status=503,
+            )
+        import base64 as _b64
+        import json as _json
+        import urllib.request
+        try:
+            body = _json.loads(_b64.b64decode(header_value))
+        except Exception as exc:                      # noqa: BLE001
+            raise PaymentError(f"платёж не разобран: {exc}") from exc
+
+        payload = {
+            "paymentPayload": body,
+            "paymentRequirements": {
+                "scheme": "exact",
+                "network": requirement.network,
+                # И amount, и maxAmountRequired: без amount фасилитатор
+                # отвечает 500 "Cannot convert undefined to a BigInt".
+                "amount": str(requirement.amount_atoms),
+                "maxAmountRequired": str(requirement.amount_atoms),
+                "resource": requirement.resource,
+                "description": "Deterministic verification of an agent artifact",
+                "mimeType": "application/json",
+                "payTo": requirement.pay_to,
+                "maxTimeoutSeconds": 300,
+                "asset": requirement.asset,
+                # Имя и версия токена нужны фасилитатору для домена EIP-712.
+                "extra": {"name": domain.name, "version": domain.version},
+            },
+        }
+        url = self.x402_facilitator.rstrip("/") + "/settle"
+        req = urllib.request.Request(
+            url, data=_json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json",
+                     "User-Agent": "attest/1.0"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                result = _json.loads(r.read())
+        except Exception as exc:                      # noqa: BLE001
+            raise PaymentError(f"расчёт у фасилитатора не выполнен: {exc}") from exc
+
+        if not result.get("success"):
+            reason = result.get("errorReason") or result.get("errorMessage")                      or "без причины"
+            raise PaymentError(f"фасилитатор не подтвердил расчёт: {reason}")
+
+        tx = str(result.get("transaction") or "")
+        if not tx:
+            raise PaymentError(
+                "фасилитатор ответил успехом без транзакции. "
+                "Оплата не засчитана.")
+        return {"transaction": tx,
+                "payer": result.get("payer") or getattr(requirement, "payer", None),
+                "confirmed_on_chain": bool(self.x402_rpc_url)}
+
     def _verify_payment(self, header_value: str):
         """Проверить оплату по челленджу, который мы сами же и выставили."""
         from .payment import PaymentRequirement, verify_payment
+        self._last_settlement = None
 
         if not self.x402_pay_to:
             raise PaymentError(
@@ -1090,15 +1176,21 @@ class AttestHandler(BaseHTTPRequestHandler):
             resource=f"{self._base_url()}/verify",
             pay_to=self.x402_pay_to,
             price_atoms=self.x402_price_atoms,
+            network=self.x402_network,
+            asset=self.x402_asset,
         )
         requirement = PaymentRequirement.from_challenge(challenge)
         domain = eip712_domain(requirement.network, requirement.asset)
-        return verify_payment(
+        payment = verify_payment(
             requirement,
             header_value,
             domain,
             seen_nonces=self._seen_nonces,
         )
+        # Подпись сошлась — но это только разрешение. Пока авторизация не
+        # отправлена в цепь, денег нет.
+        self._last_settlement = self._settle(header_value, requirement, domain)
+        return payment
 
     def _verify_result(self, payload: dict, source: str, paid) -> dict[str, Any]:
         schema = payload.get("schema")
@@ -1169,11 +1261,19 @@ class AttestHandler(BaseHTTPRequestHandler):
                         "parameters, generated_at, generator}",
             }
         if paid is not None:
+            settled = getattr(self, "_last_settlement", None) or {}
             body["payment"] = {
                 "payer": paid.payer,
                 "amount_atoms": paid.amount_atoms,
                 "pay_to": paid.pay_to,
                 "nonce": paid.nonce,
+                # Квитанция о расчёте: без транзакции клиент не может
+                # доказать, что заплатил, а мы — что получили. Раньше
+                # этих полей не было вовсе, и «оплачено» означало только
+                # «предъявлена подпись».
+                "settled": bool(settled),
+                "transaction": settled.get("transaction"),
+                "confirmed_on_chain": settled.get("confirmed_on_chain"),
             }
         return body
 
@@ -1240,6 +1340,8 @@ class AttestHandler(BaseHTTPRequestHandler):
                     resource=f"{base}/verify",
                     pay_to=self.x402_pay_to,
                     price_atoms=self.x402_price_atoms,
+                    network=self.x402_network,
+                    asset=self.x402_asset,
                 )
             except (ValueError, TypeError) as exc:
                 doc["note"] = f"challenge could not be assembled: {exc}"
@@ -1288,6 +1390,8 @@ class AttestHandler(BaseHTTPRequestHandler):
                 pay_to=self.x402_pay_to,
                 price_atoms=(self.x402_price_atoms if amount_atoms is None
                              else amount_atoms),
+                network=self.x402_network,
+                asset=self.x402_asset,
             )
         except (ValueError, TypeError) as exc:
             print(f"attest: x402-челлендж не собран: {exc}")
@@ -1307,8 +1411,12 @@ class AttestHandler(BaseHTTPRequestHandler):
             "resets_at": "00:00 UTC",
             "x402": {
                 "enabled": bool(self.x402_pay_to),
-                "network": "eip155:8453",
-                "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                # Сеть и актив — из конфигурации, а не константами: раньше
+                # здесь были вписаны mainnet-значения, и на тестнете блок
+                # врал о сети, в которой выставлен счёт.
+                "network": self.x402_network,
+                "asset": self.x402_asset or USDC_BY_NETWORK.get(
+                    self.x402_network, USDC_BASE),
                 "price_atoms": self.x402_price_atoms,
                 "pay_to": self.x402_pay_to,
             },
