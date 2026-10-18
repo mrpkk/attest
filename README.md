@@ -1,6 +1,6 @@
 # attest — trust layer for agent artifacts
 
-[![M8ven Score](https://m8ven.ai/badge/mcp/mrpkk-attest-70kdum?v=01c6c8b3e33f3263f6fcaa5ce3310ef9)](https://m8ven.ai/mcp/mrpkk-attest-70kdum?s=readme)
+[![M8ven Score](https://m8ven.ai/badge/mcp/mrpkk-attest-70kdum?v=33841343e7786aeebf405effce42c591)](https://m8ven.ai/mcp/mrpkk-attest-70kdum?s=readme)
 
 Live: **<https://attest.rta.lat/demo>** · Code: <https://github.com/mrpkk/attest>
 
