@@ -403,7 +403,7 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
 | Dify Marketplace | не подано — вход через GitHub доступен; нужен go владельца + упаковка плагина |
 | Метрики воронки (`?ref`, listing_views, paid_actions) | ✓ реализованы |
 | `repeat_usage_7d` | не реализовано |
-| 4 статьи (dev.to/HN) | 1/4 ✓ 18.10: «The same sentence…» на dev.to (canonical → https://attest.rta.lat/article); остальные в работе |
+| 4 статьи (dev.to/HN) | 2/4 ✓ 18.10: «The same sentence…» (canonical → https://attest.rta.lat/article) + «Why JSON Schema validates empty agent output» → https://dev.to/mrpkk/why-json-schema-validates-empty-agent-output-2d85. HN-пост первой статьи готов (`docs/HN-ПОСТ.md`), ждёт клика владельца |
 | Bazaar PayAI (декларация + v2) | ✓ `7f73642`, сквозной прогон с реальной подписью пройден |
 | m8ven Trust Index | ✓ 18.10 — Verified Publisher (badge-владение в README + email+repo подтверждены) |
 | CI `audit` | ✓ 18.10 `035a992` — был красным на каждом пуше с 17.10: тесты требуют signing.key; `python -m attest keygen` из сообщения об ошибке не существовал — реализован, + шаг в CI + тест |
