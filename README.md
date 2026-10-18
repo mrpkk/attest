@@ -1,5 +1,7 @@
 # attest — trust layer for agent artifacts
 
+[![M8ven Score](https://m8ven.ai/badge/mcp/mrpkk/attest?variant=verified)](https://m8ven.ai/mcp/mrpkk/attest?s=readme)
+
 Live: **<https://attest.rta.lat/demo>** · Code: <https://github.com/mrpkk/attest>
 
 An agent calls an external tool or another agent and receives a **foreign
