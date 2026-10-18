@@ -1,0 +1,13 @@
+{
+  "actorSpecification": 1,
+  "name": "attest-artifact-verifier",
+  "title": "attest — verify agent artifacts before you trust them",
+  "description": "HTTP + MCP service: checks a foreign artifact (schema, emptiness, prompt injection, provenance) before an agent acts on it. Four layers, deny-by-default, x402 payments on Base. Runs as a standby web server.",
+  "version": "0.1",
+  "usesStandbyMode": true,
+  "webServerSchema": "../openapi.json",
+  "webServerMcpPath": "/mcp",
+  "minMemoryMbytes": 128,
+  "maxMemoryMbytes": 1024,
+  "defaultMemoryMbytes": 256
+}

@@ -55,7 +55,8 @@ COPY --chown=attest:attest pyproject.toml README.md ./
 
 USER attest
 
-# 127.0.0.1 внутри контейнера извне недостижим — слушаем все интерфейсы.
+# Порт: на Apify платформа сама задаёт ACTOR_WEB_SERVER_PORT (standby-режим),
+# локально работает PORT=8185. Приоритет: ACTOR_WEB_SERVER_PORT → PORT → 8185.
 ENV PORT=8185 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
@@ -64,6 +65,9 @@ EXPOSE 8185
 
 # /health проверяет живой HTTP-ответ, а не то, что порт кто-то открыл.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -fsS "http://127.0.0.1:${PORT}/health" > /dev/null || exit 1
+  CMD sh -c 'curl -fsS "http://127.0.0.1:${ACTOR_WEB_SERVER_PORT:-${PORT:-8185}}/health" > /dev/null || exit 1'
 
-CMD ["python", "-c", "from attest.service import serve; import os; serve('0.0.0.0', int(os.environ.get('PORT', '8185')))"]
+# Ключ подписи создаётся при первом старте (идемпотентно: существующий не
+# перезаписывается — перегенерация ломала бы ранее выданные подписи).
+# Без ключа service.py падает на импорте (entitlement_describe → fingerprint).
+CMD ["sh", "-c", "python -m attest keygen > /dev/null && python -c \"from attest.service import serve; import os; port = int(os.environ.get('ACTOR_WEB_SERVER_PORT') or os.environ.get('PORT') or 8185); serve('0.0.0.0', port)\""]

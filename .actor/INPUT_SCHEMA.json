@@ -1,0 +1,14 @@
+{
+  "title": "attest — configuration",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "note": {
+      "title": "This Actor runs in standby mode",
+      "type": "string",
+      "description": "Nothing to configure here. The Actor serves its HTTP API at the standby URL: POST /verify to check an artifact, GET /health for status, POST /mcp for the MCP endpoint. See the README for request examples.",
+      "editor": "textfield",
+      "nullable": true
+    }
+  }
+}

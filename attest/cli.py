@@ -25,8 +25,14 @@ def main(argv: list[str] | None = None) -> int:
     # (18.10.2026 CI это подтвердил: обещание было ложным).
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv[:1] == ["keygen"]:
-        from .signing import generate_keypair
+        from .signing import KEY_PATH, generate_keypair
 
+        key_path = Path(KEY_PATH)
+        force = "--force" in argv[1:]
+        if key_path.exists() and not force:
+            # Идемпотентность: перегенерация ломает все ранее выданные подписи.
+            print(f"ключ уже есть: {key_path} (перегенерировать: keygen --force)")
+            return EXIT_OK
         info = generate_keypair()
         print(f"ключ создан: {info['key_path']}")
         print(f"публичный:  {info['public_key']}")

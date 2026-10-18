@@ -405,5 +405,9 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
 | `repeat_usage_7d` | не реализовано |
 | 4 статьи (dev.to/HN) | 1/4 ✓ 18.10: «The same sentence…» на dev.to (canonical → https://attest.rta.lat/article); остальные в работе |
 | Bazaar PayAI (декларация + v2) | ✓ `7f73642`, сквозной прогон с реальной подписью пройден |
+| m8ven Trust Index | ✓ 18.10 — Verified Publisher (badge-владение в README + email+repo подтверждены) |
+| CI `audit` | ✓ 18.10 `035a992` — был красным на каждом пуше с 17.10: тесты требуют signing.key; `python -m attest keygen` из сообщения об ошибке не существовал — реализован, + шаг в CI + тест |
+| Docker-образ | ✓ 18.10 — падал при старте без signing.key (модульный вызов при импорте); теперь keygen при запуске (идемпотентно, `--force` для перегенерации). Проверено: контейнер `healthy`, health/readiness/MCP/verify 200 |
+| Apify Actor | ✓ 18.10 — каркас готов (`.actor/`: standby, `/mcp` как webServerMcpPath, openapi как webServerSchema) + инструкция в `К-ПОДАЧЕ.md` §5.7; публикация — владелец (Create new → Link Git repo) |
 
 Блокер первой продажи: покупатель на mainnet (деньги владельца).

@@ -26,3 +26,18 @@ def test_keygen_creates_key(tmp_path):
     assert r.returncode == 0, r.stderr
     assert key.is_file(), "CLI не создал ключ по ATTEST_SIGNING_KEY"
     assert "ключ создан" in r.stdout
+
+
+def test_keygen_is_idempotent_without_force(tmp_path):
+    """Второй запуск не перезаписывает ключ: перегенерация ломает выданные подписи."""
+    key = tmp_path / "signing.key"
+    env = os.environ.copy()
+    env["ATTEST_SIGNING_KEY"] = str(key)
+    cmd = [sys.executable, "-m", "attest", "keygen"]
+    r1 = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT), env=env, timeout=60)
+    assert r1.returncode == 0, r1.stderr
+    first = key.read_bytes()
+    r2 = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT), env=env, timeout=60)
+    assert r2.returncode == 0, r2.stderr
+    assert "уже есть" in r2.stdout
+    assert key.read_bytes() == first, "ключ перезаписан без --force"
