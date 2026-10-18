@@ -20,6 +20,18 @@ EXIT_REJECT = 20
 
 
 def main(argv: list[str] | None = None) -> int:
+    # keygen: сообщение «Приватного ключа нет… Создать: python3 -m attest keygen»
+    # обещает команду — она обязана существовать, а не только упоминаться
+    # (18.10.2026 CI это подтвердил: обещание было ложным).
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ["keygen"]:
+        from .signing import generate_keypair
+
+        info = generate_keypair()
+        print(f"ключ создан: {info['key_path']}")
+        print(f"публичный:  {info['public_key']}")
+        return EXIT_OK
+
     p = argparse.ArgumentParser(prog="attest", description="Attest — проверка артефактов агента")
     p.add_argument("--file", help="путь к JSON-файлу с артефактом (по умолчанию stdin)")
     p.add_argument("--schema", help="путь к JSON-схеме")
