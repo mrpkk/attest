@@ -401,7 +401,7 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
 | businessMCP / PulseMCP / Dify | не подано — нужны сессии владельца |
 | Метрики воронки (`?ref`, listing_views, paid_actions) | ✓ реализованы |
 | `repeat_usage_7d` | не реализовано |
-| 4 статьи (dev.to/HN) | не написаны |
+| 4 статьи (dev.to/HN) | 1/4 ✓ 18.10: «The same sentence…» на dev.to (canonical → https://attest.rta.lat/article); остальные в работе |
 | Bazaar PayAI (декларация + v2) | ✓ `7f73642`, сквозной прогон с реальной подписью пройден |
 
 Блокер первой продажи: покупатель на mainnet (деньги владельца).
