@@ -242,3 +242,67 @@ class TestSpentNoncesSurviveRestart:
         store = SpentNonces(None)
         store.add("0xчто-то")
         assert "0xчто-то" in store
+
+
+class TestRepeatUsage:
+    """`repeat_usage_7d` — вернулся ли платящий клиент в пределах недели.
+
+    План (§6.2) ставит эту метрику между «первый платный вызов» и
+    «9 USDC за 30 дней»: один платёж — случайный заход, два в неделю —
+    клиент. Считаются кошельки из подписанной авторизации; кроме времени
+    оплат и счётчика по кошельку не хранится ничего.
+    """
+
+    def test_single_payment_is_not_repeat(self, store):
+        m = Metrics()
+        m.payment("glama", 500_000, payer="0xAAA")
+        snap = m.snapshot()
+        assert snap["repeat_usage_7d"] == 0
+        assert snap["unique_payers"] == 1
+
+    def test_two_payments_in_window_are_repeat(self, store):
+        m = Metrics()
+        m.payment("glama", 500_000, payer="0xAAA")
+        m.payment("glama", 500_000, payer="0xAAA")
+        assert m.snapshot()["repeat_usage_7d"] == 1
+
+    def test_two_payments_outside_window_are_not_repeat(self, store):
+        now = {"t": 1_000_000.0}
+        with mock.patch.object(metrics_module.time, "time", lambda: now["t"]):
+            m = Metrics()
+            m.payment("glama", 500_000, payer="0xAAA")
+            now["t"] += 8 * 86400
+            m.payment("glama", 500_000, payer="0xAAA")
+        assert m.snapshot()["repeat_usage_7d"] == 0
+
+    def test_different_payers_do_not_make_repeat(self, store):
+        m = Metrics()
+        m.payment("glama", 500_000, payer="0xAAA")
+        m.payment("glama", 500_000, payer="0xBBB")
+        snap = m.snapshot()
+        assert snap["repeat_usage_7d"] == 0
+        assert snap["unique_payers"] == 2
+
+    def test_payment_without_payer_still_counts_money(self, store):
+        """Вызовы без кошелька (старые пути) не ломаются: деньги считаются."""
+        m = Metrics()
+        m.payment("direct", 500_000)
+        snap = m.snapshot()
+        assert snap["revenue_atoms"] == 500_000
+        assert snap["repeat_usage_7d"] == 0
+        assert snap["unique_payers"] == 0
+
+    def test_repeat_survives_restart(self, store):
+        first = Metrics()
+        first.payment("glama", 500_000, payer="0xAAA")
+        first.payment("glama", 500_000, payer="0xAAA")
+        second = Metrics()
+        second.load()
+        assert second.snapshot()["repeat_usage_7d"] == 1
+
+    def test_payers_are_bounded(self, store):
+        from attest.metrics import MAX_PAYERS
+        m = Metrics()
+        for i in range(MAX_PAYERS * 2):
+            m.payment("direct", 1, payer=f"0x{i:040x}")
+        assert len(m.payers) <= MAX_PAYERS

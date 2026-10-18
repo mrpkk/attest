@@ -13,14 +13,17 @@
   checks_free / checks_paid — чем закончилось: бесплатным тарифом или оплатой
   paid_actions           — успешные оплаты: единственная метрика денег
   revenue_atoms          — сколько атомов USDC получено
+  repeat_usage_7d        — кошельки, заплатившие дважды в пределах недели
   channels               — какой источник привёл каждое обращение
 
-Откуда берётся источник. Все каталоги, куда мы подаёмся, добавляют
+Откуда берётся источник. Все каталоги, куда подаёмся, добавляют
 параметр к ссылке. Мы читаем `?ref=` и заголовок `Referer`, потому что
 часть каталогов параметр не поддерживает и ссылается как есть.
 
-Что НЕ делается: не пишем IP, не пишем тело запроса, не строим профиль
-клиента. Считаем события, а не людей.
+Что НЕ делается: не пишем IP, не пишем тело запроса. Единственное, что
+связано с клиентом, — адрес кошелька из подписанной авторизации: для него
+хранятся только время первой и последней оплаты и счётчик. Этого хватает,
+чтобы отличить возврат от случайного захода, и мало для профилирования.
 """
 
 from __future__ import annotations
@@ -43,6 +46,13 @@ STATE_PATH = Path(os.environ.get(
 # Как часто счётчики сбрасываются на диск. Проверки идут пачками, платежи
 # сохраняются всегда и независимо от этого числа.
 SAVE_THROTTLE_SEC = 2.0
+
+# Сколько кошельков-плательщиков помним для repeat_usage_7d. Потолок — как
+# у каналов: адрес приходит от клиента, память не должна расти бесконечно.
+MAX_PAYERS = 512
+
+# Окно «вернулся ли клиент»: повторная оплата не позже недели после первой.
+REPEAT_WINDOW_SEC = 7 * 86400
 
 # Потраченные nonce платежей. Раньше жили только в памяти обработчика:
 # перезапуск сервиса возвращал их к жизни, и оплаченный платёж можно было
@@ -129,6 +139,9 @@ class Metrics:
     checks: dict[str, int] = field(default_factory=dict)
     paid: dict[str, int] = field(default_factory=dict)
     revenue_atoms: int = 0
+    # Кошелёк → [первая оплата, последняя оплата, сколько всего]. Только
+    # время и счётчик: этого хватает для repeat_usage_7d и мало для профиля.
+    payers: dict[str, list] = field(default_factory=dict)
     first_event: float = 0.0
     last_event: float = 0.0
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
@@ -153,14 +166,35 @@ class Metrics:
         # троттлингом, иначе каждый вызов ударяет по диску.
         self._save_if_due()
 
-    def payment(self, channel: str, atoms: int) -> None:
+    def payment(self, channel: str, atoms: int, payer: str | None = None) -> None:
         with self._lock:
             self.revenue_atoms += max(0, atoms)
             self._bounded(self.paid, channel)
+            if payer:
+                self._note_payer(str(payer))
             self._touch()
         # Деньги сохраняем сразу и без троттлинга: потерянная на перезапуске
         # выручка — это не «неточная метрика», а потерянные деньги.
         self.save()
+
+    def _note_payer(self, payer: str) -> None:
+        """Запомнить оплату кошелька: [первая, последняя, сколько раз].
+
+        pop+вставка = «видели только что»: вытесняется самый давний, как и
+        у каналов. Без адреса повтор не отличить от нового клиента — а это
+        единственный вопрос, на который отвечает repeat_usage_7d.
+        """
+        now = time.time()
+        key = payer[:64]
+        row = self.payers.pop(key, None)
+        if row is None:
+            self.payers[key] = [now, now, 1]
+        else:
+            row[1] = now
+            row[2] = int(row[2]) + 1
+            self.payers[key] = row
+        if len(self.payers) > MAX_PAYERS:
+            self.payers.pop(next(iter(self.payers)), None)
 
     def _touch(self) -> None:
         now = time.time()
@@ -197,6 +231,9 @@ class Metrics:
         with self._lock:
             free = sum(v for k, v in self.checks.items() if k.endswith(":free"))
             paid = sum(v for k, v in self.checks.items() if k.endswith(":paid"))
+            repeat_usage_7d = sum(
+                1 for first, last, n in self.payers.values()
+                if int(n) >= 2 and (float(last) - float(first)) <= REPEAT_WINDOW_SEC)
             return {
                 "listing_views": dict(sorted(self.views.items())),
                 "listing_views_total": sum(self.views.values()),
@@ -206,6 +243,8 @@ class Metrics:
                 "successful_paid_actions": sum(self.paid.values()),
                 "revenue_atoms": self.revenue_atoms,
                 "revenue_usdc": f"{self.revenue_atoms / 1_000_000:.6f}",
+                "repeat_usage_7d": repeat_usage_7d,
+                "unique_payers": len(self.payers),
                 "by_channel": dict(sorted(self.paid.items())),
                 "since": self.first_event,
                 "last_event": self.last_event,
@@ -227,6 +266,10 @@ class Metrics:
         self.views = {str(k): int(v) for k, v in (data.get("views") or {}).items()}
         self.checks = {str(k): int(v) for k, v in (data.get("checks") or {}).items()}
         self.paid = {str(k): int(v) for k, v in (data.get("paid") or {}).items()}
+        self.payers = {
+            str(k): [float(v[0]), float(v[1]), int(v[2])]
+            for k, v in (data.get("payers") or {}).items()
+            if isinstance(v, (list, tuple)) and len(v) == 3}
         self.revenue_atoms = int(data.get("revenue_atoms") or 0)
         self.first_event = float(data.get("first_event") or 0)
         self.last_event = float(data.get("last_event") or 0)
@@ -237,6 +280,7 @@ class Metrics:
             payload = {
                 "views": self.views, "checks": self.checks,
                 "paid": self.paid, "revenue_atoms": self.revenue_atoms,
+                "payers": self.payers,
                 "first_event": self.first_event, "last_event": self.last_event,
             }
         try:

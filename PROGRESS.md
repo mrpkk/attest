@@ -402,7 +402,7 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
 | PulseMCP | ⏸ подачи приостановлены платформой («submissions paused») — проверить позже |
 | Dify Marketplace | не подано — вход через GitHub доступен; нужен go владельца + упаковка плагина |
 | Метрики воронки (`?ref`, listing_views, paid_actions) | ✓ реализованы |
-| `repeat_usage_7d` | не реализовано |
+| `repeat_usage_7d` | ✓ 18.10 — повторные оплаты кошелька в окне 7 дней (`payers` в metrics.py); подписка тоже пишется в выручку (была дыра: 9 USDC не попадали в метрики денег). Живёт в `GET /metrics`; значение 0 до первых платежей |
 | 4 статьи (dev.to/HN) | 2/4 ✓ 18.10: «The same sentence…» (canonical → https://attest.rta.lat/article) + «Why JSON Schema validates empty agent output» → https://dev.to/mrpkk/why-json-schema-validates-empty-agent-output-2d85. HN-пост первой статьи готов (`docs/HN-ПОСТ.md`), ждёт клика владельца |
 | Bazaar PayAI (декларация + v2) | ✓ `7f73642`, сквозной прогон с реальной подписью пройден |
 | m8ven Trust Index | ✓ 18.10 — Verified Publisher (badge-владение в README + email+repo подтверждены) |

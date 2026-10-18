@@ -981,7 +981,8 @@ class AttestHandler(BaseHTTPRequestHandler):
                 payment = self._verify_payment(payment_header)
                 METRICS.payment(
                     channel_of(self.path, self.headers.get("Referer")),
-                    int(getattr(payment, "amount_atoms", 0) or 0))
+                    int(getattr(payment, "amount_atoms", 0) or 0),
+                    payer=getattr(payment, "payer", None))
             except PaymentError as exc:
                 self._send_json(exc.status, {"error": exc.reason, "paid": False})
                 return
@@ -1082,6 +1083,12 @@ class AttestHandler(BaseHTTPRequestHandler):
             payment = self._verify_payment(head)
         except PaymentError as exc:
             return self._send_json(exc.status, {"error": exc.reason})
+        # Подписка — тоже деньги: без этой записи 9 USDC не попадали в
+        # revenue_atoms, а первый платёж клиента — в repeat_usage_7d.
+        METRICS.payment(
+            channel_of(self.path, self.headers.get("Referer")),
+            int(getattr(payment, "amount_atoms", 0) or 0),
+            payer=getattr(payment, "payer", None))
         granted = issue_entitlement(self.client_id(),
                                     entitlement.DEFAULT_DAYS)
         self._send_json(200, {
