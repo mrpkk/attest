@@ -48,6 +48,11 @@ jobs:
           python -m pip install py-solc-x
           python -c "import solcx; solcx.install_solc('0.8.24')"
 
+      # Тестам payment/service нужен signing.key: импорт читает его сразу,
+      # до любых фикстур, поэтому ключ создаём здесь.
+      - name: Ключ подписи
+        run: python -m attest keygen
+
       - name: Тесты
         run: python -m pytest tests/ -q
 
