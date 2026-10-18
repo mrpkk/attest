@@ -398,7 +398,9 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
 | Подача в Apify Store | не подано (материалы не готовы) |
 | Подача в APILayer | не подано |
 | Glama / Smithery / mcp.so | Glama ✓, Smithery ✓, mcp.so заявка ✓ (17.10) |
-| businessMCP / PulseMCP / Dify | не подано — нужны сессии владельца |
+| businessMCP | ✓ 18.10 — attest подан (POST /api/listings → 200 `{"ok":true}`; Turnstile решён; аккаунт создан на wiggle.pkk@gmail.com, ответ ручной ~1 рабочий день) |
+| PulseMCP | ⏸ подачи приостановлены платформой («submissions paused») — проверить позже |
+| Dify Marketplace | не подано — вход через GitHub доступен; нужен go владельца + упаковка плагина |
 | Метрики воронки (`?ref`, listing_views, paid_actions) | ✓ реализованы |
 | `repeat_usage_7d` | не реализовано |
 | 4 статьи (dev.to/HN) | 1/4 ✓ 18.10: «The same sentence…» на dev.to (canonical → https://attest.rta.lat/article); остальные в работе |
