@@ -5,36 +5,59 @@
     "version": "0.1.0",
     "description": "Проверка артефакта агента перед оплатой: схема, пустота, провенанс, полномочия. Вердикт accept/review/reject, подписан Ed25519. 20 проверок в день бесплатно, далее $0.005 за вызов по x402."
   },
-  "x402": {
-    "version": 1,
-    "network": "eip155:8453",
-    "chain_id": 8453,
-    "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "facilitator": "PayAI",
-    "note": "ETH не требуется: газ платит фасилитатор"
-  },
   "paths": {
     "/verify": {
       "post": {
         "summary": "Проверить артефакт агента",
         "requestBody": {
           "required": true,
-          "content": {"application/json": {"schema": {
-            "type": "object",
-            "properties": {
-              "artifact": {"description": "Артефакт агента: объект, массив или строка"},
-              "schema": {"type": "object", "description": "Необязательная JSON Schema"}
-            },
-            "required": ["artifact"]}}}
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "artifact": {
+                    "description": "Артефакт агента: объект, массив или строка"
+                  },
+                  "schema": {
+                    "type": "object",
+                    "description": "Необязательная JSON Schema"
+                  }
+                },
+                "required": [
+                  "artifact"
+                ]
+              }
+            }
+          }
         },
         "responses": {
-          "402": {"description": "Требуется оплата x402 (USDC на Base)"},
-          "200": {"description": "Вердикт проверенного артефакта"}
+          "402": {
+            "description": "Требуется оплата x402 (USDC на Base)"
+          },
+          "200": {
+            "description": "Вердикт проверенного артефакта"
+          }
         }
       }
     },
     "/health": {
-      "get": {"summary": "Живость сервиса", "responses": {"200": {"description": "OK"}}}
+      "get": {
+        "summary": "Живость сервиса",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
+  },
+  "x-x402": {
+    "version": 1,
+    "network": "eip155:8453",
+    "chain_id": 8453,
+    "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "facilitator": "PayAI",
+    "note": "ETH не требуется: газ платит фасилитатор"
   }
 }
