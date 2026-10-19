@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import hmac
 import re
 import time
 from collections import defaultdict
@@ -43,6 +44,11 @@ from .payment import PaymentError
 from .x402 import atomic_to_usd, agent_card, discovery_document
 
 DEFAULT_FREE_DAILY = 20
+
+# Заголовок, которым маркетплейс (api.market) подтверждает свой вызов.
+# Секрет задаётся ATTEST_GATEWAY_KEY на сервере; без него заголовок
+# игнорируется целиком — «пустой ключ» не должен открывать платный путь.
+GATEWAY_HEADER = "X-API-Market-Key"
 MAX_BODY_BYTES = 512 * 1024
 FREE_TTL_SECONDS = 30 * 24 * 3600
 
@@ -817,6 +823,9 @@ class AttestHandler(BaseHTTPRequestHandler):
     # отдавал платную работу бесплатно.
     x402_facilitator: str | None = os.environ.get("ATTEST_FACILITATOR") or None
     x402_rpc_url: str | None = os.environ.get("ATTEST_RPC_URL") or None
+    # Секрет вызова от api.market. Вызовы с этим заголовком не тратят наш
+    # бесплатный лимит и не требуют x402: покупатель платит маркетплейсу.
+    gateway_key: str | None = os.environ.get("ATTEST_GATEWAY_KEY") or None
     confirm_timeout_seconds: float = 3.0
     # nonce'ы уже оплаченных платежей: повтор той же подписи оплатой не считается.
     # С 17.10.2026 лежат на диске (metrics.SpentNonces): раньше перезапуск
@@ -953,6 +962,17 @@ class AttestHandler(BaseHTTPRequestHandler):
         # Предоплаченный доступ проверяется ДО списания бесплатного
         # счётчика: у подписчика лимита нет вовсе, а не «есть, но не
         # тратится».
+        # Вызов от маркетплейса: покупатель уже платит api.market, и их
+        # шлюз шлёт запрос с секретным заголовком. Наш бесплатный лимит и
+        # x402 здесь не применяются — иначе покупатель, заплативший
+        # платформе, упирается в наш 402 (их ревью поймало это 19.10).
+        if self._gateway_call():
+            METRICS.check(channel_of(self.path, self.headers.get("Referer")),
+                          paid=False)
+            return self._handle_entitled(
+                payload, source,
+                "api.market gateway — billed by the marketplace")
+
         ent_token = self.headers.get(entitlement.HEADER)
         ent_ok, ent_why = redeem(ent_token, trusted_key=public_key_b64())
         if ent_ok:
@@ -1031,6 +1051,19 @@ class AttestHandler(BaseHTTPRequestHandler):
             return
         status, body = answer
         self._send(status, body, "application/json; charset=utf-8")
+
+    def _gateway_call(self) -> bool:
+        """Вызов от маркетплейса? Сравнение постоянного времени.
+
+        Проверяем только если секрет задан: без ATTEST_GATEWAY_KEY
+        заголовок не значит ничего — иначе забытая переменная открыла
+        бы платный путь кому угодно, кто угадает имя заголовка.
+        """
+        key = self.gateway_key
+        if not key:
+            return False
+        supplied = self.headers.get(GATEWAY_HEADER) or ""
+        return hmac.compare_digest(supplied, key)
 
     def _handle_entitled(self, payload: dict, source: str,
                          detail: str = "") -> None:

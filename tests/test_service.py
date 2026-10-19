@@ -291,6 +291,59 @@ class TestExhaustion:
             AttestHandler.free_tier.reset("127.0.0.1")
 
 
+class TestMarketplaceGateway:
+    """Вызовы api.market: их покупатель платит платформе — наш 402 не его проблема.
+
+    Их первое же ревью-обращение поймало это 19.10.2026: шлюз пришёл с адреса,
+    чей суточный лимит был выбран, получил 402 и требование оплаты в USDC.
+    Платному каналу нужен путь, где ни лимит, ни блокчейн-оплата не
+    применяются: расчёт идёт на стороне маркетплейса.
+    """
+
+    def test_marketplace_header_bypasses_limit_and_x402(self, server, monkeypatch):
+        AttestHandler.free_tier.reset("127.0.0.1")
+        monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 0)
+        monkeypatch.setattr(AttestHandler, "gateway_key", "s3cret-marketplace")
+        try:
+            status, body = post(
+                f"{server}/verify", {"artifact": {"a": 1}},
+                headers={"X-API-Market-Key": "s3cret-marketplace"})
+            assert status == 200
+            assert body["verdict"] in ("accept", "review", "reject")
+            assert body["paid"] is True
+            assert body["free_remaining"] == -1
+        finally:
+            monkeypatch.setattr(AttestHandler, "gateway_key", None)
+            AttestHandler.free_tier.reset("127.0.0.1")
+
+    def test_wrong_header_does_not_bypass(self, server, monkeypatch):
+        AttestHandler.free_tier.reset("127.0.0.1")
+        monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 0)
+        monkeypatch.setattr(AttestHandler, "gateway_key", "s3cret-marketplace")
+        try:
+            status, _ = post(f"{server}/verify", {"artifact": {"a": 1}},
+                             headers={"X-API-Market-Key": "wrong"})
+            assert status == 402
+        finally:
+            monkeypatch.setattr(AttestHandler, "gateway_key", None)
+            AttestHandler.free_tier.reset("127.0.0.1")
+
+    def test_header_without_configured_key_is_ignored(self, server, monkeypatch):
+        """Забыли ATTEST_GATEWAY_KEY — заголовок не открывает ничего.
+
+        Иначе имя заголовка (оно публично в исходниках) стало бы мастер-ключом.
+        """
+        AttestHandler.free_tier.reset("127.0.0.1")
+        monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 0)
+        monkeypatch.setattr(AttestHandler, "gateway_key", None)
+        try:
+            status, _ = post(f"{server}/verify", {"artifact": {"a": 1}},
+                             headers={"X-API-Market-Key": "anything"})
+            assert status == 402
+        finally:
+            AttestHandler.free_tier.reset("127.0.0.1")
+
+
 class TestX402Interop:
     """Челлендж attest обязан разбираться парсером agentpay.
 
