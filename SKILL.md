@@ -48,7 +48,7 @@ python3 -c "from attest.service import serve; serve('127.0.0.1', 8080)"
 ## Тесты
 
 ```bash
-python3 -m pytest -q     # 138 passed
+python3 -m pytest -q     # 487 passed
 ```
 
 ## Связка
@@ -58,8 +58,9 @@ python3 -m pytest -q     # 138 passed
 
 ## Проектное состояние
 
-- 138 тестов зелёные; MCP и `gemini-extension.json` в комплекте.
-- Нет публичного HTTPS-эндпоинта — нужен домен (блокер владельца).
+- 487 тестов зелёные; MCP и `gemini-extension.json` в комплекте.
+- Живой сервис: https://attest.rta.lat — 20 проверок в день бесплатно,
+  далее $0.005 за вызов по x402 (USDC, сеть Base).
 - Лицензия Apache-2.0, код открыт.
 
 ---

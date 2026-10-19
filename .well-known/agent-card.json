@@ -1,13 +1,13 @@
 {
   "protocolVersion": "0.3.0",
   "name": "attest",
-  "description": "Trust layer for AI agents: verify artifacts before payment, audit smart contracts, check receipts without a central server",
-  "url": "https://mrpkk.github.io/portfolio/demos/attest/verify",
+  "description": "Deterministic verification of an agent artifact",
+  "url": "https://attest.rta.lat/verify",
   "provider": {
     "organization": "attest",
-    "url": "https://mrpkk.github.io/portfolio/demos/attest"
+    "url": "https://attest.rta.lat"
   },
-  "version": "0.0.0",
+  "version": "0.1.0",
   "capabilities": {
     "streaming": false,
     "pushNotifications": false,
@@ -29,13 +29,13 @@
     "protocol": "x402",
     "network": "eip155:8453",
     "asset": "USDC",
-    "discovery": "https://mrpkk.github.io/portfolio/demos/attest/.well-known/x402"
+    "discovery": "https://attest.rta.lat/.well-known/x402"
   },
   "skills": [
     {
       "id": "verify",
       "name": "Verify artifact",
-      "description": "Verify an agent artifact before payment: schema, prompt injection in values and field names, provenance",
+      "description": "Deterministic verification of an agent artifact",
       "tags": [
         "verification",
         "security",
@@ -50,47 +50,7 @@
       "outputModes": [
         "application/json"
       ],
-      "endpoint": "https://mrpkk.github.io/portfolio/demos/attest/api/v1/proxy/verify"
-    },
-    {
-      "id": "verify",
-      "name": "Verify artifact",
-      "description": "Audit a Solidity contract against 14 known vulnerability classes; returns risk score 0-100 with line-level findings",
-      "tags": [
-        "verification",
-        "security",
-        "prompt-injection"
-      ],
-      "examples": [
-        "{\"artifact\": {\"city\": \"Berlin\", \"temp_c\": 18.5, \"conditions\": \"clear\"}, \"schema\": {\"type\": \"object\", \"required\": [\"city\", \"temp_c\"], \"properties\": {\"city\": {\"type\": \"string\"}, \"temp_c\": {\"type\": \"number\"}}}, \"source\": \"weather-tool\"}"
-      ],
-      "inputModes": [
-        "application/json"
-      ],
-      "outputModes": [
-        "application/json"
-      ],
-      "endpoint": "https://mrpkk.github.io/portfolio/demos/attest/api/v1/proxy/contract-audit"
-    },
-    {
-      "id": "verify",
-      "name": "Verify artifact",
-      "description": "Check a signed receipt from BRIDGE without access to the bridge database: signature and artifact fingerprint",
-      "tags": [
-        "verification",
-        "security",
-        "prompt-injection"
-      ],
-      "examples": [
-        "{\"artifact\": {\"city\": \"Berlin\", \"temp_c\": 18.5, \"conditions\": \"clear\"}, \"schema\": {\"type\": \"object\", \"required\": [\"city\", \"temp_c\"], \"properties\": {\"city\": {\"type\": \"string\"}, \"temp_c\": {\"type\": \"number\"}}}, \"source\": \"weather-tool\"}"
-      ],
-      "inputModes": [
-        "application/json"
-      ],
-      "outputModes": [
-        "application/json"
-      ],
-      "endpoint": "https://mrpkk.github.io/portfolio/demos/attest/api/v1/proxy/bridge-check"
+      "endpoint": "https://attest.rta.lat/verify"
     }
   ],
   "x402": {
@@ -105,23 +65,11 @@
   },
   "services": [
     {
-      "path": "/api/v1/proxy/verify",
-      "description": "Verify an agent artifact before payment: schema, prompt injection in values and field names, provenance",
+      "path": "/verify",
+      "description": "Deterministic verification of an agent artifact",
       "price_usd": 0.005,
-      "try_free": ""
-    },
-    {
-      "path": "/api/v1/proxy/contract-audit",
-      "description": "Audit a Solidity contract against 14 known vulnerability classes; returns risk score 0-100 with line-level findings",
-      "price_usd": 0.005,
-      "try_free": ""
-    },
-    {
-      "path": "/api/v1/proxy/bridge-check",
-      "description": "Check a signed receipt from BRIDGE without access to the bridge database: signature and artifact fingerprint",
-      "price_usd": 0.002,
       "try_free": ""
     }
   ],
-  "docs": "https://mrpkk.github.io/portfolio/demos/attest/llms.txt"
+  "docs": "https://attest.rta.lat/llms.txt"
 }
