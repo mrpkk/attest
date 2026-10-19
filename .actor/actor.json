@@ -9,5 +9,10 @@
   "webServerMcpPath": "/mcp",
   "minMemoryMbytes": 128,
   "maxMemoryMbytes": 1024,
-  "defaultMemoryMbytes": 256
+  "defaultMemoryMbytes": 256,
+  "output": {
+    "actorOutputSchemaVersion": 1,
+    "title": "attest — HTTP JSON responses (standby web server, no dataset output)",
+    "properties": {}
+  }
 }
