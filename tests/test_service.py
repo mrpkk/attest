@@ -866,3 +866,15 @@ class TestArticleRoute:
         with urllib.request.urlopen(f"{server}/sitemap.xml", timeout=10) as r:
             sm = r.read().decode("utf-8")
         assert "/article" in sm
+
+
+class TestIndexNow:
+    """Ключ IndexNow отдаётся файлом в корне — без него поисковики не примут
+    заявку на обход. Яндекс и Bing проверяют этот файл перед приёмом URL."""
+
+    def test_key_file_is_served(self, server):
+        from attest.service import _INDEXNOW_KEY
+        with urllib.request.urlopen(f"{server}/{_INDEXNOW_KEY}.txt", timeout=10) as r:
+            assert r.status == 200
+            assert "text/plain" in r.headers.get("Content-Type", "")
+            assert r.read().decode("utf-8").strip() == _INDEXNOW_KEY

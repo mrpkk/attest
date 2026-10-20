@@ -853,6 +853,14 @@ class _Response:
 PATH_PREFIXES = ("/attest",)
 
 
+# Ключ IndexNow. Публикуется открытым файлом /<ключ>.txt — это и есть
+# доказательство владения хостом; секретом не является. Один ключ годится
+# для Bing и Яндекса (оба принимают IndexNow), поэтому sitemap не единственный
+# способ сообщить о страницах: 20.10.2026 выяснилось, что сайт не в индексе
+# ни у одного из них.
+_INDEXNOW_KEY = "79b5d8b3abc6edc97859cc7c3f6d85de"
+
+
 def _glama_claim() -> dict:
     """Подтверждение владения доменом для каталога Glama.
 
@@ -1066,6 +1074,10 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/feedback.js":
             self._send(200, _FEEDBACK_JS.encode("utf-8"),
                        "application/javascript; charset=utf-8")
+        elif path == f"/{_INDEXNOW_KEY}.txt":
+            # Доказательство владения хостом для IndexNow (Bing, Яндекс).
+            self._send(200, _INDEXNOW_KEY.encode("utf-8"),
+                       "text/plain; charset=utf-8")
         elif path == "/og.png":
             # Картинка для превью ссылок (Open Graph). Без неё шаринг в соцсетях
             # и каталогах даёт пустую карточку — проверено 20.10.2026.
