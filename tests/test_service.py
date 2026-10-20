@@ -942,3 +942,12 @@ class TestArticleCta:
         with urllib.request.urlopen(f"{server}/article", timeout=10) as r:
             html = r.read().decode("utf-8")
         assert "fetch('/verify'" in html, "виджет должен звать свой же /verify"
+
+    def test_article_widget_sends_a_real_schema(self, server):
+        """Схема подставляется из JSON (render_article.py), а не пишется в
+        JS-строке: в таком виде она однажды потеряла скобку, и страница
+        молча отдавала «accept» на пустые поля."""
+        with urllib.request.urlopen(f"{server}/article", timeout=10) as r:
+            html = r.read().decode("utf-8")
+        assert "JSON.parse(" in html and "minLength" in html
+        assert "schema: {type:" not in html, "сырая схема в JS-строке — источник ошибок"

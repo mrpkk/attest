@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import html
+import json
 import pathlib
 import re
 
@@ -88,7 +89,7 @@ PAGE = """<!DOCTYPE html>
 <textarea id="art" rows="4">{{"findings": [{{"id": "f1", "title": "checked the schema"}}]}}</textarea>
 <button onclick="tryCheck()">Check this artifact</button>
 <pre id="out">—</pre>
-<p class="note">Empty strings, duplicate findings and bare strings are rejected on purpose — the same rule the API applies.</p>
+<p class="note">The request below sends a schema for a findings object: empty <code>id</code>/<code>title</code>, duplicated findings and a bare string are all rejected on purpose. That is the rule the API applies.</p>
 </div>
 <h2>Four layers, one signed verdict</h2>
 <ul>
@@ -117,7 +118,9 @@ async function tryCheck(){{
   const out = document.getElementById('out');
   out.textContent = 'checking…';
   let payload;
-  try {{ payload = {{artifact: JSON.parse(document.getElementById('art').value), source: 'article'}}; }}
+  try {{ payload = {{artifact: JSON.parse(document.getElementById('art').value),
+                    source: 'article',
+                    schema: JSON.parse('{schema}')}}; }}
   catch (e) {{ out.textContent = 'not JSON: ' + e.message; return; }}
   try {{
     const r = await fetch('/verify', {{method:'POST', headers:{{'Content-Type':'application/json'}},
@@ -132,6 +135,28 @@ async function tryCheck(){{
 <script src="/feedback.js" defer></script>
 </main></body></html>
 """
+
+
+# Схема, которую виджет в статье отправляет вместе с артефактом. Раньше она
+# была написана прямо в JS-строке шаблона и потеряла скобку: страница молча
+# отдавала «accept» на пустые поля. Теперь схема живёт здесь и подставляется
+# через json.dumps — скобки невозможно испортить разметкой шаблона.
+ARTICLE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "findings": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["id", "title"],
+                "properties": {
+                    "id": {"type": "string", "minLength": 1},
+                    "title": {"type": "string", "minLength": 1},
+                },
+            },
+        }
+    },
+}
 
 
 def inline(text: str) -> str:
@@ -243,7 +268,8 @@ def render(md: str) -> str:
 def main() -> None:
     md = SOURCE.read_text(encoding="utf-8")
     body = render(md)
-    page = PAGE.format(body=body)
+    page = PAGE.format(body=body,
+                        schema=json.dumps(ARTICLE_SCHEMA, separators=(',', ':')))
     TARGET.write_text(
         '"""Страница статьи. Генерируется tools/render_article.py — не править руками."""\n'
         "\n"
