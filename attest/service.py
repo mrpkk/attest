@@ -1017,12 +1017,26 @@ class AttestHandler(BaseHTTPRequestHandler):
         super().log_message(fmt, *args)
 
     def client_id(self) -> str:
-        """Кто платит лимит. Заголовок вызывающего не берём: его можно подделать.
+        """Кто платит лимит.
 
-        За обратным прокси адресом — адрес прокси, и лимит станет общим на всех.
-        Это осознанно: честный тариф важнее абсолютной точности учёта.
+        `X-Forwarded-For` важнее адреса сокета: сервис стоит за туннелем
+        Cloudflare, поэтому адрес сокета у всех один (127.0.0.1), и лимит
+        становился **общим на весь сервис** — 20 бесплатных проверок в сутки
+        на всех, и боты съедали их целиком (21.10.2026: 27 отказов 402 в сутки
+        на MCP, где оплата была невозможна в принципе).
+
+        Доверяем только первому хопу: клиент может подделать заголовок, если
+        достучится напрямую, — это поднимает потолок одного клиента, но не
+        даёт ничего сверх бесплатного тарифа, который и так бесплатен.
+        Тот же подход уже обкатан в drift (`ratelimit.client_key`).
         """
-        return self.client_address[0] if self.client_address else "unknown"
+        forwarded = self.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            first = forwarded.split(",")[0].strip()
+            if first:
+                return f"ip:{first}"
+        return (f"ip:{self.client_address[0]}" if self.client_address
+                else "unknown")
 
     def do_GET(self) -> None:  # noqa: N802
         path = route_path(self.path)
@@ -1246,6 +1260,54 @@ class AttestHandler(BaseHTTPRequestHandler):
         body = self._verify_result(payload, source, paid=None)
         self._send_json(200, body)
 
+    def _mcp_charge(self) -> bool:
+        """Списать квоту или принять оплату. True — можно работать.
+
+        Три пути по порядку: подписка (entitlement) → оплата за вызов (x402) →
+        бесплатная квота. Раньше MCP знал только бесплатную квоту: подписчик
+        через MCP получал 402, и оплатить его было нечем (принимался только
+        X-PAYMENT на HTTP). На практике это давало 27 отказов в сутки от
+        живых клиентов, дошедших до платного действия (21.10.2026).
+        """
+        client = self.client_id()
+        channel = channel_of(self.path, self.headers.get("Referer"))
+
+        ent_token = self.headers.get(ENT_HEADER)
+        ent_ok, ent_why = redeem(ent_token, trusted_key=public_key_b64())
+        if ent_ok:
+            METRICS.check(channel, paid=False)
+            return True
+        if ent_token:
+            print(f"attest: entitlement отвергнут: {ent_why}")
+
+        payment_header = (self.headers.get("PAYMENT-SIGNATURE")
+                          or self.headers.get("X-PAYMENT"))
+        if payment_header:
+            try:
+                payment = self._verify_payment(payment_header)
+            except PaymentError as exc:
+                self._send_json(exc.status, {"error": exc.reason, "paid": False})
+                return False
+            METRICS.payment(channel, int(payment.amount_atoms or 0),
+                            payer=payment.payer)
+            return True
+
+        try:
+            self.free_tier.spend(client)
+        except FreeTierExhausted as exc:
+            token = self._challenge_header(resource=f"{self._base_url()}/mcp")
+            body = self._exhausted_body(exc, client)
+            # Клиент по MCP должен знать, какой ресурс оплачивать и каким
+            # заголовком: без этого 402 нечем оплатить.
+            body["resource"] = f"{self._base_url()}/mcp"
+            body["accepts"] = ["PAYMENT-SIGNATURE", "X-PAYMENT"]
+            self._send_json(402, body,
+                            extra_headers=({"Payment-Required": token}
+                                            if token else None))
+            return False
+        METRICS.check(channel, paid=False)
+        return True
+
     def _handle_mcp(self) -> None:
         """MCP-эндпоинт: тот же бесплатный тариф и те же правила проверки."""
         from . import mcp as mcp_module
@@ -1267,10 +1329,7 @@ class AttestHandler(BaseHTTPRequestHandler):
         #
         # Платной остаётся работа: tools/call. Не разобрали — работа.
         if not _is_free_method(raw):
-            try:
-                self.free_tier.spend(self.client_id())
-            except FreeTierExhausted as exc:
-                self._send_json(402, self._exhausted_body(exc, self.client_id()))
+            if not self._mcp_charge():
                 return
 
         def verify(artifact, schema, source):

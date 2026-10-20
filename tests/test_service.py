@@ -283,7 +283,7 @@ class TestVerify:
 
 class TestExhaustion:
     def test_free_tier_returns_402_with_x402_shape(self, server, monkeypatch):
-        AttestHandler.free_tier.reset("127.0.0.1")
+        AttestHandler.free_tier.reset("ip:127.0.0.1")
         monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 1)
         monkeypatch.setattr(AttestHandler, "x402_pay_to", "0x" + "aa" * 20)
         try:
@@ -297,7 +297,7 @@ class TestExhaustion:
             assert "X-PAYMENT" in second["hint"]
         finally:
             monkeypatch.setattr(AttestHandler, "x402_pay_to", None)
-            AttestHandler.free_tier.reset("127.0.0.1")
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
 
     def test_misconfigured_wallet_does_not_crash_the_service(self, server, monkeypatch):
         """Опечатка в адресе кошелька обязана дать 402, а не трейсбек.
@@ -305,7 +305,7 @@ class TestExhaustion:
         На живом запуске именно так сервис и падал: неверная длина адреса
         поднимала ValueError прямо в обработчике и роняла соединение.
         """
-        AttestHandler.free_tier.reset("127.0.0.1")
+        AttestHandler.free_tier.reset("ip:127.0.0.1")
         monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 1)
         monkeypatch.setattr(AttestHandler, "x402_pay_to", "0x000dEaD")
         try:
@@ -316,7 +316,7 @@ class TestExhaustion:
             assert body["x402"]["pay_to"] == "0x000dEaD"
         finally:
             monkeypatch.setattr(AttestHandler, "x402_pay_to", None)
-            AttestHandler.free_tier.reset("127.0.0.1")
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
 
     def test_valid_wallet_address_length(self):
         """Я недавно сломал этим сервис: адрес из 39 знаков вместо 40."""
@@ -332,7 +332,7 @@ class TestExhaustion:
 
     def test_exhaustion_without_wallet_stays_honest(self, server, monkeypatch):
         """Нет кошелька — не выдумываем адрес, а говорим прямо."""
-        AttestHandler.free_tier.reset("127.0.0.1")
+        AttestHandler.free_tier.reset("ip:127.0.0.1")
         monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 1)
         try:
             post(f"{server}/verify", {"artifact": {"a": 1}})
@@ -342,7 +342,7 @@ class TestExhaustion:
             assert body["x402"]["pay_to"] is None
             assert "not configured" in body["hint"]
         finally:
-            AttestHandler.free_tier.reset("127.0.0.1")
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
 
 
 class TestSubscriptionPricing:
@@ -447,7 +447,7 @@ class TestMarketplaceGateway:
     """
 
     def test_marketplace_header_bypasses_limit_and_x402(self, server, monkeypatch):
-        AttestHandler.free_tier.reset("127.0.0.1")
+        AttestHandler.free_tier.reset("ip:127.0.0.1")
         monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 0)
         monkeypatch.setattr(AttestHandler, "gateway_key", "s3cret-marketplace")
         try:
@@ -460,10 +460,10 @@ class TestMarketplaceGateway:
             assert body["free_remaining"] == -1
         finally:
             monkeypatch.setattr(AttestHandler, "gateway_key", None)
-            AttestHandler.free_tier.reset("127.0.0.1")
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
 
     def test_wrong_header_does_not_bypass(self, server, monkeypatch):
-        AttestHandler.free_tier.reset("127.0.0.1")
+        AttestHandler.free_tier.reset("ip:127.0.0.1")
         monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 0)
         monkeypatch.setattr(AttestHandler, "gateway_key", "s3cret-marketplace")
         try:
@@ -472,14 +472,14 @@ class TestMarketplaceGateway:
             assert status == 402
         finally:
             monkeypatch.setattr(AttestHandler, "gateway_key", None)
-            AttestHandler.free_tier.reset("127.0.0.1")
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
 
     def test_header_without_configured_key_is_ignored(self, server, monkeypatch):
         """Забыли ATTEST_GATEWAY_KEY — заголовок не открывает ничего.
 
         Иначе имя заголовка (оно публично в исходниках) стало бы мастер-ключом.
         """
-        AttestHandler.free_tier.reset("127.0.0.1")
+        AttestHandler.free_tier.reset("ip:127.0.0.1")
         monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 0)
         monkeypatch.setattr(AttestHandler, "gateway_key", None)
         try:
@@ -487,7 +487,7 @@ class TestMarketplaceGateway:
                              headers={"X-API-Market-Key": "anything"})
             assert status == 402
         finally:
-            AttestHandler.free_tier.reset("127.0.0.1")
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
 
 
 class TestX402Interop:
@@ -725,7 +725,7 @@ class TestDiscoveryIsFree:
         """Подменяем тариф на исчерпанный и возвращаем как было."""
         original = AttestHandler.free_tier
         dead = FreeTier(daily_limit=20)
-        dead._used["127.0.0.1"] = (FreeTier._day(), 20)
+        dead._used["ip:127.0.0.1"] = (FreeTier._day(), 20)
         AttestHandler.free_tier = dead
         yield dead
         AttestHandler.free_tier = original
@@ -759,7 +759,7 @@ class TestDiscoveryIsFree:
         for _ in range(30):
             status, _ = post(f"{server}/mcp", self._init_body())
             assert status == 200
-        assert exhausted.used("127.0.0.1") == 20, "обнаружение не тратит квоту"
+        assert exhausted.used("ip:127.0.0.1") == 20, "обнаружение не тратит квоту"
 
 
 class TestFreeMethodParsing:
@@ -951,3 +951,86 @@ class TestArticleCta:
             html = r.read().decode("utf-8")
         assert "JSON.parse(" in html and "minLength" in html
         assert "schema: {type:" not in html, "сырая схема в JS-строке — источник ошибок"
+
+
+class TestMcpPayment:
+    """MCP-канал не умел принимать оплату: подписчик получал 402, и оплатить
+    его было нечем. На практике — 27 отказов в сутки от живых клиентов."""
+
+    def _tools_call(self, **headers):
+        body = json.dumps({
+            "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+            "params": {"name": "verify_artifact",
+                       "arguments": {"artifact": {"findings": [{"id": "f1",
+                                                                "title": "ok"}]}}},
+        }).encode()
+        req = urllib.request.Request(f"{BASE}/mcp", data=body, method="POST")
+        req.add_header("Content-Type", "application/json")
+        for k, v in headers.items():
+            req.add_header(k, v)
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                return r.status, r.read().decode("utf-8"), dict(r.headers)
+        except urllib.error.HTTPError as exc:
+            return exc.code, exc.read().decode("utf-8"), dict(exc.headers)
+
+    def test_handshake_is_never_charged(self, server):
+        body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                           "params": {}}).encode()
+        req = urllib.request.Request(f"{BASE}/mcp", data=body, method="POST")
+        req.add_header("Content-Type", "application/json")
+        with urllib.request.urlopen(req, timeout=10) as r:
+            assert r.status == 200
+
+    def test_entitlement_unlocks_paid_call(self, server):
+        """Подписка должна работать и через MCP — иначе клиент платит и не может."""
+        from attest import entitlement
+        token = entitlement.issue("test-subject", days=1)
+        value = token["token"] if isinstance(token, dict) else str(token)
+        status, body, _ = self._tools_call(**{"X-ATTEST-ENTITLEMENT": value})
+        assert status == 200, f"MCP с подпиской отвечает {status}: {body[:200]}"
+
+    def test_exhausted_quota_returns_payment_required_header(self, server,
+                                                             monkeypatch):
+        from attest.service import AttestHandler
+        monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 0)
+        monkeypatch.setattr(AttestHandler, "x402_pay_to",
+                            "0xefCD6886f73064ea9EcbaA4741Ef1309A0885C59")
+        status, body, headers = self._tools_call(
+            **{"X-Forwarded-For": "203.0.113.9"})
+        assert status == 402, body[:200]
+        raw = headers.get("Payment-Required")
+        assert raw, "в 402 нет челленджа — клиенту нечего подписывать"
+        import base64
+        decoded = base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)).decode()
+        assert "/mcp" in decoded, "челлендж должен указывать на MCP-ресурс"
+        assert "/mcp" in body, "в теле 402 должен быть адрес оплачиваемого ресурса"
+
+
+class TestClientIdentity:
+    """Квота была общей на весь сервис: все запросы приходят с 127.0.0.1
+    (туннель Cloudflare), и 20 бесплатных проверок в сутки съедали боты."""
+
+    def test_forwarded_for_wins_over_socket_peer(self, server):
+        import attest.service as svc
+        handler = svc.AttestHandler
+        original = handler.client_id
+        seen = {}
+
+        def spy(self):
+            seen["value"] = original(self)
+            return seen["value"]
+
+        handler.client_id = spy
+        try:
+            body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                               "params": {"name": "verify_artifact",
+                                          "arguments": {"artifact": {"a": 1}}}}).encode()
+            req = urllib.request.Request(f"{BASE}/mcp", data=body, method="POST")
+            req.add_header("Content-Type", "application/json")
+            req.add_header("X-Forwarded-For", "198.51.100.7, 10.0.0.1")
+            with urllib.request.urlopen(req, timeout=10):
+                pass
+            assert seen["value"] == "ip:198.51.100.7", seen["value"]
+        finally:
+            handler.client_id = original
