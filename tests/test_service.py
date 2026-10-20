@@ -918,3 +918,27 @@ class TestOAuthMetadata:
             assert r.status == 200
             assert "image" in r.headers.get("Content-Type", "")
             assert len(r.read()) > 0
+
+
+class TestArticleCta:
+    """Статья — главная посадочная (361 просмотр за 3 дня в логах).
+    В ней был только список фактов о продукте: ни одного следующего шага.
+    Теперь: живая проверка прямо в странице, подключение за минуту и цены."""
+
+    def test_article_has_live_check_widget(self, server):
+        with urllib.request.urlopen(f"{server}/article", timeout=10) as r:
+            html = r.read().decode("utf-8")
+        assert "tryCheck" in html and 'id="art"' in html, \
+            "живой виджет проверки в статье отсутствует"
+
+    def test_article_has_next_steps_and_prices(self, server):
+        with urllib.request.urlopen(f"{server}/article", timeout=10) as r:
+            html = r.read().decode("utf-8")
+        for marker in ("/demo", "/pricing", "/subscribe", "20 checks a day",
+                       "$0.005", "mcpServers", "India pricing"):
+            assert marker in html, f"в статье нет {marker}"
+
+    def test_article_widget_uses_our_own_endpoint(self, server):
+        with urllib.request.urlopen(f"{server}/article", timeout=10) as r:
+            html = r.read().decode("utf-8")
+        assert "fetch('/verify'" in html, "виджет должен звать свой же /verify"

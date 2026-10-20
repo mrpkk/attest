@@ -67,17 +67,68 @@ PAGE = """<!DOCTYPE html>
   .cta {{ border:1px solid #232a33; border-radius:10px; padding:16px 18px;
           margin:34px 0 0; background:#10141a; }}
   .cta b {{ color:#7fd1b9; }}
+  .try {{ border:1px solid #232a33; border-radius:10px; padding:16px 18px;
+          margin:28px 0 0; background:#10141a; }}
+  .try textarea {{ width:100%; box-sizing:border-box; background:#12161c;
+          color:#e6e6e6; border:1px solid #2b3440; border-radius:7px;
+          padding:9px 11px; font:13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }}
+  .try button {{ margin-top:9px; background:#1c6b58; color:#eafff8; border:0;
+          border-radius:7px; padding:9px 15px; font:600 14px system-ui,sans-serif;
+          cursor:pointer; }}
+  .try button:hover {{ background:#22876e; }}
+  .try pre {{ margin:11px 0 0; max-height:260px; }}
+  .try .note {{ color:#8b97a4; font-size:13.5px; margin:9px 0 0; }}
 </style>
 </head><body><main>
 <article>
 {body}
+<h2>Try it on your own artifact</h2>
+<p>Twenty checks a day, no signup, no key. This is the same endpoint the MCP tool calls.</p>
+<div class="try">
+<textarea id="art" rows="4">{{"findings": [{{"id": "f1", "title": "checked the schema"}}]}}</textarea>
+<button onclick="tryCheck()">Check this artifact</button>
+<pre id="out">—</pre>
+<p class="note">Empty strings, duplicate findings and bare strings are rejected on purpose — the same rule the API applies.</p>
+</div>
+<h2>Four layers, one signed verdict</h2>
+<ul>
+<li><strong>Schema</strong> — types, required fields, string lengths, array sizes.</li>
+<li><strong>Emptiness</strong> — stub values, blank fields, duplicated findings, truncation.</li>
+<li><strong>Provenance</strong> — generation conditions bound to the content hash.</li>
+<li><strong>Authority</strong> — was this action permitted by the mandate you signed?</li>
+</ul>
+<p>Ed25519-signed. Verifiable offline, without trusting this service.</p>
+<h2>Connect it in a minute</h2>
+<pre><code>{{"mcpServers": {{"attest": {{"url": "https://attest.rta.lat/mcp"}}}}}}</code></pre>
+<pre><code>curl -X POST https://attest.rta.lat/verify \\
+  -H 'Content-Type: application/json' \\
+  -d '{{"artifact": {{"findings": [{{"id": "f1", "title": "hello"}}]}}}}'</code></pre>
 <div class="cta">
-<b>attest</b> — deterministic verifier for agent artifacts: schema, provenance,
-signatures, injection scanning, machine-readable verdict.<br>
-API <code>https://attest.rta.lat</code> · MCP <code>https://attest.rta.lat/mcp</code><br>
-Paid per call over x402, or 9 USDC / 30 days unlimited.
+<b>attest</b> — deterministic verifier for agent artifacts: schema, emptiness,
+provenance and mandate authority, one Ed25519-signed verdict.<br>
+Free: 20 checks a day, no signup. Then $0.005 per call over x402, or 9 USDC / 30 days.
+India pricing: 3 USDC / 30 days.<br>
+API <code>https://attest.rta.lat</code> · MCP <code>https://attest.rta.lat/mcp</code> ·
+<a href="/demo">demo</a> · <a href="/pricing">pricing</a> · <a href="/subscribe">subscribe</a>
 </div>
 </article>
+<script>
+async function tryCheck(){{
+  const out = document.getElementById('out');
+  out.textContent = 'checking…';
+  let payload;
+  try {{ payload = {{artifact: JSON.parse(document.getElementById('art').value), source: 'article'}}; }}
+  catch (e) {{ out.textContent = 'not JSON: ' + e.message; return; }}
+  try {{
+    const r = await fetch('/verify', {{method:'POST', headers:{{'Content-Type':'application/json'}},
+                                       body: JSON.stringify(payload)}});
+    const d = await r.json();
+    if (d.error) {{ out.textContent = d.error; return; }}
+    const v = (d.violations || []).slice(0,5).map(x => x.rule + ' @ ' + x.path).join('\\n');
+    out.textContent = d.verdict + ' · trust ' + d.trust_score + ' · ' + (d.reason || '') + (v ? '\\n' + v : '');
+  }} catch (e) {{ out.textContent = 'error: ' + e.message; }}
+}}
+</script>
 <script src="/feedback.js" defer></script>
 </main></body></html>
 """
