@@ -428,6 +428,13 @@ goes straight into its context. Four checks, each answering only its own questio
  <div class="t"><b>Subscription</b>9 USDC<br><span class="hint">removes the limit, suitable for CI pipelines</span></div>
 </div>
 
+<h2 style="font-size:17px;margin:26px 0 6px">Buying a 30-day token</h2>
+<p class="hint">x402 is a three-step flow: ask, sign, retry. No account, no card, no dashboard.</p>
+<pre style="background:#141821;border:1px solid #1f242e;border-radius:8px;padding:12px;overflow:auto;font:12.5px/1.5 ui-monospace,monospace;color:#e8ecf4">curl -X POST https://attest.rta.lat/subscribe
+# 402 + challenge: price, asset, network, payTo
+# sign the EIP-3009 authorization with any x402 client, then:
+curl -X POST https://attest.rta.lat/subscribe -H "PAYMENT-SIGNATURE: &lt;base64&gt;"
+# 200 {"entitlement_token": "...", "valid_until": ...}</pre>
 <div class="warn"><b>What this does not do.</b> A valid form is not meaningful content, and a
 signed artifact is not a permitted action. Absence of signals means the coarse checks did not fire —
 it does not prove the artifact is sound. The signature is Ed25519: the public key travels with
@@ -507,6 +514,13 @@ _HI_REPLACEMENTS: tuple[tuple[str, str], ...] = (
      '<div class="t"><b>सदस्यता (30 दिन)</b>9 USDC<br><span class="hint">सीमा हटाती है, CI पाइपलाइन के लिए उपयुक्त</span></div>'),
     ('<div class="warn"><b>What this does not do.</b> A valid form is not meaningful content, and a\nsigned artifact is not a permitted action. Absence of signals means the coarse checks did not fire —\nit does not prove the artifact is sound. The signature is Ed25519: the public key travels with\nthe attestation, so you can verify it yourself without trusting this service.</div>',
      '<div class="warn"><b>यह क्या नहीं करता।</b> सही रूप का अर्थ वास्तविक सामग्री नहीं है, और हस्ताक्षरित आर्टिफैक्ट का अर्थ अनुमत क्रिया नहीं है। संकेतों का न होना केवल यह दिखाता है कि स्थूल जाँचें नहीं चलीं — यह सिद्ध नहीं करता कि आर्टिफैक्ट ठीक है। हस्ताक्षर Ed25519 है: सार्वजनिक कुंजी सत्यापन के साथ चलती है, इसलिए आप इस सेवा पर भरोसा किए बिना स्वयं जाँच सकते हैं।</div>'),
+    ('<h2 style="font-size:17px;margin:26px 0 6px">Buying a 30-day token</h2>',
+     '<h2 style="font-size:17px;margin:26px 0 6px">30 दिन का टोकन कैसे खरीदें</h2>'),
+    ('<p class="hint">x402 is a three-step flow: ask, sign, retry. No account, no card, no dashboard.</p>',
+     '<p class="hint">x402 तीन कदमों का प्रवाह है: अनुरोध, हस्ताक्षर, पुनः प्रयास। कोई खाता नहीं, कोई कार्ड नहीं, कोई डैशबोर्ड नहीं।</p>'),
+    ('# 402 + challenge: price, asset, network, payTo', '# 402 + चुनौती: कीमत, संपत्ति, नेटवर्क, payTo'),
+    ('# sign the EIP-3009 authorization with any x402 client, then:',
+     '# किसी भी x402 क्लाइंट से EIP-3009 प्राधिकरण पर हस्ताक्षर करें, फिर:'),
     ('<p class="hint">Source: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nSet: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/hi">हिन्दी</a></p>',
      '<p class="hint">स्रोत: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nसेट: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/">English</a></p>'),
 )

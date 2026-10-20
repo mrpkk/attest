@@ -143,6 +143,7 @@ class TestEndpoints:
         assert 'href="https://attest.rta.lat/hi"' in html
         assert 'hreflang="en"' in html and 'hreflang="hi"' in html
         assert "मुफ़्त जाँच प्रतिदिन" in html
+        assert "30 दिन का टोकन कैसे खरीदें" in html
 
     def test_english_landing_links_hindi(self, server):
         import urllib.request as u
