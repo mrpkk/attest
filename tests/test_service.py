@@ -105,6 +105,22 @@ class TestEndpoints:
         assert status == 200
         assert body["status"] == "ok"
 
+    def test_landing_has_open_graph(self, server):
+        """Превью ссылки: без OG карточка при шаринге пустая (20.10.2026)."""
+        import urllib.request as u
+        with u.urlopen(f"{server}/", timeout=10) as r:
+            html = r.read().decode("utf-8")
+        assert 'property="og:image"' in html
+        assert "/og.png" in html
+        assert 'rel="canonical"' in html
+
+    def test_og_image_is_served(self, server):
+        import urllib.request as u
+        with u.urlopen(f"{server}/og.png", timeout=10) as r:
+            assert r.status == 200
+            assert r.headers.get("Content-Type", "") == "image/png"
+            assert len(r.read()) > 1000
+
     def test_landing_is_in_english(self, server):
         """Продукт работает на международном рынке.
 

@@ -267,6 +267,19 @@ LANDING = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>attest — artifact verification for agents</title>
 <meta name="description" content="Four-layer verification for AI agent artifacts: schema, emptiness, generation provenance, mandate authority. Ed25519-signed and independently verifiable.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="attest">
+<meta property="og:title" content="attest — artifact verification for agents">
+<meta property="og:description" content="Four-layer verification for AI agent artifacts: schema, emptiness, generation provenance, mandate authority. Ed25519-signed, verifiable offline. 20 free checks/day.">
+<meta property="og:url" content="https://attest.rta.lat/">
+<meta property="og:image" content="https://attest.rta.lat/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="attest — artifact verification for agents">
+<meta name="twitter:description" content="Verify AI agent artifacts before you trust them: schema, prompt injection, emptiness, provenance. Ed25519-signed verdicts.">
+<meta name="twitter:image" content="https://attest.rta.lat/og.png">
+<link rel="canonical" href="https://attest.rta.lat/">
 <style>
 :root{--bg:#0d1117;--fg:#e6edf3;--dim:#8b949e;--line:#30363d;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--acc:#58a6ff}
 *{box-sizing:border-box}
@@ -884,6 +897,14 @@ class AttestHandler(BaseHTTPRequestHandler):
                 self._send_json(404, {"error": "claim token not configured"})
         elif path == "/.well-known/mcp/server-card.json":
             self._send_json(200, _server_card())
+        elif path == "/og.png":
+            # Картинка для превью ссылок (Open Graph). Без неё шаринг в соцсетях
+            # и каталогах даёт пустую карточку — проверено 20.10.2026.
+            png = Path(__file__).resolve().parent.parent / "og.png"
+            if png.is_file():
+                self._send(200, png.read_bytes(), "image/png")
+            else:
+                self._send_json(404, {"error": "og.png not found"})
         elif path == "/robots.txt":
             self._send(200, _robots().encode("utf-8"),
                           "text/plain; charset=utf-8")
