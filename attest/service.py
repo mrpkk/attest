@@ -377,7 +377,7 @@ it does not prove the artifact is sound. The signature is Ed25519: the public ke
 the attestation, so you can verify it yourself without trusting this service.</div>
 
 <p class="hint">Source: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·
-Set: <a href="https://indra.rta.lat">indra.rta.lat</a></p>
+Set: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/hi">हिन्दी</a></p>
 </div>
 <script>
 async function run(){
@@ -449,8 +449,8 @@ _HI_REPLACEMENTS: tuple[tuple[str, str], ...] = (
      '<div class="t"><b>सदस्यता (30 दिन)</b>9 USDC<br><span class="hint">सीमा हटाती है, CI पाइपलाइन के लिए उपयुक्त</span></div>'),
     ('<div class="warn"><b>What this does not do.</b> A valid form is not meaningful content, and a\nsigned artifact is not a permitted action. Absence of signals means the coarse checks did not fire —\nit does not prove the artifact is sound. The signature is Ed25519: the public key travels with\nthe attestation, so you can verify it yourself without trusting this service.</div>',
      '<div class="warn"><b>यह क्या नहीं करता।</b> सही रूप का अर्थ वास्तविक सामग्री नहीं है, और हस्ताक्षरित आर्टिफैक्ट का अर्थ अनुमत क्रिया नहीं है। संकेतों का न होना केवल यह दिखाता है कि स्थूल जाँचें नहीं चलीं — यह सिद्ध नहीं करता कि आर्टिफैक्ट ठीक है। हस्ताक्षर Ed25519 है: सार्वजनिक कुंजी सत्यापन के साथ चलती है, इसलिए आप इस सेवा पर भरोसा किए बिना स्वयं जाँच सकते हैं।</div>'),
-    ('<p class="hint">Source: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nSet: <a href="https://indra.rta.lat">indra.rta.lat</a></p>',
-     '<p class="hint">स्रोत: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nसेट: <a href="https://indra.rta.lat">indra.rta.lat</a></p>'),
+    ('<p class="hint">Source: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nSet: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/hi">हिन्दी</a></p>',
+     '<p class="hint">स्रोत: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nसेट: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/">English</a></p>'),
 )
 
 

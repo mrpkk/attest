@@ -149,6 +149,7 @@ class TestEndpoints:
         with u.urlopen(f"{server}/", timeout=10) as r:
             html = r.read().decode("utf-8")
         assert 'hreflang="hi" href="https://attest.rta.lat/hi"' in html
+        assert 'href="/hi"' in html, "нет видимой ссылки на хинди"
 
     def test_og_image_is_served(self, server):
         import urllib.request as u
