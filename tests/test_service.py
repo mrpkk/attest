@@ -402,6 +402,40 @@ class TestSubscriptionPricing:
         assert seen == [9_000_000, 3_000_000], seen
 
 
+class TestFeedback:
+    """Обратная связь: ненавязчиво, счётчики в /metrics (20.10.2026)."""
+
+    def test_feedback_is_collected_and_counted(self, server, monkeypatch, tmp_path):
+        path = tmp_path / "feedback.jsonl"
+        monkeypatch.setattr(AttestHandler, "feedback_path", path)
+        status, body = post(f"{server}/feedback",
+                            {"verdict": "up", "comment": "useful", "page": "/"})
+        assert status == 200 and body.get("ok") is True
+        status, _ = post(f"{server}/feedback", {"verdict": "maybe"})
+        assert status == 400
+        import urllib.request as u
+        with u.urlopen(f"{server}/metrics", timeout=10) as r:
+            snap = json.loads(r.read().decode())
+        assert snap["feedback"]["up"] >= 1
+        assert snap["feedback"]["comments"] >= 1
+
+    def test_feedback_js_is_served(self, server):
+        import urllib.request as u
+        with u.urlopen(f"{server}/feedback.js", timeout=10) as r:
+            js = r.read().decode("utf-8")
+            ctype = r.headers.get("Content-Type", "")
+        assert "javascript" in ctype
+        assert '"/feedback"' in js and "verdict" in js
+
+    def test_feedback_comment_is_capped(self, server, monkeypatch, tmp_path):
+        path = tmp_path / "feedback.jsonl"
+        monkeypatch.setattr(AttestHandler, "feedback_path", path)
+        status, _ = post(f"{server}/feedback", {"verdict": "down", "comment": "x" * 2000})
+        assert status == 200
+        line = path.read_text().strip()
+        assert len(json.loads(line)["comment"]) == 500
+
+
 class TestMarketplaceGateway:
     """Вызовы api.market: их покупатель платит платформе — наш 402 не его проблема.
 

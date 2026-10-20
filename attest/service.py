@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import hashlib
 import hmac
 import re
 import time
@@ -29,7 +30,7 @@ from urllib.parse import urlparse
 
 from . import __version__
 from .core import attest
-from .metrics import METRICS, channel_of, spent_nonces
+from .metrics import METRICS, STATE_PATH, channel_of, spent_nonces
 from .signing import public_key_b64
 from . import entitlement
 from .entitlement import HEADER as ENT_HEADER, issue as issue_entitlement, redeem, describe as entitlement_describe
@@ -177,6 +178,61 @@ class FreeTier:
         self._used.pop(client, None)
 
 
+
+_FEEDBACK_JS = r"""
+(function(){
+  var lang = document.documentElement.lang || "en";
+  var hi = lang.indexOf("hi") === 0;
+  var T = hi ? {
+    q: "क्या यह पेज उपयोगी रहा?",
+    up: "हाँ", down: "नहीं", send: "भेजें", thanks: "धन्यवाद!",
+    ph: "क्या सुधारना चाहेंगे? (वैकल्पिक)"
+  } : {
+    q: "Was this page useful?",
+    up: "Yes", down: "No", send: "Send", thanks: "Thanks!",
+    ph: "What would you improve? (optional)"
+  };
+  var key = "attest-fb:" + location.pathname;
+  try { if (localStorage.getItem(key)) return; } catch (e) {}
+  var box = document.createElement("div");
+  box.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:9999;background:#141821;border:1px solid #1f242e;border-radius:12px;padding:10px 12px;color:#e8ecf4;font:13px/1.4 system-ui,sans-serif;opacity:.92;max-width:260px;box-shadow:0 8px 24px rgba(0,0,0,.4)";
+  box.innerHTML = '<div style="margin-bottom:6px">' + T.q + '</div>';
+  var row = document.createElement("div");
+  function mk(txt, verdict) {
+    var b = document.createElement("button");
+    b.textContent = txt;
+    b.style.cssText = "margin-right:6px;padding:4px 10px;border-radius:8px;border:1px solid #2a3140;background:#0b0d12;color:#e8ecf4;cursor:pointer";
+    b.onclick = function(){ ask(verdict); };
+    return b;
+  }
+  row.appendChild(mk(T.up, "up"));
+  row.appendChild(mk(T.down, "down"));
+  box.appendChild(row);
+  function ask(verdict) {
+    var f = document.createElement("div");
+    var ta = document.createElement("textarea");
+    ta.placeholder = T.ph;
+    ta.style.cssText = "width:100%;min-height:48px;margin:8px 0;background:#0b0d12;color:#e8ecf4;border:1px solid #2a3140;border-radius:8px;padding:6px 8px;font:12px/1.4 system-ui,sans-serif;box-sizing:border-box";
+    var sb = document.createElement("button");
+    sb.textContent = T.send;
+    sb.style.cssText = "padding:4px 10px;border-radius:8px;border:1px solid #2a3140;background:#0b0d12;color:#e8ecf4;cursor:pointer";
+    sb.onclick = function(){
+      fetch("/feedback", {method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({verdict: verdict, comment: ta.value.slice(0, 500), page: location.pathname})
+      }).finally(function(){
+        try { localStorage.setItem(key, "1"); } catch (e) {}
+        box.textContent = T.thanks;
+        setTimeout(function(){ box.remove(); }, 2500);
+      });
+    };
+    f.appendChild(ta); f.appendChild(sb);
+    box.appendChild(f); ta.focus();
+  }
+  function mount(){ if (!document.body.contains(box)) document.body.appendChild(box); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount); else mount();
+})();
+"""
+
 _VERIFY_GET_HTML = """<!doctype html><meta charset=utf-8><title>attest</title>
 <style>body{background:#0b0d12;color:#e8ecf4;font:16px/1.6 system-ui,sans-serif;
 max-width:720px;margin:60px auto;padding:0 24px}code{background:#141821;padding:2px 6px;
@@ -275,6 +331,7 @@ async function runAuth(){
     mandate:{payee_id:"0xAAA",audience:"c7",max_amount_minor:lim,currency:"USDC",valid_from:1000,valid_until:2000000},
     action:{payee_id:"0xAAA",audience:"c7",amount_minor:amt,currency:"USDC",at:1500,intent:"transfer"}})) }
 </script>
+<script src="/feedback.js" defer></script>
 """
 
 LANDING = """<!DOCTYPE html>
@@ -379,6 +436,7 @@ the attestation, so you can verify it yourself without trusting this service.</d
 <p class="hint">Source: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·
 Set: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/hi">हिन्दी</a></p>
 </div>
+<script src="/feedback.js" defer></script>
 <script>
 async function run(){
   const b=document.getElementById("go"); b.disabled=true;
@@ -908,6 +966,8 @@ class AttestHandler(BaseHTTPRequestHandler):
     # (Индия — обязательное направление, правило 20.10.2026). Поштучная цена
     # не снижается: ниже $0.002 рельс съедает больше половины выручки.
     ppp_price_usd: float = _env_float("ATTEST_PPP_PRICE_USD", 3.0)
+    # Отзывы пользователей: append-only JSONL рядом с метриками.
+    feedback_path: Path = STATE_PATH.with_name("feedback.jsonl")
     # Сеть счёта. Раньше сеть была жёстко mainnet, а ATTEST_NETWORK в конфиге
     # службы не читался нигде: переменная совпадала с умолчанием и потому
     # молчала ровно тогда, когда её меняют на тестнет. Из-за этого платёжный
@@ -972,7 +1032,9 @@ class AttestHandler(BaseHTTPRequestHandler):
             self._send_html(DEMO.replace("__FREE_LIMIT__",
                                          str(self.free_tier.daily_limit)))
         elif path == "/metrics":
-            self._send_json(200, METRICS.snapshot())
+            snapshot = METRICS.snapshot()
+            snapshot["feedback"] = self._feedback_counts()
+            self._send_json(200, snapshot)
         elif path == "/.well-known/glama.json":
             card = _glama_claim()
             if card:
@@ -987,6 +1049,9 @@ class AttestHandler(BaseHTTPRequestHandler):
             page = _with_schema(landing_hi()).replace(
                 "__FREE_LIMIT__", str(self.free_tier.daily_limit))
             self._send_html(page)
+        elif path == "/feedback.js":
+            self._send(200, _FEEDBACK_JS.encode("utf-8"),
+                       "application/javascript; charset=utf-8")
         elif path == "/og.png":
             # Картинка для превью ссылок (Open Graph). Без неё шаринг в соцсетях
             # и каталогах даёт пустую карточку — проверено 20.10.2026.
@@ -1046,6 +1111,19 @@ class AttestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = route_path(self.path)
+        if path == "/feedback":
+            payload = self._read_json()
+            if payload is None:
+                return
+            verdict = str(payload.get("verdict") or "")
+            if verdict not in ("up", "down"):
+                self._send_json(400, {"error": "verdict must be 'up' or 'down'"})
+                return
+            comment = str(payload.get("comment") or "").strip()[:500]
+            page = str(payload.get("page") or "")[:120]
+            self._feedback_append(verdict, comment, page)
+            self._send_json(200, {"ok": True})
+            return
         if path == "/mcp":
             self._handle_mcp()
             return
@@ -1162,6 +1240,33 @@ class AttestHandler(BaseHTTPRequestHandler):
             return
         status, body = answer
         self._send(status, body, "application/json; charset=utf-8")
+
+    def _feedback_append(self, verdict: str, comment: str, page: str) -> None:
+        """Записать отзыв. IP не храним — только короткий хеш (антиспам)."""
+        path = self.feedback_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        record = {"ts": int(time.time()), "verdict": verdict, "comment": comment,
+                  "page": page,
+                  "client": hashlib.sha256(self.client_id().encode()).hexdigest()[:16]}
+        with path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    def _feedback_counts(self) -> dict[str, int]:
+        counts = {"up": 0, "down": 0, "comments": 0}
+        path = self.feedback_path
+        if not path.is_file():
+            return counts
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                rec = json.loads(line)
+                v = rec.get("verdict")
+                if v in ("up", "down"):
+                    counts[v] += 1
+                if rec.get("comment"):
+                    counts["comments"] += 1
+        except Exception:  # noqa: BLE001 — битая строка не должна ронять метрики
+            pass
+        return counts
 
     def _gateway_call(self) -> bool:
         """Вызов от маркетплейса? Сравнение постоянного времени.

@@ -78,6 +78,7 @@ API <code>https://attest.rta.lat</code> · MCP <code>https://attest.rta.lat/mcp<
 Paid per call over x402, or 9 USDC / 30 days unlimited.
 </div>
 </article>
+<script src="/feedback.js" defer></script>
 </main></body></html>
 """
 
