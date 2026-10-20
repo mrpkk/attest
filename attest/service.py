@@ -194,7 +194,14 @@ check in the request.</p>
   -d '{"artifact":{"findings":["a finding"]},"source":"demo"}'</pre></div>
 """
 
-DEMO = """<!doctype html><meta charset=utf-8><title>attest — artifact verification</title>
+DEMO = """<!doctype html><meta charset=utf-8><title>attest — artifact verification demo</title>
+<meta name="description" content="Run the four-layer verifier on a live artifact: schema conformance, emptiness, generation provenance and mandate authority, with an Ed25519-signed verdict.">
+<meta property="og:title" content="attest — four-layer verification demo">
+<meta property="og:description" content="Run the checker on a live artifact and see all four layers in one response.">
+<meta property="og:image" content="https://attest.rta.lat/og.png">
+<meta property="og:url" content="https://attest.rta.lat/demo">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://attest.rta.lat/demo">
 <style>
  body{background:#0b0d12;color:#e8ecf4;font:15px/1.6 system-ui,sans-serif;max-width:900px;margin:48px auto;padding:0 24px}
  h1{font-size:26px;margin-bottom:4px} .s{color:#969eac;font-size:14px}

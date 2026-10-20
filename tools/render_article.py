@@ -32,7 +32,13 @@ PAGE = """<!DOCTYPE html>
 <meta property="og:description" content="Why prompt-injection detection must be positional, not phrasal.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://attest.rta.lat/article">
-<meta name="twitter:card" content="summary">
+<meta property="og:site_name" content="attest">
+<meta property="og:image" content="https://attest.rta.lat/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://attest.rta.lat/og.png">
+<script type="application/ld+json">{{"@context":"https://schema.org","@type":"TechArticle","headline":"The same sentence means different things depending on which field it sits in","description":"Why prompt-injection detection must be positional, not phrasal: the same bytes in a description field and in a content field have different blast radius.","author":{{"@type":"Person","name":"mrpkk","url":"https://github.com/mrpkk"}},"datePublished":"2026-10-16","mainEntityOfPage":{{"@id":"https://attest.rta.lat/article"}},"publisher":{{"@type":"Organization","name":"attest","url":"https://attest.rta.lat"}}}}</script>
 <link rel="alternate" type="text/markdown" href="https://raw.githubusercontent.com/mrpkk/attest/main/docs/THE-SAME-SENTENCE-DIFFERENT-FIELDS.md">
 <style>
   :root {{ color-scheme: dark; }}

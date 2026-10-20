@@ -114,6 +114,24 @@ class TestEndpoints:
         assert "/og.png" in html
         assert 'rel="canonical"' in html
 
+    def test_article_has_og_image_and_structured_data(self, server):
+        """Статья — цель HN-поста: превью и разметка для поиска (20.10.2026)."""
+        import urllib.request as u
+        with u.urlopen(f"{server}/article", timeout=10) as r:
+            html = r.read().decode("utf-8")
+        assert 'property="og:image"' in html
+        assert 'application/ld+json' in html
+        assert '"@type":"TechArticle"' in html
+        assert 'rel="canonical"' in html
+
+    def test_demo_has_meta(self, server):
+        import urllib.request as u
+        with u.urlopen(f"{server}/demo", timeout=10) as r:
+            html = r.read().decode("utf-8")
+        assert 'name="description"' in html
+        assert 'property="og:image"' in html
+        assert 'href="https://attest.rta.lat/demo"' in html
+
     def test_hindi_landing_is_served(self, server):
         """Индия — обязательное направление: /hi с хинди и hreflang (20.10.2026)."""
         import re as _re
