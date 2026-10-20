@@ -849,12 +849,17 @@ class TestArticleRoute:
         assert 'rel="canonical"' in html
         assert 'property="og:title"' in html
 
-    def test_article_view_is_counted(self, server):
-        from attest.metrics import METRICS
-        before = METRICS.views.get("hn", 0)
+    def test_article_view_is_counted(self, server, monkeypatch, tmp_path):
+        # Свежий счётчик с временным файлом: боевые метрики в тестах выключены
+        # (ATTEST_METRICS=0 в conftest), иначе прогоны накручивают «direct».
+        import attest.metrics as metrics_mod
+        import attest.service as svc
+        monkeypatch.setattr(metrics_mod, "STATE_PATH", tmp_path / "metrics.json")
+        fresh = metrics_mod.Metrics()
+        monkeypatch.setattr(svc, "METRICS", fresh)
         with urllib.request.urlopen(f"{server}/article?ref=hn", timeout=10):
             pass
-        assert METRICS.views.get("hn", 0) == before + 1, \
+        assert fresh.views.get("hn", 0) == 1, \
             "показ статьи не посчитан — атрибуция канала не работает"
 
     def test_article_is_in_sitemap(self, server):

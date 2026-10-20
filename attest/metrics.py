@@ -145,17 +145,25 @@ class Metrics:
     first_event: float = 0.0
     last_event: float = 0.0
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    # Тесты бьют по тому же глобальному счётчику, что и боевой сервис, и
+    # раньше накручивали «direct» (298 из 304 «проверок» 20.10.2026).
+    # ATTEST_METRICS=0 отключает запись; чтение остаётся.
+    enabled: bool = True
     _last_save: float = field(default=0.0, repr=False)
 
     # ---- запись -------------------------------------------------------
 
     def view(self, channel: str) -> None:
+        if not self.enabled:
+            return
         with self._lock:
             self._bounded(self.views, channel)
             self._touch()
         self._save_if_due()
 
     def check(self, channel: str, paid: bool) -> None:
+        if not self.enabled:
+            return
         key = f"{channel}:{'paid' if paid else 'free'}"
         with self._lock:
             self._bounded(self.checks, key)
@@ -167,6 +175,8 @@ class Metrics:
         self._save_if_due()
 
     def payment(self, channel: str, atoms: int, payer: str | None = None) -> None:
+        if not self.enabled:
+            return
         with self._lock:
             self.revenue_atoms += max(0, atoms)
             self._bounded(self.paid, channel)
@@ -322,5 +332,5 @@ def channel_of(query: str, referer: str | None) -> str:
     return "direct"
 
 
-METRICS = Metrics()
+METRICS = Metrics(enabled=os.environ.get("ATTEST_METRICS", "1") != "0")
 METRICS.load()
