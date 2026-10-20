@@ -878,3 +878,43 @@ class TestIndexNow:
             assert r.status == 200
             assert "text/plain" in r.headers.get("Content-Type", "")
             assert r.read().decode("utf-8").strip() == _INDEXNOW_KEY
+
+
+class TestOAuthMetadata:
+    """Клиенты MCP перед подключением спрашивают Protected Resource Metadata
+    (RFC 9728). В логах было 88 таких запросов за неделю и все — 404:
+    клиент оставался в догадках про токен. Отвечаем честно: токен не нужен,
+    оплата идёт по x402."""
+
+    def test_protected_resource_metadata_is_served(self, server):
+        with urllib.request.urlopen(
+                f"{server}/.well-known/oauth-protected-resource", timeout=10) as r:
+            assert r.status == 200
+            data = json.loads(r.read().decode("utf-8"))
+        assert data["resource"].endswith("/mcp")
+        assert data["authorization_servers"] == []
+        assert data["scopes_supported"]
+
+    def test_metadata_variant_with_mcp_suffix(self, server):
+        with urllib.request.urlopen(
+                f"{server}/.well-known/oauth-protected-resource/mcp", timeout=10) as r:
+            assert r.status == 200
+            assert json.loads(r.read().decode("utf-8"))["resource"].endswith("/mcp")
+
+    def test_authorization_server_is_absent_with_explanation(self, server):
+        """Мы не authorization server: 404 с пояснением честнее пустого
+        документа без грантов."""
+        try:
+            urllib.request.urlopen(
+                f"{server}/.well-known/oauth-authorization-server", timeout=10)
+            assert False, "сервер не выдаёт OAuth-гранты — 404 обязателен"
+        except urllib.error.HTTPError as exc:
+            assert exc.code == 404
+            body = json.loads(exc.read().decode("utf-8"))
+            assert "x402" in body["note"]
+
+    def test_favicon_is_served(self, server):
+        with urllib.request.urlopen(f"{server}/favicon.ico", timeout=10) as r:
+            assert r.status == 200
+            assert "image" in r.headers.get("Content-Type", "")
+            assert len(r.read()) > 0

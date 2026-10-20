@@ -1078,7 +1078,25 @@ class AttestHandler(BaseHTTPRequestHandler):
             # Доказательство владения хостом для IndexNow (Bing, Яндекс).
             self._send(200, _INDEXNOW_KEY.encode("utf-8"),
                        "text/plain; charset=utf-8")
+        elif path in ("/.well-known/oauth-protected-resource",
+                      "/.well-known/oauth-protected-resource/mcp"):
+            # RFC 9728. Клиенты MCP спрашивают этот файл перед подключением
+            # (88 запросов за неделю в логах). Отсутствие файла заставляет
+            # клиента гадать про токен — отвечаем честно: токен не нужен.
+            self._send_json(200, self._oauth_resource_metadata())
+        elif path in ("/.well-known/oauth-authorization-server",
+                      "/.well-known/oauth-authorization-server/mcp"):
+            # Мы не authorization server: OAuth не требуется, оплата по x402.
+            self._send_json(404, {
+                "error": "not an authorization server",
+                "note": "attest needs no OAuth token: 20 free checks per day, "
+                        "then $0.005 per call over x402 (USDC, Base)",
+                "payment": f"{self._base_url()}/.well-known/x402",
+            })
+        elif path == "/favicon.ico":
+            self._send_file("favicon.ico", "image/x-icon")
         elif path == "/og.png":
+
             # Картинка для превью ссылок (Open Graph). Без неё шаринг в соцсетях
             # и каталогах даёт пустую карточку — проверено 20.10.2026.
             png = Path(__file__).resolve().parent.parent / "og.png"
@@ -1609,6 +1627,33 @@ class AttestHandler(BaseHTTPRequestHandler):
                 "price_usd": atomic_to_usd(self.x402_price_atoms),
             }
         ]
+
+    def _oauth_resource_metadata(self) -> dict[str, Any]:
+        """RFC 9728: Protected Resource Metadata для MCP-эндпоинта."""
+        base = self._base_url()
+        return {
+            "resource": f"{base}/mcp",
+            "authorization_servers": [],
+            "scopes_supported": ["mcp:tools"],
+            "bearer_methods_supported": [],
+            "resource_documentation": f"{base}/mcp",
+            "resource_name": BAZAAR_SERVICE_NAME,
+            "resource_policy_uri": f"{base}/pricing",
+        }
+
+    def _send_file(self, name: str, mime: str) -> None:
+        """Отдать статический файл репозитория. Нет файла — честный 404."""
+        path = Path(__file__).resolve().parent.parent / name
+        if not path.is_file():
+            self._send_json(404, {"error": f"{name} not found"})
+            return
+        body = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", mime)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "public, max-age=86400")
+        self.end_headers()
+        self.wfile.write(body)
 
     def _serve_manifest(self, name: str) -> None:
         """Отдать файл манифеста. Нет файла — честный 404, а не пустой 200."""
