@@ -290,6 +290,9 @@ LANDING = """<!DOCTYPE html>
 <meta name="twitter:description" content="Verify AI agent artifacts before you trust them: schema, prompt injection, emptiness, provenance. Ed25519-signed verdicts.">
 <meta name="twitter:image" content="https://attest.rta.lat/og.png">
 <link rel="canonical" href="https://attest.rta.lat/">
+<link rel="alternate" hreflang="en" href="https://attest.rta.lat/">
+<link rel="alternate" hreflang="hi" href="https://attest.rta.lat/hi">
+<link rel="alternate" hreflang="x-default" href="https://attest.rta.lat/">
 <style>
 :root{--bg:#0d1117;--fg:#e6edf3;--dim:#8b949e;--line:#30363d;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--acc:#58a6ff}
 *{box-sizing:border-box}
@@ -393,6 +396,66 @@ async function run(){
 }
 </script>
 </body></html>"""
+
+# Хинди-версия витрины (правило владельца 20.10.2026: Индия — обязательное
+# направление, хинди — первый класс). Тексты заменяются точными строками:
+# если английская витрина изменится, тест на /hi упадёт — это и нужно.
+_HI_REPLACEMENTS: tuple[tuple[str, str], ...] = (
+    ('<html lang="en">', '<html lang="hi">'),
+    ('<title>attest — artifact verification for agents</title>',
+     '<title>attest — AI एजेंट आर्टिफैक्ट का सत्यापन</title>'),
+    ('<meta name="description" content="Four-layer verification for AI agent artifacts: schema, emptiness, generation provenance, mandate authority. Ed25519-signed and independently verifiable.">',
+     '<meta name="description" content="AI एजेंट आर्टिफैक्ट का चार-स्तरीय सत्यापन: स्कीमा, खालीपन, उत्पत्ति और अधिकार। Ed25519 हस्ताक्षरित, स्वतंत्र रूप से सत्यापन योग्य।">'),
+    ('<meta property="og:title" content="attest — artifact verification for agents">',
+     '<meta property="og:title" content="attest — AI एजेंट आर्टिफैक्ट का सत्यापन">'),
+    ('<meta name="twitter:title" content="attest — artifact verification for agents">',
+     '<meta name="twitter:title" content="attest — AI एजेंट आर्टिफैक्ट का सत्यापन">'),
+    ('<link rel="canonical" href="https://attest.rta.lat/">',
+     '<link rel="canonical" href="https://attest.rta.lat/hi">'),
+    ('<h1>attest — artifact verification for agents</h1>',
+     '<h1>attest — AI एजेंट आर्टिफैक्ट का सत्यापन</h1>'),
+    ('<p class="lead">An agent calls a tool or another agent and receives a foreign artifact that\ngoes straight into its context. Four checks, each answering only its own question.</p>',
+     '<p class="lead">एजेंट किसी टूल या दूसरे एजेंट को कॉल करता है और एक बाहरी आर्टिफैक्ट पाता है जो सीधे उसके कॉन्टेक्स्ट में चला जाता है। चार जाँचें, हर एक केवल अपने ही प्रश्न का उत्तर देती है।</p>'),
+    ('<label class="hint">Artifact JSON</label>', '<label class="hint">आर्टिफैक्ट JSON</label>'),
+    ('>Verify</button>', '>सत्यापित करें</button>'),
+    ('four-layer demo →', 'चार-स्तरीय डेमो →'),
+    ('<h2 style="font-size:17px;margin:30px 0 6px">Four layers, four questions</h2>',
+     '<h2 style="font-size:17px;margin:30px 0 6px">चार स्तर, चार प्रश्न</h2>'),
+    ('<tr><th>Layer</th><th>Question</th><th>Answers it</th></tr>',
+     '<tr><th>स्तर</th><th>प्रश्न</th><th>उत्तर देता है</th></tr>'),
+    ('<tr><td>Form</td><td>does it match the schema?</td><td><code>/verify</code></td></tr>',
+     '<tr><td>रूप</td><td>क्या यह स्कीमा से मेल खाता है?</td><td><code>/verify</code></td></tr>'),
+    ('<tr><td>Emptiness</td><td>is there anything inside it?</td><td><code>emptiness</code></td></tr>',
+     '<tr><td>खालीपन</td><td>क्या इसमें वास्तविक सामग्री है?</td><td><code>emptiness</code></td></tr>'),
+    ('<tr><td>Provenance</td><td>what conditions produced it?</td><td><code>generation</code></td></tr>',
+     '<tr><td>उत्पत्ति</td><td>यह किन परिस्थितियों में बना?</td><td><code>generation</code></td></tr>'),
+    ('<tr><td>Authority</td><td>was the action permitted?</td><td><code>authority</code></td></tr>',
+     '<tr><td>अधिकार</td><td>क्या यह क्रिया अनुमत थी?</td><td><code>authority</code></td></tr>'),
+    ('<h2 style="font-size:17px;margin:26px 0 6px">Pricing</h2>',
+     '<h2 style="font-size:17px;margin:26px 0 6px">मूल्य</h2>'),
+    ('__FREE_LIMIT__ free checks per day.', '__FREE_LIMIT__ मुफ़्त जाँच प्रतिदिन।'),
+    ('<div class="t"><b>Trial</b>0 USDC<br><span class="hint">__FREE_LIMIT__ checks per day, full check, no limit on artifact size</span></div>',
+     '<div class="t"><b>नि:शुल्क</b>0 USDC<br><span class="hint">__FREE_LIMIT__ जाँच प्रतिदिन, पूरी जाँच, आर्टिफैक्ट के आकार की सीमा नहीं</span></div>'),
+    ('<div class="t"><b>Per call</b>0.005 USDC<br><span class="hint">beyond the free tier, paid over x402 on Base</span></div>',
+     '<div class="t"><b>प्रति कॉल</b>0.005 USDC<br><span class="hint">मुफ़्त सीमा के बाद, Base पर x402 से भुगतान</span></div>'),
+    ('<div class="t"><b>Subscription</b>9 USDC<br><span class="hint">removes the limit, suitable for CI pipelines</span></div>',
+     '<div class="t"><b>सदस्यता (30 दिन)</b>9 USDC<br><span class="hint">सीमा हटाती है, CI पाइपलाइन के लिए उपयुक्त</span></div>'),
+    ('<div class="warn"><b>What this does not do.</b> A valid form is not meaningful content, and a\nsigned artifact is not a permitted action. Absence of signals means the coarse checks did not fire —\nit does not prove the artifact is sound. The signature is Ed25519: the public key travels with\nthe attestation, so you can verify it yourself without trusting this service.</div>',
+     '<div class="warn"><b>यह क्या नहीं करता।</b> सही रूप का अर्थ वास्तविक सामग्री नहीं है, और हस्ताक्षरित आर्टिफैक्ट का अर्थ अनुमत क्रिया नहीं है। संकेतों का न होना केवल यह दिखाता है कि स्थूल जाँचें नहीं चलीं — यह सिद्ध नहीं करता कि आर्टिफैक्ट ठीक है। हस्ताक्षर Ed25519 है: सार्वजनिक कुंजी सत्यापन के साथ चलती है, इसलिए आप इस सेवा पर भरोसा किए बिना स्वयं जाँच सकते हैं।</div>'),
+    ('<p class="hint">Source: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nSet: <a href="https://indra.rta.lat">indra.rta.lat</a></p>',
+     '<p class="hint">स्रोत: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nसेट: <a href="https://indra.rta.lat">indra.rta.lat</a></p>'),
+)
+
+
+def landing_hi() -> str:
+    """Хинди-версия витрины. Точные замены; недостающая строка — исключение."""
+    page = LANDING
+    for english, hindi in _HI_REPLACEMENTS:
+        if english not in page:
+            raise ValueError(f"hindi landing: строка не найдена: {english[:60]!r}")
+        page = page.replace(english, hindi)
+    return page
+
 
 
 BAZAAR_SERVICE_NAME = "attest"
@@ -809,7 +872,7 @@ def _sitemap() -> str:
     base = _base_url()
     urls = "".join(
         f"<url><loc>{base}{page}</loc></url>"
-        for page in ("", "/demo", "/pricing", "/article", "/health")
+        for page in ("", "/hi", "/demo", "/pricing", "/article", "/health")
     )
     return ('<?xml version="1.0" encoding="UTF-8"?>'
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
@@ -911,6 +974,12 @@ class AttestHandler(BaseHTTPRequestHandler):
                 self._send_json(404, {"error": "claim token not configured"})
         elif path == "/.well-known/mcp/server-card.json":
             self._send_json(200, _server_card())
+        elif path == "/hi":
+            METRICS.view(channel_of(self.path, self.headers.get("Referer")))
+            METRICS.save()
+            page = _with_schema(landing_hi()).replace(
+                "__FREE_LIMIT__", str(self.free_tier.daily_limit))
+            self._send_html(page)
         elif path == "/og.png":
             # Картинка для превью ссылок (Open Graph). Без неё шаринг в соцсетях
             # и каталогах даёт пустую карточку — проверено 20.10.2026.

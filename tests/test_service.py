@@ -114,6 +114,24 @@ class TestEndpoints:
         assert "/og.png" in html
         assert 'rel="canonical"' in html
 
+    def test_hindi_landing_is_served(self, server):
+        """Индия — обязательное направление: /hi с хинди и hreflang (20.10.2026)."""
+        import re as _re
+        import urllib.request as u
+        with u.urlopen(f"{server}/hi", timeout=10) as r:
+            html = r.read().decode("utf-8")
+        assert _re.search(r"[\u0900-\u097F]", html), "нет деванагари"
+        assert 'lang="hi"' in html
+        assert 'href="https://attest.rta.lat/hi"' in html
+        assert 'hreflang="en"' in html and 'hreflang="hi"' in html
+        assert "मुफ़्त जाँच प्रतिदिन" in html
+
+    def test_english_landing_links_hindi(self, server):
+        import urllib.request as u
+        with u.urlopen(f"{server}/", timeout=10) as r:
+            html = r.read().decode("utf-8")
+        assert 'hreflang="hi" href="https://attest.rta.lat/hi"' in html
+
     def test_og_image_is_served(self, server):
         import urllib.request as u
         with u.urlopen(f"{server}/og.png", timeout=10) as r:
