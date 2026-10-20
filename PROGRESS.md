@@ -397,7 +397,7 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
 |---|---|
 | Подача в Apify Store | не подано (материалы не готовы) |
 | Подача в APILayer | не подано |
-| Glama / Smithery / mcp.so | Glama ✓, Smithery ✓, mcp.so заявка ✓ (17.10) |
+| Glama / Smithery / mcp.so / mcpservers.org | Glama ✓, Smithery ✓, mcp.so заявка ✓ (17.10); **mcpservers.org — ОДОБРЕНО 20.10, страница LIVE**: https://mcpservers.org/servers/mrpkk/attest (бейдж добавлен в README, коммит `1194978`). Плюс **mcprush.com** добавил сервер сам: https://mcprush.com/mrpkk/attest-verification-for-ai-agent-artifacts-mcp (claim требует аккаунт — пропущено) |
 | businessMCP | ✓ 18.10 — attest подан (POST /api/listings → 200 `{"ok":true}`; Turnstile решён; аккаунт создан на wiggle.pkk@gmail.com, ответ ручной ~1 рабочий день) |
 | PulseMCP | ⏸ подачи приостановлены платформой («submissions paused») — проверить позже |
 | Dify Marketplace | не подано — вход через GitHub доступен; нужен go владельца + упаковка плагина |
