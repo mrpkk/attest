@@ -71,6 +71,16 @@ PRICING = {
 }
 
 
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
 def _env_int(name: str, default: int) -> int:
     raw = os.environ.get(name)
     if not raw:
@@ -824,6 +834,10 @@ class AttestHandler(BaseHTTPRequestHandler):
     pricing = PRICING
     x402_pay_to: str | None = os.environ.get("ATTEST_PAY_TO") or None
     x402_price_atoms: int = _env_int("ATTEST_PRICE_ATOMS", 5000)
+    # Цена 30-дневной подписки для покупателей с низкой покупательной способностью
+    # (Индия — обязательное направление, правило 20.10.2026). Поштучная цена
+    # не снижается: ниже $0.002 рельс съедает больше половины выручки.
+    ppp_price_usd: float = _env_float("ATTEST_PPP_PRICE_USD", 3.0)
     # Сеть счёта. Раньше сеть была жёстко mainnet, а ATTEST_NETWORK в конфиге
     # службы не читался нигде: переменная совпадала с умолчанием и потому
     # молчала ровно тогда, когда её меняют на тестнет. Из-за этого платёжный
@@ -1105,6 +1119,19 @@ class AttestHandler(BaseHTTPRequestHandler):
         body["entitlement"] = {"valid": True, "detail": detail}
         self._send_json(200, body)
 
+    def _subscription_price_usd(self) -> float:
+        """Цена 30-дневного доступа: обычная или PPP (?plan=ppp).
+
+        PPP-цена не публикуется в общем прайсе: она для покупателей с низкой
+        покупательной способностью (Индия) и передаётся ссылкой. Иначе
+        западный покупатель просто выберет $3 вместо $9.
+        """
+        query = urlparse(self.path).query or ""
+        params = dict(pair.split("=", 1) for pair in query.split("&") if "=" in pair)
+        if params.get("plan") == "ppp":
+            return max(0.0, float(self.ppp_price_usd))
+        return float(entitlement.PRICE_USD)
+
     def _handle_subscribe(self, describe_only: bool = False) -> None:
         """Купить 30 дней неограниченного доступа за один платёж.
 
@@ -1122,19 +1149,24 @@ class AttestHandler(BaseHTTPRequestHandler):
                          "(ATTEST_PAY_TO is empty)"})
         head = (self.headers.get("PAYMENT-SIGNATURE")
                 or self.headers.get("X-PAYMENT"))
+        price_usd = self._subscription_price_usd()
+        amount_atoms = int(price_usd * 1_000_000)
         if not head:
             challenge = self._challenge_header(
-                amount_atoms=int(entitlement.PRICE_USD * 1_000_000),
+                amount_atoms=amount_atoms,
                 resource=f"{self._base_url()}/subscribe")
             return self._send_json(
                 402,
-                {"error": "pay 9 USDC for 30 days of unlimited access",
+                {"error": f"pay {price_usd:g} USDC for 30 days of unlimited access",
                  "subscription": entitlement_describe(),
                  "header": entitlement.HEADER},
                 extra_headers={"Payment-Required": challenge}
                 if challenge else None)
         try:
-            payment = self._verify_payment(head)
+            # Сверка идёт с ценой ЭТОГО плана, а не с ценой вызова. Баг до
+            # 20.10.2026: _verify_payment всегда строил чек на 5000 атомов,
+            # и платёж подписки (9 USDC) отвергался как «сумма не равна».
+            payment = self._verify_payment(head, amount_atoms=amount_atoms)
         except PaymentError as exc:
             return self._send_json(exc.status, {"error": exc.reason})
         # Подписка — тоже деньги: без этой записи 9 USDC не попадали в
@@ -1225,7 +1257,7 @@ class AttestHandler(BaseHTTPRequestHandler):
                 "payer": result.get("payer") or getattr(requirement, "payer", None),
                 "confirmed_on_chain": bool(self.x402_rpc_url)}
 
-    def _verify_payment(self, header_value: str):
+    def _verify_payment(self, header_value: str, amount_atoms: int | None = None):
         """Проверить оплату по челленджу, который мы сами же и выставили."""
         from .payment import PaymentRequirement, verify_payment
         self._last_settlement = None
@@ -1238,7 +1270,8 @@ class AttestHandler(BaseHTTPRequestHandler):
         token, challenge = build_challenge(
             resource=f"{self._base_url()}/verify",
             pay_to=self.x402_pay_to,
-            price_atoms=self.x402_price_atoms,
+            price_atoms=(self.x402_price_atoms if amount_atoms is None
+                         else int(amount_atoms)),
             network=self.x402_network,
             asset=self.x402_asset,
         )

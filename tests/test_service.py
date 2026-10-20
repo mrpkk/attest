@@ -307,6 +307,64 @@ class TestExhaustion:
             AttestHandler.free_tier.reset("127.0.0.1")
 
 
+class TestSubscriptionPricing:
+    """Подписка: чек, PPP-план и сверка платежа с ценой ИМЕННО плана.
+
+    20.10.2026 найден баг: `_verify_payment` всегда строил чек на цену вызова
+    (5000 атомов), поэтому платёж подписки на 9 USDC отвергался как «сумма не
+    равна». Тесты подменяют транспорт, поэтому живой путь этого не ловил —
+    здесь проверяем именно связку «план → сумма сверки».
+    """
+
+    def _challenge_amount(self, server: str, query: str = "") -> int:
+        import base64 as _b64
+        import urllib.request as u
+        req = u.Request(f"{server}/subscribe{query}", data=b"{}",
+                        headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with u.urlopen(req, timeout=10) as r:
+                raise AssertionError("ожидали 402 с чеком")
+        except urllib.error.HTTPError as exc:
+            assert exc.code == 402, exc.code
+            header = exc.headers.get("Payment-Required")
+            assert header, "нет заголовка Payment-Required"
+            challenge = json.loads(_b64.b64decode(header))
+            return int(challenge["accepts"][0]["amount"])
+
+    def test_standard_plan_charges_9_usdc(self, server, monkeypatch):
+        monkeypatch.setattr(AttestHandler, "x402_pay_to", "0x" + "aa" * 20)
+        try:
+            assert self._challenge_amount(server) == 9_000_000
+        finally:
+            monkeypatch.setattr(AttestHandler, "x402_pay_to", None)
+
+    def test_ppp_plan_charges_ppp_price(self, server, monkeypatch):
+        monkeypatch.setattr(AttestHandler, "x402_pay_to", "0x" + "aa" * 20)
+        monkeypatch.setattr(AttestHandler, "ppp_price_usd", 3.0)
+        try:
+            assert self._challenge_amount(server, "?plan=ppp") == 3_000_000
+        finally:
+            monkeypatch.setattr(AttestHandler, "x402_pay_to", None)
+
+    def test_payment_is_checked_against_the_plan_price(self, server, monkeypatch):
+        import attest.payment as payment_mod
+        seen: list[int] = []
+
+        def fake(requirement, header_value, domain, **kw):
+            seen.append(int(requirement.amount_atoms))
+            raise payment_mod.PaymentError("stop-here", status=402)
+
+        monkeypatch.setattr(AttestHandler, "x402_pay_to", "0x" + "aa" * 20)
+        monkeypatch.setattr(AttestHandler, "ppp_price_usd", 3.0)
+        monkeypatch.setattr(payment_mod, "verify_payment", fake)
+        try:
+            post(f"{server}/subscribe", {}, headers={"PAYMENT-SIGNATURE": "dummy"})
+            post(f"{server}/subscribe?plan=ppp", {}, headers={"PAYMENT-SIGNATURE": "dummy"})
+        finally:
+            monkeypatch.setattr(AttestHandler, "x402_pay_to", None)
+        assert seen == [9_000_000, 3_000_000], seen
+
+
 class TestMarketplaceGateway:
     """Вызовы api.market: их покупатель платит платформе — наш 402 не его проблема.
 

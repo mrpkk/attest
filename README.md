@@ -5,6 +5,10 @@
 
 Live: **<https://attest.rta.lat/demo>** · Code: <https://github.com/mrpkk/attest>
 
+Pricing: 20 checks/day free, then $0.005 per call (x402, USDC on Base). 30-day unlimited
+access: $9. **Purchasing-power pricing** (India and similar markets): the same 30 days for
+$3 via `POST https://attest.rta.lat/subscribe?plan=ppp` — same endpoint, same terms.
+
 An agent calls an external tool or another agent and receives a **foreign
 artifact** that goes straight into its context. Nothing checks that the
 artifact:
