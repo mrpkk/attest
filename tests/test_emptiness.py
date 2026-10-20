@@ -147,6 +147,22 @@ class TestScoring:
         assert set(s[0].as_dict()) == {"kind", "severity", "where",
                                         "evidence", "detail"}
 
+    def test_duplicate_objects_are_detected(self):
+        """Три одинаковых объекта — тоже заполнитель (кейс api.market 20.10).
+
+        Раньше список сравнивался только по тексту листьев: у объектов
+        текста нет, и дубли проходили как «форма в порядке».
+        """
+        s = scan_for_emptiness({"findings": [{"id": "a", "title": "x"}] * 3})
+        assert s, "дубли в списке объектов не замечены"
+        assert any(x.kind == "uniform_list" for x in s)
+        assert emptiness_score(s) >= 0.8
+
+    def test_distinct_objects_are_not_flagged(self):
+        s = scan_for_emptiness({"findings": [
+            {"id": "a", "title": "первое"}, {"id": "b", "title": "второе"}]})
+        assert not any(x.kind == "uniform_list" for x in s)
+
 
 class TestHonesty:
     def test_module_docstring_warns_absence_is_not_proof(self):

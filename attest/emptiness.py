@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from typing import Any, Iterable
@@ -147,7 +148,9 @@ def _uniform_ratio(value: Any) -> tuple[float, int] | None:
     """
     if not isinstance(value, list) or len(value) < 3:
         return None
-    texts = [_leaf_text(v).strip() for v in value]
+    texts = [(_leaf_text(v).strip()
+              or json.dumps(v, sort_keys=True, ensure_ascii=False, default=str))
+             for v in value]
     if any(not t for t in texts):
         texts = [t for t in texts if t]
     if len(texts) < 3:

@@ -454,3 +454,70 @@ def test_clean_corpus_no_false_positives():
     ]
     for artifact in clean:
         assert attest(artifact, source="audit").verdict == "accept", artifact
+
+
+# --- Кейсы ревью api.market (20.10) ---------------------------------------
+# Площадка прислала три артефакта, на которые сервис отвечал «accept,
+# trust_score 100». Смысл проверки — в том, чтобы мусор отвергался.
+
+_FINDINGS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "findings": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["id", "title"],
+                "properties": {
+                    "id": {"type": "string", "minLength": 1},
+                    "title": {"type": "string", "minLength": 1},
+                },
+            },
+        }
+    },
+}
+
+
+def test_empty_strings_violate_min_length():
+    result = attest({"findings": [{"id": "", "title": ""}]}, _FINDINGS_SCHEMA,
+                     source="audit", sign_it=False)
+    assert result.verdict == "reject", result.reason
+    assert any(v.rule == "minLength" for v in result.violations)
+
+
+def test_duplicate_findings_are_rejected():
+    result = attest({"findings": [{"id": "a", "title": "x"}] * 3},
+                     source="audit", sign_it=False)
+    assert result.verdict == "reject", result.reason
+    assert result.trust_score < 100, "пустой артефакт не может стоить 100 баллов"
+
+
+def test_bare_string_is_rejected_when_json_required():
+    rejected = attest("not json at all", source="audit", sign_it=False,
+                      require_json=True)
+    assert rejected.verdict == "reject", rejected.reason
+    # Без контракта HTTP строка остаётся проверяемой на инъекции.
+    allowed = attest("not json at all", source="audit", sign_it=False)
+    assert allowed.verdict == "accept", allowed.reason
+
+
+def test_valid_artifact_still_accepted():
+    result = attest(
+        {"findings": [{"id": "f1", "title": "Схема соблюдена"},
+                      {"id": "f2", "title": "Содержание на месте"}]},
+        _FINDINGS_SCHEMA, source="audit", sign_it=False)
+    assert result.verdict == "accept", result.reason
+    assert result.trust_score == 100
+
+
+def test_min_items_is_enforced():
+    result = attest({"findings": []}, _FINDINGS_SCHEMA, source="audit",
+                     sign_it=False)
+    assert result.verdict == "accept", "пустой массив по схеме разрешён"
+    tight = dict(_FINDINGS_SCHEMA)
+    tight["properties"] = dict(_FINDINGS_SCHEMA["properties"])
+    tight["properties"]["findings"] = dict(tight["properties"]["findings"])
+    tight["properties"]["findings"]["minItems"] = 1
+    result2 = attest({"findings": []}, tight, source="audit", sign_it=False)
+    assert result2.verdict == "reject", result2.reason
+    assert any(v.rule == "minItems" for v in result2.violations)

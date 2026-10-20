@@ -73,6 +73,12 @@ def _validate(value: Any, schema: dict[str, Any], path: str, depth: int, out: li
         enum = schema.get("enum")
         if isinstance(enum, list) and value not in enum:
             out.append(SchemaViolation(path, "enum", f"value not in enum[{len(enum)}]"))
+        min_length = schema.get("minLength")
+        if isinstance(min_length, int) and len(value) < min_length:
+            out.append(SchemaViolation(path, "minLength", f"длина {len(value)} < {min_length}"))
+        max_length = schema.get("maxLength")
+        if isinstance(max_length, int) and len(value) > max_length:
+            out.append(SchemaViolation(path, "maxLength", f"длина {len(value)} > {max_length}"))
         return
 
     if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -85,6 +91,12 @@ def _validate(value: Any, schema: dict[str, Any], path: str, depth: int, out: li
     if isinstance(value, list):
         if len(value) > MAX_ITEMS:
             out.append(SchemaViolation(path, "size", f"элементов {len(value)} > {MAX_ITEMS}"))
+        min_items = schema.get("minItems")
+        if isinstance(min_items, int) and len(value) < min_items:
+            out.append(SchemaViolation(path, "minItems", f"элементов {len(value)} < {min_items}"))
+        max_items = schema.get("maxItems")
+        if isinstance(max_items, int) and len(value) > max_items:
+            out.append(SchemaViolation(path, "maxItems", f"элементов {len(value)} > {max_items}"))
         item_schema = schema.get("items")
         if isinstance(item_schema, dict):
             for i, item in enumerate(value[:1000]):

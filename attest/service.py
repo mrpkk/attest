@@ -1319,6 +1319,7 @@ class AttestHandler(BaseHTTPRequestHandler):
             generation=generation if isinstance(generation, dict) else None,
             payload_mandate=payload.get("mandate"),
             payload_action=payload.get("action"),
+            require_json=True,
         )
         body = result.as_dict()
         body["free_remaining"] = -1          # -1 = лимита нет
@@ -1505,6 +1506,7 @@ class AttestHandler(BaseHTTPRequestHandler):
             generation=generation if isinstance(generation, dict) else None,
             payload_mandate=payload.get("mandate"),
             payload_action=payload.get("action"),
+            require_json=True,
         )
         body = result.as_dict()
         body["free_remaining"] = self.free_tier.remaining(self.client_id())

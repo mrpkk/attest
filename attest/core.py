@@ -21,6 +21,7 @@ from .provenance import digest as _content_hash
 _GEN_FIELDS = ("model", "model_version", "prompt", "parameters",
               "generated_at", "generator", "generator_version")
 from .schema import SchemaViolation, validate_against_schema
+from .emptiness import scan_for_emptiness, emptiness_score
 
 SEVERITY_WEIGHT = {"critical": 40.0, "high": 15.0, "medium": 5.0, "low": 1.0}
 VIOLATION_WEIGHT = 8.0
@@ -81,16 +82,24 @@ def _score(violations: list[SchemaViolation], signals: list[PoisonSignal]) -> fl
     return max(0.0, 100.0 - penalty)
 
 
-def _verdict(violations: list[SchemaViolation], signals: list[PoisonSignal], score: float) -> tuple[str, str]:
+def _verdict(violations: list[SchemaViolation], signals: list[PoisonSignal], score: float,
+             empty_score: float = 0.0) -> tuple[str, str]:
     critical = [s for s in signals if s.kind in CRITICAL_KINDS or s.kind in DANGEROUS_COMMANDS or s.severity == "critical"]
     if critical:
         return "reject", f"critical signal: {critical[0].kind} @ {critical[0].where}"
-    if not signals and not violations:
+    if not signals and not violations and empty_score < 0.8:
         return "accept", "schema is valid, no poisoning signals"
     if violations:
-        hard = [v for v in violations if v.rule in ("type", "required", "null", "depth", "empty", "size", "minimum", "maximum")]
+        hard = [v for v in violations if v.rule in ("type", "required", "null", "depth", "empty", "size",
+                                                     "minimum", "maximum", "minLength", "maxLength",
+                                                     "minItems", "maxItems")]
         if hard:
             return "reject", f"contract violation: {hard[0].rule} @ {hard[0].path}"
+    # Форма в порядке, содержания нет: пустые значения, дубли, заглушки.
+    # Это отказ, а не «мелкая находка» — иначе клиент получает accept на
+    # артефакт, в котором нечего принимать (баг, найденный api.market 20.10).
+    if empty_score >= 0.8:
+        return "reject", f"form is valid but the artifact is empty ({empty_score:.2f})"
     # сигнатурная инъекция = отказ, даже в доверенном поле: «ignore all previous
     # instructions» не бывает в честном ответе инструмента
     signature_attack = [s for s in signals if s.kind in INJECTION_KINDS]
@@ -104,6 +113,8 @@ def _verdict(violations: list[SchemaViolation], signals: list[PoisonSignal], sco
         return "reject", f"multiple independent signals: {', '.join(s.kind for s in strong[:3])}"
     if score < 60:
         return "reject", f"trust score too low ({score:.0f}/100)"
+    if empty_score >= 0.35:
+        return "review", f"thin content: form is valid, substance is doubtful ({empty_score:.2f})"
     if score < 90:
         return "review", f"has findings, needs a human look ({score:.0f}/100)"
     return "accept", f"minor findings ({score:.0f}/100)"
@@ -113,12 +124,27 @@ def attest(artifact: Any, schema: dict[str, Any] | None = None, source: str = "u
     generation: "dict[str, Any] | None" = None,
     payload_mandate: "dict[str, Any] | None" = None,
     payload_action: "dict[str, Any] | None" = None,
+    require_json: bool = False,
 ) -> AttestResult:
-    """Проверить артефакт и вернуть вердикт с подписью."""
+    """Проверить артефакт и выдать вердикт с подписью.
+
+    `require_json` — контракт HTTP-эндпоинта: артефакт агента это JSON
+    (объект или массив). Голую строку без схемы проверить нечем, а `accept`
+    на ней означал бы «можно вставлять в контекст» то, что не проверено.
+    """
     violations = validate_against_schema(artifact, schema)
+    if require_json and isinstance(artifact, str):
+        violations.append(SchemaViolation(
+            "$", "type",
+            "ожидался JSON-объект или массив, получена строка — передай schema, если это текст"))
     signals = scan_for_poison(artifact)
+    hollow = scan_for_emptiness(artifact, schema if isinstance(schema, dict) else None)
+    empty_score = emptiness_score(hollow)
     score = _score(violations, signals)
-    verdict, reason = _verdict(violations, signals, score)
+    # Пустота — тоже основание для недоверия: вердикт «reject» при score 100
+    # выглядел бы противоречиво и сбивал бы с толку читателя записи.
+    score = max(0.0, score - empty_score * 30.0)
+    verdict, reason = _verdict(violations, signals, score, empty_score)
 
     # Привязка считается от хэша содержимого, который new_record посчитает
     # тем же способом. Считаем заранее, чтобы chain_hash вошёл в подпись,
@@ -152,7 +178,7 @@ def attest(artifact: Any, schema: dict[str, Any] | None = None, source: str = "u
         authority_hash=auth_hash,
         authority=auth,
         violations=[v.as_dict() for v in violations],
-        signals=[s.as_dict() for s in signals],
+        signals=[s.as_dict() for s in signals] + [s.as_dict() for s in hollow],
     )
     attestation = sign(record) if sign_it else Attestation(record=record, signature="unsigned", algorithm="none")
 
