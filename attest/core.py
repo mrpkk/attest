@@ -92,7 +92,7 @@ def _verdict(violations: list[SchemaViolation], signals: list[PoisonSignal], sco
     if violations:
         hard = [v for v in violations if v.rule in ("type", "required", "null", "depth", "empty", "size",
                                                      "minimum", "maximum", "minLength", "maxLength",
-                                                     "minItems", "maxItems")]
+                                                     "minItems", "maxItems", "invalid_json")]
         if hard:
             return "reject", f"contract violation: {hard[0].rule} @ {hard[0].path}"
     # Форма в порядке, содержания нет: пустые значения, дубли, заглушки.
@@ -120,6 +120,30 @@ def _verdict(violations: list[SchemaViolation], signals: list[PoisonSignal], sco
     return "accept", f"minor findings ({score:.0f}/100)"
 
 
+def _coerce_json_field(value: Any, field_name: str) -> tuple[Any, str | None]:
+    """Строка с JSON внутри — это тоже JSON.
+
+    REST-клиенты присылают схему строкой, а артефакт — текстом ответа
+    инструмента. Пока строка молча превращалась в None, проверка формы не
+    выполнялась вовсе, и сервис отвечал `accept` на пустой артефакт: обещание
+    из описания не выполнялось (баг найден ревьюером api.market 20.10.2026).
+
+    Возвращает (значение, ошибка). Ошибка — текст для violations, а не
+    исключение: клиент должен получить вердикт, а не 500.
+    """
+    if value is None or isinstance(value, (dict, list)):
+        return value, None
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None, None
+        try:
+            return json.loads(text), None
+        except json.JSONDecodeError as exc:
+            return None, f"{field_name}: не JSON ({exc.msg}, позиция {exc.pos})"
+    return None, f"{field_name}: ожидался объект, массив или JSON-строка"
+
+
 def attest(artifact: Any, schema: dict[str, Any] | None = None, source: str = "unknown", sign_it: bool = True,
     generation: "dict[str, Any] | None" = None,
     payload_mandate: "dict[str, Any] | None" = None,
@@ -132,11 +156,17 @@ def attest(artifact: Any, schema: dict[str, Any] | None = None, source: str = "u
     (объект или массив). Голую строку без схемы проверить нечем, а `accept`
     на ней означал бы «можно вставлять в контекст» то, что не проверено.
     """
+    if require_json:
+        artifact, artifact_error = _coerce_json_field(artifact, "artifact")
+    else:
+        artifact_error = None
+    schema, schema_error = _coerce_json_field(schema, "schema")
+
     violations = validate_against_schema(artifact, schema)
-    if require_json and isinstance(artifact, str):
-        violations.append(SchemaViolation(
-            "$", "type",
-            "ожидался JSON-объект или массив, получена строка — передай schema, если это текст"))
+    if schema_error:
+        violations.append(SchemaViolation("$schema", "invalid_json", schema_error))
+    if artifact_error:
+        violations.append(SchemaViolation("$", "invalid_json", artifact_error))
     signals = scan_for_poison(artifact)
     hollow = scan_for_emptiness(artifact, schema if isinstance(schema, dict) else None)
     empty_score = emptiness_score(hollow)

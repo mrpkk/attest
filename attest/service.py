@@ -29,7 +29,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from . import __version__
-from .core import attest
+from .core import attest, _coerce_json_field
 from .metrics import METRICS, STATE_PATH, channel_of, spent_nonces
 from .signing import public_key_b64
 from . import entitlement
@@ -1579,7 +1579,7 @@ class AttestHandler(BaseHTTPRequestHandler):
         generation = payload.get("generation")
         result = attest(
             payload["artifact"],
-            schema if isinstance(schema, dict) else None,
+            schema,
             source=source[:200],
             generation=generation if isinstance(generation, dict) else None,
             payload_mandate=payload.get("mandate"),
@@ -1766,7 +1766,7 @@ class AttestHandler(BaseHTTPRequestHandler):
         generation = payload.get("generation")
         result = attest(
             payload["artifact"],
-            schema if isinstance(schema, dict) else None,
+            schema,
             source=source[:200],
             generation=generation if isinstance(generation, dict) else None,
             payload_mandate=payload.get("mandate"),
@@ -1779,9 +1779,11 @@ class AttestHandler(BaseHTTPRequestHandler):
         # Проверка формы отвечает на вопрос «правильно ли оформлено».
         # Этот блок — на второй: «есть ли что оформлять».
         try:
+            _art, _ = _coerce_json_field(payload["artifact"], "artifact")
+            _sch, _ = _coerce_json_field(schema, "schema")
             hollow = scan_for_emptiness(
-                payload["artifact"],
-                schema if isinstance(schema, dict) else None,
+                _art,
+                _sch if isinstance(_sch, dict) else None,
             )
             score = emptiness_score(hollow)
             body["emptiness"] = {

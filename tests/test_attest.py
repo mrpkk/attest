@@ -521,3 +521,48 @@ def test_min_items_is_enforced():
     result2 = attest({"findings": []}, tight, source="audit", sign_it=False)
     assert result2.verdict == "reject", result2.reason
     assert any(v.rule == "minItems" for v in result2.violations)
+
+
+# --- 21.10.2026: ревьюер api.market нашёл, что строка JSON игнорировалась.
+# Схема, присланная строкой (так делают REST-клиенты), молча превращалась в
+# None, проверка формы не выполнялась, и мусор получал вердикт "accept".
+
+def _schema_text() -> str:
+    return json.dumps({
+        "type": "object",
+        "required": ["findings"],
+        "properties": {"findings": {"type": "array", "items": {
+            "type": "object", "required": ["id", "title"],
+            "properties": {"id": {"type": "string", "minLength": 1},
+                           "title": {"type": "string", "minLength": 1}}}}},
+    })
+
+
+def test_schema_as_json_string_is_applied():
+    """Схема строкой работает так же, как объектом: пустые поля отвергаются."""
+    artifact = json.dumps({"findings": [{"id": "", "title": ""}]})
+    result = attest(artifact, _schema_text(), require_json=True)
+    assert result.verdict == "reject"
+    paths = {v.path for v in result.violations}
+    assert "$.findings[0].id" in paths, paths
+
+
+def test_schema_string_valid_artifact_accepted():
+    artifact = json.dumps({"findings": [{"id": "F-1", "title": "SQL injection"}]})
+    result = attest(artifact, _schema_text(), require_json=True)
+    assert result.verdict == "accept", result.violations
+
+
+def test_plain_text_is_not_json():
+    """`not json at all` — не артефакт, а текст: отказ с внятной причиной."""
+    result = attest("not json at all", _schema_text(), require_json=True)
+    assert result.verdict == "reject"
+    assert any(v.rule == "invalid_json" for v in result.violations), result.violations
+
+
+def test_broken_schema_is_reported_not_ignored():
+    """Невалидная схема — это отказ в проверке, а не разрешение."""
+    result = attest({"findings": []}, "{not a schema", require_json=True)
+    assert result.verdict == "reject"
+    assert any(v.rule == "invalid_json" and v.path == "$schema"
+               for v in result.violations), result.violations

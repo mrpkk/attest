@@ -280,7 +280,7 @@ def _call_batch(arguments: Mapping[str, Any],
             )
         result = verify(
             artifact,
-            schema if isinstance(schema, Mapping) else None,
+            schema,
             source=str(source)[:200],
         )
         payload = result.as_dict() if hasattr(result, "as_dict") else dict(result)
@@ -344,7 +344,7 @@ def _call_tool(
     source = source if isinstance(source, str) and source.strip() else "mcp"
     result = verify(
         arguments["artifact"],
-        schema if isinstance(schema, Mapping) else None,
+        schema,
         source=str(source)[:200],
     )
     payload = result.as_dict() if hasattr(result, "as_dict") else dict(result)
