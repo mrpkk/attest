@@ -509,6 +509,7 @@ goes straight into its context. Four checks, each answering only its own questio
   <button id="go" onclick="run()">Verify</button>
   <a class="hint" href="/demo">four-layer demo →</a>
   <a class="hint" href="/start">100 free checks →</a>
+  <a class="hint" href="/start">100 free checks →</a>
 </div>
 
 <div class="card" id="res" style="display:none">
@@ -533,6 +534,7 @@ goes straight into its context. Four checks, each answering only its own questio
  <div class="t"><b>Trial</b>0 USDC<br><span class="hint">__FREE_LIMIT__ checks per day, full check, no limit on artifact size</span></div>
  <div class="t"><b>Per call</b>0.005 USDC<br><span class="hint">beyond the free tier, paid over x402 on Base</span></div>
  <div class="t"><b>Subscription</b>9 USDC<br><span class="hint">removes the limit, suitable for CI pipelines</span></div>
+ <div class="t"><b>India (PPP)</b>3 USDC<br><span class="hint">same 30 days, purchasing-power price</span></div>
 </div>
 
 <h2 style="font-size:17px;margin:26px 0 6px">Buying a 30-day token</h2>
@@ -598,6 +600,8 @@ _HI_REPLACEMENTS: tuple[tuple[str, str], ...] = (
     ('<label class="hint">Artifact JSON</label>', '<label class="hint">आर्टिफैक्ट JSON</label>'),
     ('>Verify</button>', '>सत्यापित करें</button>'),
     ('four-layer demo →', 'चार-स्तरीय डेमो →'),
+    ('<a class="hint" href="/start">100 free checks →</a>',
+     '<a class="hint" href="/start">100 मुफ़्त जाँच →</a>'),
     ('<h2 style="font-size:17px;margin:30px 0 6px">Four layers, four questions</h2>',
      '<h2 style="font-size:17px;margin:30px 0 6px">चार स्तर, चार प्रश्न</h2>'),
     ('<tr><th>Layer</th><th>Question</th><th>Answers it</th></tr>',
@@ -621,6 +625,8 @@ _HI_REPLACEMENTS: tuple[tuple[str, str], ...] = (
      '<div class="t"><b>सदस्यता (30 दिन)</b>9 USDC<br><span class="hint">सीमा हटाती है, CI पाइपलाइन के लिए उपयुक्त</span></div>'),
     ('<div class="warn"><b>What this does not do.</b> A valid form is not meaningful content, and a\nsigned artifact is not a permitted action. Absence of signals means the coarse checks did not fire —\nit does not prove the artifact is sound. The signature is Ed25519: the public key travels with\nthe attestation, so you can verify it yourself without trusting this service.</div>',
      '<div class="warn"><b>यह क्या नहीं करता।</b> सही रूप का अर्थ वास्तविक सामग्री नहीं है, और हस्ताक्षरित आर्टिफैक्ट का अर्थ अनुमत क्रिया नहीं है। संकेतों का न होना केवल यह दिखाता है कि स्थूल जाँचें नहीं चलीं — यह सिद्ध नहीं करता कि आर्टिफैक्ट ठीक है। हस्ताक्षर Ed25519 है: सार्वजनिक कुंजी सत्यापन के साथ चलती है, इसलिए आप इस सेवा पर भरोसा किए बिना स्वयं जाँच सकते हैं।</div>'),
+    (' <div class="t"><b>India (PPP)</b>3 USDC<br><span class="hint">same 30 days, purchasing-power price</span></div>',
+     ' <div class="t"><b>भारत (PPP)</b>3 USDC<br><span class="hint">वही 30 दिन, खरीद-क्षमता के अनुसार मूल्य</span></div>'),
     ('<h2 style="font-size:17px;margin:26px 0 6px">Buying a 30-day token</h2>',
      '<h2 style="font-size:17px;margin:26px 0 6px">30 दिन का टोकन कैसे खरीदें</h2>'),
     ('<p class="hint">x402 is a three-step flow: ask, sign, retry. No account, no card, no dashboard.</p>',
