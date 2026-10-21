@@ -110,7 +110,8 @@ provenance and mandate authority, one Ed25519-signed verdict.<br>
 Free: 20 checks a day, no signup. Then $0.005 per call over x402, or 9 USDC / 30 days.
 India pricing: 3 USDC / 30 days.<br>
 API <code>https://attest.rta.lat</code> · MCP <code>https://attest.rta.lat/mcp</code> ·
-<a href="/demo">demo</a> · <a href="/pricing">pricing</a> · <a href="/subscribe">subscribe</a>
+<a href="/demo">demo</a> · <a href="/pricing">pricing</a> · <a href="/subscribe">subscribe</a> ·
+<a href="/start">100 free checks for 30 days</a>
 </div>
 </article>
 <script>

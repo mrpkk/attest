@@ -33,7 +33,9 @@ from .core import attest
 from .metrics import METRICS, STATE_PATH, channel_of, spent_nonces
 from .signing import public_key_b64
 from . import entitlement
-from .entitlement import HEADER as ENT_HEADER, issue as issue_entitlement, redeem, describe as entitlement_describe
+from .entitlement import (HEADER as ENT_HEADER, issue as issue_entitlement,
+                          redeem, redeem_entitlement,
+                          describe as entitlement_describe)
 from .generation import GenerationContext, verify_chain
 from .provenance import digest as _digest
 
@@ -45,6 +47,9 @@ from .payment import PaymentError
 from .x402 import atomic_to_usd, agent_card, discovery_document
 
 DEFAULT_FREE_DAILY = 20
+# Проверка адреса для заявки: нам не нужен RFC-строгий разбор, нужно
+# понять, что адрес похож на почту, и не потерять заявку из-за опечатки.
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s.]+\.[A-Za-z]{2,}$")
 
 # Заголовок, которым маркетплейс (api.market) подтверждает свой вызов.
 # Секрет задаётся ATTEST_GATEWAY_KEY на сервере; без него заголовок
@@ -334,6 +339,70 @@ async function runAuth(){
 <script src="/feedback.js" defer></script>
 """
 
+_START_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>attest — 100 free checks for 30 days</title>
+<meta name="description" content="Early access: 100 artifact checks for 30 days, no card, no signup. For teams that ship artifacts produced by AI agents.">
+<link rel="canonical" href="https://attest.rta.lat/start">
+<style>
+ body{background:#0b0d12;color:#e8ecf4;font:16px/1.6 system-ui,sans-serif;max-width:760px;margin:0 auto;padding:44px 22px 80px}
+ h1{font-size:28px;margin:0 0 6px} .s{color:#969eac;font-size:15px;margin:0 0 22px}
+ .box{background:#141821;border:1px solid #232a33;border-radius:12px;padding:20px;margin:18px 0}
+ label{display:block;font-size:14px;color:#c3cad4;margin:14px 0 6px}
+ input,textarea{width:100%;box-sizing:border-box;background:#0e1117;color:#e8ecf4;border:1px solid #2b3440;border-radius:8px;padding:11px;font:15px system-ui,sans-serif}
+ textarea{min-height:74px;resize:vertical}
+ button{margin-top:18px;background:#1c6b58;color:#eafff8;border:0;border-radius:8px;padding:12px 18px;font:600 15px system-ui,sans-serif;cursor:pointer}
+ button:hover{background:#22876e}
+ .ok{background:#10241d;border:1px solid #1d5a45;color:#9ff0cf;padding:14px;border-radius:8px;margin-top:16px}
+ .err{background:#2a1414;border:1px solid #5a1f1f;color:#ffb4b4;padding:14px;border-radius:8px;margin-top:16px}
+ code{background:#1b2029;padding:2px 6px;border-radius:5px;font-size:14px}
+ a{color:#7fd1b9} .muted{color:#8b939f;font-size:14px}
+</style></head><body>
+<h1>100 checks, 30 days, no card</h1>
+<p class="s">Early access for teams that accept artifacts produced by AI agents.</p>
+<div class="box">
+<p>Give us an email and we send a signed key that unlocks <strong>100 artifact checks
+for 30 days</strong> — no account, no card, no recurring charges. The key goes in
+the <code>X-ATTEST-ENTITLEMENT</code> header (HTTP) or the same header over MCP.</p>
+<p class="muted">Why free: nobody has paid for this yet. The package is how we find out
+whether anyone will — better a hundred real artifacts than a thousand page views.</p>
+</div>
+<form id="f" onsubmit="return false">
+<label for="email">Work email</label>
+<input id="email" type="email" required placeholder="you@company.com">
+<label for="note">What do you verify? (optional, one line)</label>
+<textarea id="note" placeholder="e.g. scan results from a security agent before we bill for them"></textarea>
+<button onclick="send()">Request access</button>
+</form>
+<div id="out"></div>
+<div class="box">
+<p>What you get for the 30 days:</p>
+<p>• 100 checks through <code>POST /verify</code> or the <code>verify_artifact</code> MCP tool<br>
+• four layers per check: schema contract, emptiness, generation provenance, mandate authority<br>
+• an Ed25519-signed verdict you can verify offline, without trusting this service</p>
+<p class="muted">After 30 days the key simply stops working. If it is useful, $9/30 days
+keeps it running — or $3/30 days for India pricing. <a href="/pricing">pricing</a> ·
+<a href="/demo">demo</a> · <a href="/article">why positional scanning</a></p>
+</div>
+<script>
+async function send(){
+  const out = document.getElementById('out');
+  const email = document.getElementById('email').value.trim();
+  const note = document.getElementById('note').value.trim();
+  if (!email) { out.innerHTML = '<div class="err">Email is required.</div>'; return; }
+  out.innerHTML = '<div class="muted">sending…</div>';
+  try {
+    const r = await fetch('/start', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email: email, note: note})});
+    const d = await r.json();
+    if (d.error) { out.innerHTML = '<div class="err">' + d.error + '</div>'; return; }
+    out.innerHTML = '<div class="ok">' + d.message + '</div>';
+    document.getElementById('f').style.display = 'none';
+  } catch (e) { out.innerHTML = '<div class="err">' + e.message + '</div>'; }
+}
+</script>
+</body></html>"""
+
 LANDING = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -402,6 +471,7 @@ goes straight into its context. Four checks, each answering only its own questio
   <input type="text" id="s" value="demo" placeholder="source">
   <button id="go" onclick="run()">Verify</button>
   <a class="hint" href="/demo">four-layer demo →</a>
+  <a class="hint" href="/start">100 free checks →</a>
 </div>
 
 <div class="card" id="res" style="display:none">
@@ -981,6 +1051,10 @@ class AttestHandler(BaseHTTPRequestHandler):
 
     server_version = "attest/" + __version__
     free_tier = FreeTier()
+    # Расход пакета раннего доступа: subject → число использованных проверок.
+    # В памяти процесса, как free_tier: пережить рестарт счётчик не может.
+    # При рестарте пакет начнётся заново — это честнее, чем блокировка.
+    ent_usage: dict[str, int] = defaultdict(int)
     pricing = PRICING
     x402_pay_to: str | None = os.environ.get("ATTEST_PAY_TO") or None
     x402_price_atoms: int = _env_int("ATTEST_PRICE_ATOMS", 5000)
@@ -990,6 +1064,9 @@ class AttestHandler(BaseHTTPRequestHandler):
     ppp_price_usd: float = _env_float("ATTEST_PPP_PRICE_USD", 3.0)
     # Отзывы пользователей: append-only JSONL рядом с метриками.
     feedback_path: Path = STATE_PATH.with_name("feedback.jsonl")
+    # Заявки на пакет раннего доступа. Append-only, как отзывы: IP не
+    # храним — только почту, текст и время.
+    leads_path: Path = STATE_PATH.with_name("leads.jsonl")
     # Сеть счёта. Раньше сеть была жёстко mainnet, а ATTEST_NETWORK в конфиге
     # службы не читался нигде: переменная совпадала с умолчанием и потому
     # молчала ровно тогда, когда её меняют на тестнет. Из-за этого платёжный
@@ -1064,6 +1141,8 @@ class AttestHandler(BaseHTTPRequestHandler):
             })
         elif path == "/mcp":
             self._send_json(405, {"error": "use POST /mcp"})
+        elif path == "/start":
+            self._send_html(_START_HTML)
         elif path == "/demo":
             self._send_html(DEMO.replace("__FREE_LIMIT__",
                                          str(self.free_tier.daily_limit)))
@@ -1169,6 +1248,30 @@ class AttestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = route_path(self.path)
+        if path == "/start":
+            payload = self._read_json()
+            if payload is None:
+                return
+            email = str(payload.get("email") or "").strip()[:200]
+            note = str(payload.get("note") or "").strip()[:400]
+            if not EMAIL_RE.fullmatch(email):
+                self._send_json(400, {"error": "a valid email is required"})
+                return
+            record = {"ts": int(time.time()), "email": email, "note": note}
+            try:
+                self.leads_path.parent.mkdir(parents=True, exist_ok=True)
+                with self.leads_path.open("a", encoding="utf-8") as fh:
+                    fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+            except OSError as exc:
+                self._send_json(500, {"error": f"could not store the request: {exc}"})
+                return
+            METRICS.lead()
+            self._send_json(200, {
+                "ok": True,
+                "message": ("Request received. We send the key by email within "
+                            "a day — usually the same hour."),
+            })
+            return
         if path == "/feedback":
             payload = self._read_json()
             if payload is None:
@@ -1220,15 +1323,26 @@ class AttestHandler(BaseHTTPRequestHandler):
                 payload, source,
                 "api.market gateway — billed by the marketplace")
 
-        ent_token = self.headers.get(entitlement.HEADER)
-        ent_ok, ent_why = redeem(ent_token, trusted_key=public_key_b64())
+        ent_token = self.headers.get(ENT_HEADER)
+        ent_ok, ent_why = self._entitlement_access(ent_token)
         if ent_ok:
             return self._handle_entitled(payload, source, ent_why)
         # Токен предъявлен и не прошёл. Молча списать проверку по
         # бесплатному тарифу здесь хуже: покупатель решит, что оплатил,
-        # и будет искать ошибку там, где её нет.
+        # и будет искать ошибку там, где её нет. Особенно это касается
+        # пакета раннего доступа: исчерпанный пакет должен сказать
+        # «исчерпан», а не тихо продолжить по 20 бесплатных в сутки.
         if ent_token:
             print(f"attest: entitlement отвергнут: {ent_why}")
+            self._send_json(402, {
+                "error": ent_why,
+                "entitlement": {"accepted": False, "reason": ent_why},
+                "hint": ("Buy 30 days of access: https://attest.rta.lat/subscribe"
+                         if "exhausted" not in ent_why else
+                         "Your early-access package is used up. Extend it: "
+                         "https://attest.rta.lat/subscribe"),
+            })
+            return
 
         payment_header = self.headers.get("PAYMENT-SIGNATURE") or self.headers.get("X-PAYMENT")
         try:
@@ -1260,6 +1374,25 @@ class AttestHandler(BaseHTTPRequestHandler):
         body = self._verify_result(payload, source, paid=None)
         self._send_json(200, body)
 
+    def _entitlement_access(self, token: str | None) -> tuple[bool, str]:
+        """Проверить подписку и списать один вызов из её пакета.
+
+        У обычной подписки (max_calls отсутствует) лимита нет. У пакета
+        раннего доступа — 100 проверок: расход считается по subject, и
+        когда пакет исчерпан, клиент получает честный отказ, а не
+        молчаливый возврат к бесплатному тарифу.
+        """
+        ent, why = redeem_entitlement(token, trusted_key=public_key_b64())
+        if ent is None:
+            return False, why
+        if ent.max_calls is not None:
+            used = self.ent_usage.get(ent.subject, 0)
+            if used >= ent.max_calls:
+                return False, (f"package exhausted: {used}/{ent.max_calls} "
+                               f"checks used")
+            self.ent_usage[ent.subject] = used + 1
+        return True, why
+
     def _mcp_charge(self) -> bool:
         """Списать квоту или принять оплату. True — можно работать.
 
@@ -1273,12 +1406,18 @@ class AttestHandler(BaseHTTPRequestHandler):
         channel = channel_of(self.path, self.headers.get("Referer"))
 
         ent_token = self.headers.get(ENT_HEADER)
-        ent_ok, ent_why = redeem(ent_token, trusted_key=public_key_b64())
+        ent_ok, ent_why = self._entitlement_access(ent_token)
         if ent_ok:
             METRICS.check(channel, paid=False)
             return True
         if ent_token:
             print(f"attest: entitlement отвергнут: {ent_why}")
+            self._send_json(402, {
+                "error": ent_why,
+                "entitlement": {"accepted": False, "reason": ent_why},
+                "hint": "Buy 30 days of access: https://attest.rta.lat/subscribe",
+            })
+            return False
 
         payment_header = (self.headers.get("PAYMENT-SIGNATURE")
                           or self.headers.get("X-PAYMENT"))

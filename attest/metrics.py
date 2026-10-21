@@ -139,6 +139,9 @@ class Metrics:
     checks: dict[str, int] = field(default_factory=dict)
     paid: dict[str, int] = field(default_factory=dict)
     revenue_atoms: int = 0
+    # Заявки на пакет раннего доступа (лид-магнит). Считаем, но не храним
+    # почту в метриках — она лежит отдельно, в leads.jsonl.
+    leads: int = 0
     # Кошелёк → [первая оплата, последняя оплата, сколько всего]. Только
     # время и счётчик: этого хватает для repeat_usage_7d и мало для профиля.
     payers: dict[str, list] = field(default_factory=dict)
@@ -173,6 +176,15 @@ class Metrics:
         # Проверок много, а ценность каждой события невелика — пишем с
         # троттлингом, иначе каждый вызов ударяет по диску.
         self._save_if_due()
+
+    def lead(self) -> None:
+        """Одна заявка на пакет раннего доступа."""
+        if not self.enabled:
+            return
+        with self._lock:
+            self.leads += 1
+            self._touch()
+        self.save()
 
     def payment(self, channel: str, atoms: int, payer: str | None = None) -> None:
         if not self.enabled:
@@ -255,6 +267,7 @@ class Metrics:
                 "revenue_usdc": f"{self.revenue_atoms / 1_000_000:.6f}",
                 "repeat_usage_7d": repeat_usage_7d,
                 "unique_payers": len(self.payers),
+                "leads_total": self.leads,
                 "by_channel": dict(sorted(self.paid.items())),
                 "since": self.first_event,
                 "last_event": self.last_event,
@@ -281,6 +294,7 @@ class Metrics:
             for k, v in (data.get("payers") or {}).items()
             if isinstance(v, (list, tuple)) and len(v) == 3}
         self.revenue_atoms = int(data.get("revenue_atoms") or 0)
+        self.leads = int(data.get("leads") or 0)
         self.first_event = float(data.get("first_event") or 0)
         self.last_event = float(data.get("last_event") or 0)
 
@@ -290,7 +304,7 @@ class Metrics:
             payload = {
                 "views": self.views, "checks": self.checks,
                 "paid": self.paid, "revenue_atoms": self.revenue_atoms,
-                "payers": self.payers,
+                "payers": self.payers, "leads": self.leads,
                 "first_event": self.first_event, "last_event": self.last_event,
             }
         try:

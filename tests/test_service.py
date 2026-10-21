@@ -1034,3 +1034,74 @@ class TestClientIdentity:
             assert seen["value"] == "ip:198.51.100.7", seen["value"]
         finally:
             handler.client_id = original
+
+
+class TestEarlyAccess:
+    """Лид-магнит: 100 бесплатных проверок за 30 дней по заявке."""
+
+    def test_start_page_is_served(self, server):
+        with urllib.request.urlopen(f"{server}/start", timeout=10) as r:
+            html = r.read().decode("utf-8")
+        assert r.status == 200
+        assert 'id="email"' in html and 'id="note"' in html
+        assert "100" in html, "на странице должно быть видно, сколько проверок"
+
+    def test_request_is_stored(self, server, tmp_path, monkeypatch):
+        import attest.service as svc
+        leads = tmp_path / "leads.jsonl"
+        monkeypatch.setattr(svc.AttestHandler, "leads_path", leads)
+        body = json.dumps({"email": "team@example.com", "note": "scan results"})
+        req = urllib.request.Request(f"{BASE}/start", data=body.encode(),
+                                     method="POST")
+        req.add_header("Content-Type", "application/json")
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        assert data["ok"] is True
+        lines = leads.read_text(encoding="utf-8").strip().splitlines()
+        assert len(lines) == 1
+        record = json.loads(lines[0])
+        assert record["email"] == "team@example.com"
+        assert record["note"] == "scan results"
+        assert "ip" not in record, "IP не храним"
+
+    def test_invalid_email_is_rejected(self, server, tmp_path, monkeypatch):
+        import attest.service as svc
+        leads = tmp_path / "leads.jsonl"
+        monkeypatch.setattr(svc.AttestHandler, "leads_path", leads)
+        body = json.dumps({"email": "not-an-email"})
+        req = urllib.request.Request(f"{BASE}/start", data=body.encode(),
+                                     method="POST")
+        req.add_header("Content-Type", "application/json")
+        try:
+            urllib.request.urlopen(req, timeout=10)
+            assert False, "мусорный адрес должен отклоняться"
+        except urllib.error.HTTPError as exc:
+            assert exc.code == 400
+        assert not leads.exists(), "заявка с плохим адресом не должна попасть в файл"
+
+    def test_package_key_is_limited(self, server):
+        """Пакет: 100 проверок, потом честный отказ."""
+        from attest import entitlement
+        from attest.signing import public_key_b64
+        from attest.service import AttestHandler
+        token = entitlement.issue("limited@example.com", days=30,
+                                  max_calls=2)["token"]
+        AttestHandler.ent_usage.clear()
+        for _ in range(2):
+            body = json.dumps({"artifact": {"a": 1}}).encode()
+            req = urllib.request.Request(f"{BASE}/verify", data=body,
+                                         method="POST")
+            req.add_header("Content-Type", "application/json")
+            req.add_header("X-ATTEST-ENTITLEMENT", token)
+            with urllib.request.urlopen(req, timeout=10) as r:
+                assert r.status == 200
+        body = json.dumps({"artifact": {"a": 1}}).encode()
+        req = urllib.request.Request(f"{BASE}/verify", data=body, method="POST")
+        req.add_header("Content-Type", "application/json")
+        req.add_header("X-ATTEST-ENTITLEMENT", token)
+        try:
+            urllib.request.urlopen(req, timeout=10)
+            assert False, "пакет исчерпан — должен быть отказ"
+        except urllib.error.HTTPError as exc:
+            assert exc.code == 402
+        assert entitlement.redeem(token, trusted_key=public_key_b64())[0]

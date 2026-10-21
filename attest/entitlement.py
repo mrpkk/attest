@@ -40,10 +40,16 @@ class Entitlement:
     plan: str
     issued_at: int
     valid_until: int
+    # Лимит вызовов. None — без ограничения (обычная подписка за $9).
+    # 100 — ранний доступ по заявке: пакет проверок без оплаты.
+    max_calls: int | None = None
 
     def payload(self) -> dict[str, Any]:
-        return {"subject": self.subject, "plan": self.plan,
+        body = {"subject": self.subject, "plan": self.plan,
                 "issued_at": self.issued_at, "valid_until": self.valid_until}
+        if self.max_calls is not None:
+            body["max_calls"] = self.max_calls
+        return body
 
     @property
     def expired(self) -> bool:
@@ -53,11 +59,13 @@ class Entitlement:
         return max(0, int((self.valid_until - time.time()) / 86400) + 1)
 
 
-def issue(subject: str, days: int = DEFAULT_DAYS) -> dict[str, Any]:
-    """Выдать токен. Вызывается только после подтверждённой оплаты."""
+def issue(subject: str, days: int = DEFAULT_DAYS,
+          max_calls: int | None = None) -> dict[str, Any]:
+    """Выдать токен. Вызывается после подтверждённой оплаты — либо
+    для пакета раннего доступа, который выпускает агент вручную."""
     now = int(time.time())
     ent = Entitlement(subject=subject, plan=PLAN, issued_at=now,
-                      valid_until=now + days * 86400)
+                      valid_until=now + days * 86400, max_calls=max_calls)
     body = json.dumps(ent.payload(), sort_keys=True, separators=(",", ":"),
                       ensure_ascii=False).encode("utf-8")
     signed = sign(body)
@@ -69,13 +77,21 @@ def issue(subject: str, days: int = DEFAULT_DAYS) -> dict[str, Any]:
         "plan": ent.plan,
         "days": days,
         "valid_until": ent.valid_until,
+        "max_calls": max_calls,
         "header": HEADER,
         "auto_renews": False,
     }
 
 
-def redeem(token: str | None, now: float | None = None,
-           trusted_key: str | None = None) -> tuple[bool, str]:
+def redeem_entitlement(token: str | None, now: float | None = None,
+                       trusted_key: str | None = None
+                       ) -> tuple["Entitlement | None", str]:
+    """Разобрать и проверить токен. Возвращает (доступ, причина).
+
+    Отдельная функция нужна сервису: помимо «действителен/недействителен»
+    ему нужно знать лимит вызовов из payload — по нему считается расход
+    пакета раннего доступа.
+    """
     """Проверить предъявленный токен.
 
     Возвращает (действителен, причина). Причина важна: «недействителен» и
@@ -96,48 +112,66 @@ def redeem(token: str | None, now: float | None = None,
     проверку независимой.
     """
     if not token or not token.strip():
-        return False, "no entitlement supplied — the free tier applies"
+        return None, "no entitlement supplied — the free tier applies"
 
     now = time.time() if now is None else now
     try:
         data = json.loads(token)
     except (json.JSONDecodeError, ValueError):
-        return False, "entitlement is not valid JSON"
+        return None, "entitlement is not valid JSON"
     # JSON массив или строка разбирается без ошибки, но `.get` на нём
     # падает. Присланное значение — это ввод клиента, а не наш объект:
     # разбирать его, а не верить, что это словарь.
     if not isinstance(data, dict):
-        return False, ("entitlement is not a JSON object "
+        return None, ("entitlement is not a JSON object "
                        f"(got {type(data).__name__})")
 
     payload = data.get("payload")
     sig = data.get("signature")
     pub = data.get("public_key")
     if not payload or not sig or not pub:
-        return False, "entitlement is incomplete"
+        return None, "entitlement is incomplete"
 
     if data.get("algorithm") != "ed25519":
-        return False, f"unsupported algorithm {data.get('algorithm')!r}"
+        return None, f"unsupported algorithm {data.get('algorithm')!r}"
 
     body = json.dumps(payload, sort_keys=True, separators=(",", ":"),
                       ensure_ascii=False).encode("utf-8")
     key = trusted_key or pub
     if trusted_key is None:
-        return False, ("no trusted key supplied — refusing to trust the key "
+        return None, ("no trusted key supplied — refusing to trust the key "
                        "carried inside the token")
     if not verify(body, sig, key):
-        return False, "entitlement signature does not match — it was altered"
+        return None, "entitlement signature does not match — it was altered"
     if key != pub:
-        return False, "entitlement was signed by a different key"
+        return None, "entitlement was signed by a different key"
 
     valid_until = payload.get("valid_until")
     if not isinstance(valid_until, (int, float)):
-        return False, "entitlement has no expiry"
+        return None, "entitlement has no expiry"
     if now >= valid_until:
-        return False, f"entitlement expired {(now - valid_until) / 86400:.1f} days ago"
+        return None, f"entitlement expired {(now - valid_until) / 86400:.1f} days ago"
 
-    return True, (f"valid for another "
-                  f"{int((valid_until - now) / 86400) + 1} days")
+    max_calls = payload.get("max_calls")
+    if max_calls is not None and not isinstance(max_calls, int):
+        return None, "entitlement has a malformed max_calls"
+
+    ent = Entitlement(
+        subject=str(payload.get("subject", "")),
+        plan=str(payload.get("plan", PLAN)),
+        issued_at=int(payload.get("issued_at", 0)),
+        valid_until=int(valid_until),
+        max_calls=max_calls,
+    )
+    return ent, (f"valid for another "
+                 f"{int((valid_until - now) / 86400) + 1} days")
+
+
+def redeem(token: str | None, now: float | None = None,
+           trusted_key: str | None = None) -> tuple[bool, str]:
+    """Совместимая обёртка: (действителен, причина)."""
+    ent, reason = redeem_entitlement(token, now=now, trusted_key=trusted_key)
+    return (ent is not None), reason
 
 
 def fingerprint() -> str:
