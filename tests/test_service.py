@@ -1105,3 +1105,25 @@ class TestEarlyAccess:
         except urllib.error.HTTPError as exc:
             assert exc.code == 402
         assert entitlement.redeem(token, trusted_key=public_key_b64())[0]
+
+
+def test_request_issues_key_and_stores_it(server, tmp_path, monkeypatch):
+    """Заявка должна сразу получать ключ, а не обещание «в течение дня»."""
+    import attest.service as svc
+    leads = tmp_path / "leads.jsonl"
+    monkeypatch.setattr(svc.AttestHandler, "leads_path", leads)
+    body = json.dumps({"email": "team@example.com"})
+    req = urllib.request.Request(f"{BASE}/start", data=body.encode(), method="POST")
+    req.add_header("Content-Type", "application/json")
+    with urllib.request.urlopen(req, timeout=10) as r:
+        data = json.loads(r.read().decode("utf-8"))
+    assert data["ok"] is True
+    assert "team@example.com" in data["message"], "человек должен видеть, куда ушёл ключ"
+    record = json.loads(leads.read_text(encoding="utf-8").strip().splitlines()[0])
+    assert record["token"], "токен должен быть в заявке — иначе при сбое SMTP ключ не отправить"
+    assert record["valid_until"] > 0
+    # токен действительно рабочий: разбирается тем же модулем, что и на входе
+    import attest.entitlement as ent
+    from attest.signing import public_key_b64
+    redeemed, why = ent.redeem(record["token"], trusted_key=public_key_b64())
+    assert redeemed, why

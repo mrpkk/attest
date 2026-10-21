@@ -20,8 +20,12 @@ import os
 import hashlib
 import hmac
 import re
+import smtplib
+import ssl
 import time
 from collections import defaultdict
+from email.message import EmailMessage
+from functools import lru_cache
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -338,6 +342,67 @@ async function runAuth(){
 </script>
 <script src="/feedback.js" defer></script>
 """
+
+@lru_cache(maxsize=1)
+def _mail_credentials() -> tuple[str, str]:
+    """EMAIL и MYACCOUNT_GOOGLE из ~/.env.
+
+    Сервис не получает .env от systemd, а пароль почты в unit-файле — худшее
+    место для секрета: он попадает в `systemctl cat` и в каждый дамп.
+    Читаем файл один раз и держим в памяти процесса.
+    """
+    env: dict[str, str] = {}
+    try:
+        text = (Path.home() / ".env").read_text(encoding="utf-8")
+    except OSError:
+        return "", ""
+    for line in text.splitlines():
+        m = re.match(r'^([A-Z0-9_]+)=["\']?(.*?)["\']?$', line)
+        if m:
+            env[m.group(1)] = m.group(2)
+    return env.get("EMAIL", ""), env.get("MYACCOUNT_GOOGLE", "").replace(" ", "")
+
+
+def _send_key_email(to: str, token: str, valid_until: int) -> str:
+    """Отправить ключ доступа. Возвращает "" при успехе, иначе причину.
+
+    Заявка на лид-магните обещает ключ — без этой функции обещание остаётся
+    обещанием, а человек уходит ждать письмо, которого никто не отправит.
+    """
+    sender, password = _mail_credentials()
+    if not sender or not password:
+        return "SMTP не настроен (нет EMAIL или MYACCOUNT_GOOGLE в ~/.env)"
+    import datetime as _dt
+    until = _dt.datetime.fromtimestamp(valid_until).strftime("%Y-%m-%d")
+    body = (
+        "Hi,\n\n"
+        "Here is the key for 100 artifact checks over 30 days.\n\n"
+        f"X-ATTEST-ENTITLEMENT: {token}\n\n"
+        "Two ways to use it:\n"
+        "1) HTTP: POST https://attest.rta.lat/verify with the header above.\n"
+        "2) MCP: https://attest.rta.lat/mcp, tool verify_artifact, same header.\n\n"
+        f"The key is signed and valid until {until}. It simply stops working after\n"
+        "that date — no auto-renewal, no card on file.\n\n"
+        "If a check returns a verdict you disagree with, reply and tell me what it\n"
+        "said and what you expected. That is the most useful feedback I can get\n"
+        "right now: nobody has paid for this yet, and I would rather fix a wrong\n"
+        "verdict than collect a paying customer who does not trust the answer.\n\n"
+        "Maksim\nhttps://attest.rta.lat\n"
+    )
+    msg = EmailMessage()
+    msg["From"] = sender
+    msg["To"] = to
+    msg["Subject"] = "Your attest key — 100 checks, 30 days"
+    msg.set_content(body)
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465,
+                              context=ssl.create_default_context(), timeout=20) as smtp:
+            smtp.login(sender, password)
+            smtp.send_message(msg)
+        return ""
+    except Exception as exc:  # noqa: BLE001
+        return f"{type(exc).__name__}: {exc}"
+
 
 _START_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1306,7 +1371,13 @@ class AttestHandler(BaseHTTPRequestHandler):
             if not EMAIL_RE.fullmatch(email):
                 self._send_json(400, {"error": "a valid email is required"})
                 return
-            record = {"ts": int(time.time()), "email": email, "note": note}
+            # Ключ выдаём сразу, а не «в течение дня»: заявка без ключа —
+            # это человек, который ушёл ждать письмо, которого никто не
+            # отправит. Токен пишется в заявку, поэтому даже при сбое SMTP
+            # его можно отправить руками, не выдавая второй.
+            grant = issue_entitlement(email, days=30, max_calls=100)
+            record = {"ts": int(time.time()), "email": email, "note": note,
+                      "token": grant["token"], "valid_until": grant["valid_until"]}
             try:
                 self.leads_path.parent.mkdir(parents=True, exist_ok=True)
                 with self.leads_path.open("a", encoding="utf-8") as fh:
@@ -1315,11 +1386,14 @@ class AttestHandler(BaseHTTPRequestHandler):
                 self._send_json(500, {"error": f"could not store the request: {exc}"})
                 return
             METRICS.lead()
-            self._send_json(200, {
-                "ok": True,
-                "message": ("Request received. We send the key by email within "
-                            "a day — usually the same hour."),
-            })
+            send_error = _send_key_email(email, grant["token"], grant["valid_until"])
+            if send_error:
+                print(f"attest: ключ выдан, письмо не ушло ({email}): {send_error}")
+                message = ("Request received and the key is issued. Email delivery "
+                           "failed on our side — we will send it by hand today.")
+            else:
+                message = f"Key sent to {email}. Check the inbox (and spam)."
+            self._send_json(200, {"ok": True, "message": message})
             return
         if path == "/feedback":
             payload = self._read_json()

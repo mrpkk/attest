@@ -6,4 +6,17 @@
 """
 import os
 
+import pytest
+
 os.environ.setdefault("ATTEST_METRICS", "0")
+
+
+@pytest.fixture(autouse=True)
+def _no_real_email(monkeypatch):
+    """Тесты не отправляют настоящую почту.
+
+    POST /start выдаёт ключ и отправляет письмо. В тестах это означало бы
+    реальные письма на выдуманные адреса (и пачку писем при каждом прогоне).
+    """
+    import attest.service as svc
+    monkeypatch.setattr(svc, "_send_key_email", lambda to, token, until: "")
