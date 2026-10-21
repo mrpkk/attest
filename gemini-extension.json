@@ -1,6 +1,10 @@
 {
   "name": "attest",
   "version": "0.1.0",
-  "description": "Проверка артефактов ИИ-агентов перед выплатой",
-  "httpUrl": "https://attest.rta.lat"
+  "description": "Verification of artifacts produced by AI agents — schema, emptiness, provenance and mandate authority, one Ed25519-signed verdict.",
+  "mcpServers": {
+    "attest": {
+      "httpUrl": "https://attest.rta.lat/mcp"
+    }
+  }
 }

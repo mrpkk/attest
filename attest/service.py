@@ -403,6 +403,43 @@ async function send(){
 </script>
 </body></html>"""
 
+_PRIVACY_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>attest — privacy</title>
+<meta name="description" content="What attest stores, what it does not store, and how to have it deleted.">
+<style>
+ body{background:#0b0d12;color:#e8ecf4;font:16px/1.65 system-ui,sans-serif;max-width:720px;margin:0 auto;padding:44px 22px 80px}
+ h1{font-size:26px;margin:0 0 18px} h2{font-size:18px;margin:26px 0 8px}
+ p,li{color:#c3cad4} code{background:#171b21;padding:2px 6px;border-radius:4px}
+</style></head><body>
+<h1>Privacy</h1>
+<p>attest checks artifacts. It does not want to know anything about you, so it
+stores as little as possible.</p>
+<h2>What we store</h2>
+<ul>
+<li><strong>Call counters</strong> — how many checks a caller made, per day, so
+the free tier can be enforced. No artifacts, no prompts, no results.</li>
+<li><strong>Feedback you send us</strong> — a yes/no answer and, if you write
+one, a comment. Stored with a short hash of the caller, not an IP address.</li>
+<li><strong>Requests for early access</strong> — the email you typed, and
+whatever you wrote about what you verify.</li>
+</ul>
+<h2>What we do not store</h2>
+<ul>
+<li>Artifacts you check, and the verdicts, beyond the counters above;</li>
+<li>your prompts, model outputs, or anything you paste into the demo;</li>
+<li>your IP address — the server sees the tunnel's address, not yours.</li>
+</ul>
+<h2>Payments</h2>
+<p>Payments settle on-chain via x402 (USDC on Base). The receipt is signed by us
+and verifiable offline. The wallet you pay from is visible on the public
+blockchain, as any blockchain payment is — that is a property of the network,
+not of this service.</p>
+<h2>Deletion</h2>
+<p>Write to the address in the footer of any page and we will delete the
+feedback or request you name. Counter aggregates can be reset on request.</p>
+</body></html>"""
+
 LANDING = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1141,6 +1178,8 @@ class AttestHandler(BaseHTTPRequestHandler):
             })
         elif path == "/mcp":
             self._send_json(405, {"error": "use POST /mcp"})
+        elif path == "/privacy":
+            self._send_html(_PRIVACY_HTML)
         elif path == "/start":
             self._send_html(_START_HTML)
         elif path == "/demo":
