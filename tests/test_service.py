@@ -1127,3 +1127,17 @@ def test_request_issues_key_and_stores_it(server, tmp_path, monkeypatch):
     from attest.signing import public_key_b64
     redeemed, why = ent.redeem(record["token"], trusted_key=public_key_b64())
     assert redeemed, why
+
+
+def test_plans_page_is_human_readable(server):
+    """Люди не должны видеть JSON: /pricing — машинный прайс, /plans — страница."""
+    with urllib.request.urlopen(f"{server}/plans", timeout=10) as r:
+        html = r.read().decode("utf-8")
+    assert r.status == 200
+    assert "text/html" in r.headers.get("Content-Type", "")
+    for needle in ("9 USDC", "3 USDC", "India (PPP)", 'href="/start"'):
+        assert needle in html, f"на странице цен нет {needle}"
+    # машинный прайс остался на месте
+    with urllib.request.urlopen(f"{server}/pricing", timeout=10) as r2:
+        data = json.loads(r2.read().decode("utf-8"))
+    assert data["pricing"]["subscription"]["price"] == "9.0"

@@ -404,6 +404,53 @@ def _send_key_email(to: str, token: str, valid_until: int) -> str:
         return f"{type(exc).__name__}: {exc}"
 
 
+_PLANS_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>attest — pricing</title>
+<meta name="description" content="attest pricing: 20 checks a day free, $0.005 per call over x402, $9 for 30 days, $3 for 30 days at India purchasing-power pricing.">
+<link rel="canonical" href="https://attest.rta.lat/plans">
+<style>
+ body{background:#0b0d12;color:#e8ecf4;font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:0 auto;padding:44px 22px 80px}
+ h1{font-size:28px;margin:0 0 6px} h2{font-size:18px;margin:30px 0 10px}
+ .s{color:#969eac;margin:0 0 22px}
+ .tiers{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:18px 0}
+ .t{background:#141821;border:1px solid #232a33;border-radius:12px;padding:16px}
+ .t b{display:block;color:#9fb0c4;font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px}
+ .p{font-size:22px;font-weight:600;margin:0 0 6px}
+ .hint{color:#8b939f;font-size:14px}
+ a{color:#7fd1b9} code{background:#171b21;padding:2px 6px;border-radius:4px;font-size:14px}
+ .cta{display:inline-block;background:#1c6b58;color:#eafff8;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600;margin:8px 0}
+ ul{color:#c3cad4} li{margin:0 0 6px}
+</style></head><body>
+<h1>Pricing</h1>
+<p class="s">A check is one artifact verified against one schema. No account, no card, no SDK.</p>
+<div class="tiers">
+ <div class="t"><b>Free</b><p class="p">0 USDC</p><span class="hint">20 checks a day, forever. Full check: schema, emptiness, provenance, authority.</span></div>
+ <div class="t"><b>Per call</b><p class="p">0.005 USDC</p><span class="hint">Beyond the free tier, paid over x402 on Base. Three steps: ask, sign, retry.</span></div>
+ <div class="t"><b>30 days</b><p class="p">9 USDC</p><span class="hint">No daily cap while the token is valid. One-time prepayment, no auto-renewal.</span></div>
+ <div class="t"><b>India (PPP)</b><p class="p">3 USDC</p><span class="hint">Same 30 days, purchasing-power price. <a href="/subscribe?plan=ppp">Subscribe</a>.</span></div>
+</div>
+<a class="cta" href="/start">100 free checks for 30 days</a>
+<h2>Why a subscription if a call costs $0.005</h2>
+<ul>
+ <li>A per-call price is paid every call, and a payment rail takes its share of a small amount. At $0.005 the fee eats most of the value.</li>
+ <li>A 30-day token is one payment, then no per-call overhead: the right shape for CI pipelines that check every artifact.</li>
+ <li>No recurring charges: when the 30 days run out, access stops. Renewal is an explicit new payment, never a surprise.</li>
+</ul>
+<h2>Why India has its own price</h2>
+<p>A price is a share of a buyer's income. At Western levels most Indian teams cannot
+justify a $9 line item for a verification step, and a product nobody can afford is not
+a product. The $3 tier is the same 30 days — same four checks, same signed verdict —
+at purchasing-power parity.</p>
+<h2>What you actually buy</h2>
+<p>A verdict you can check without trusting us. Every answer is Ed25519-signed; the
+public key fingerprint is published, so a recipient can verify the verdict offline.
+The service can be down, the verdict still verifies.</p>
+<p class="hint">Machine-readable price list: <a href="/pricing">/pricing</a> (JSON) ·
+<a href="/privacy">privacy</a> · <a href="/demo">demo</a></p>
+</body></html>"""
+
+
 _START_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>attest — 100 free checks for 30 days</title>
@@ -446,7 +493,7 @@ whether anyone will — better a hundred real artifacts than a thousand page vie
 • four layers per check: schema contract, emptiness, generation provenance, mandate authority<br>
 • an Ed25519-signed verdict you can verify offline, without trusting this service</p>
 <p class="muted">After 30 days the key simply stops working. If it is useful, $9/30 days
-keeps it running — or $3/30 days for India pricing. <a href="/pricing">pricing</a> ·
+keeps it running — or $3/30 days for India pricing. <a href="/plans">pricing</a> ·
 <a href="/demo">demo</a> · <a href="/article">why positional scanning</a></p>
 </div>
 <script>
@@ -1137,7 +1184,7 @@ def _sitemap() -> str:
     base = _base_url()
     urls = "".join(
         f"<url><loc>{base}{page}</loc></url>"
-        for page in ("", "/hi", "/demo", "/pricing", "/article", "/catalogs",
+        for page in ("", "/hi", "/demo", "/plans", "/article", "/catalogs",
                      "/start", "/privacy", "/health")
     )
     return ('<?xml version="1.0" encoding="UTF-8"?>'
@@ -1255,6 +1302,8 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/catalogs":
             from .catalogs import CATALOGS_HTML
             self._send_html(CATALOGS_HTML)
+        elif path == "/plans":
+            self._send_html(_PLANS_HTML)
         elif path == "/start":
             self._send_html(_START_HTML)
         elif path == "/demo":

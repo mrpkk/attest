@@ -103,6 +103,7 @@ assembly, .transfer.
 
 ## Страницы, полезные агенту
 
+- `https://attest.rta.lat/plans` — цены для человека (JSON-прайс: `/pricing`).
 - `https://attest.rta.lat/catalogs` — девять причин, по которым MCP-сервер не
   появляется в каталогах, и как их проверить пятью запросами.
 - `https://attest.rta.lat/start` — 100 бесплатных проверок на 30 дней, без
