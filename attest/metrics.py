@@ -145,6 +145,11 @@ class Metrics:
     # Кошелёк → [первая оплата, последняя оплата, сколько всего]. Только
     # время и счётчик: этого хватает для repeat_usage_7d и мало для профиля.
     payers: dict[str, list] = field(default_factory=dict)
+    # Хэш клиента → [первый вызов, последний вызов, сколько проверок].
+    # Без этого «75 проверок» неотличимо от «75 клиентов по одной» — а это
+    # ровно тот вопрос, который решает, работает воронка или нет.
+    # Хранится только хэш (тот же, что считает квоту), не адрес.
+    clients: dict[str, list] = field(default_factory=dict)
     first_event: float = 0.0
     last_event: float = 0.0
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
@@ -164,7 +169,7 @@ class Metrics:
             self._touch()
         self._save_if_due()
 
-    def check(self, channel: str, paid: bool) -> None:
+    def check(self, channel: str, paid: bool, client: str | None = None) -> None:
         if not self.enabled:
             return
         key = f"{channel}:{'paid' if paid else 'free'}"
@@ -172,6 +177,8 @@ class Metrics:
             self._bounded(self.checks, key)
             if paid:
                 self._bounded(self.paid, channel)
+            if client:
+                self._note_client(str(client))
             self._touch()
         # Проверок много, а ценность каждой события невелика — пишем с
         # троттлингом, иначе каждый вызов ударяет по диску.
@@ -198,6 +205,24 @@ class Metrics:
         # Деньги сохраняем сразу и без троттлинга: потерянная на перезапуске
         # выручка — это не «неточная метрика», а потерянные деньги.
         self.save()
+
+    def _note_client(self, client: str) -> None:
+        """Запомнить клиента: когда первый раз, когда последний, сколько раз.
+
+        Потолок тот же, что у плательщиков: тысяча разных клиентов не должна
+        превращать метрику в память на вырост. Вытесняется самый давний.
+        """
+        now = time.time()
+        key = client[:64]
+        row = self.clients.pop(key, None)
+        if row is None:
+            self.clients[key] = [now, now, 1]
+        else:
+            row[1] = now
+            row[2] = int(row[2]) + 1
+            self.clients[key] = row
+        if len(self.clients) > MAX_PAYERS:
+            self.clients.pop(next(iter(self.clients)), None)
 
     def _note_payer(self, payer: str) -> None:
         """Запомнить оплату кошелька: [первая, последняя, сколько раз].
@@ -249,6 +274,25 @@ class Metrics:
 
     # ---- чтение -------------------------------------------------------
 
+    def _client_histogram(self) -> dict[str, int]:
+        """Сколько клиентов сделали 1, 2–5, 6–20, больше 20 проверок.
+
+        Это форма воронки: один клиент на 50 проверок и 50 клиентов по одной
+        дают одинаковый checks_total и совершенно разные выводы.
+        """
+        buckets = {"1": 0, "2-5": 0, "6-20": 0, "20+": 0}
+        for _first, _last, n in self.clients.values():
+            n = int(n)
+            if n <= 1:
+                buckets["1"] += 1
+            elif n <= 5:
+                buckets["2-5"] += 1
+            elif n <= 20:
+                buckets["6-20"] += 1
+            else:
+                buckets["20+"] += 1
+        return buckets
+
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
             free = sum(v for k, v in self.checks.items() if k.endswith(":free"))
@@ -266,6 +310,8 @@ class Metrics:
                 "revenue_atoms": self.revenue_atoms,
                 "revenue_usdc": f"{self.revenue_atoms / 1_000_000:.6f}",
                 "repeat_usage_7d": repeat_usage_7d,
+                "unique_clients": len(self.clients),
+                "checks_per_client": self._client_histogram(),
                 "unique_payers": len(self.payers),
                 "leads_total": self.leads,
                 "by_channel": dict(sorted(self.paid.items())),
@@ -293,6 +339,10 @@ class Metrics:
             str(k): [float(v[0]), float(v[1]), int(v[2])]
             for k, v in (data.get("payers") or {}).items()
             if isinstance(v, (list, tuple)) and len(v) == 3}
+        self.clients = {
+            str(k): [float(v[0]), float(v[1]), int(v[2])]
+            for k, v in (data.get("clients") or {}).items()
+            if isinstance(v, (list, tuple)) and len(v) == 3}
         self.revenue_atoms = int(data.get("revenue_atoms") or 0)
         self.leads = int(data.get("leads") or 0)
         self.first_event = float(data.get("first_event") or 0)
@@ -305,6 +355,7 @@ class Metrics:
                 "views": self.views, "checks": self.checks,
                 "paid": self.paid, "revenue_atoms": self.revenue_atoms,
                 "payers": self.payers, "leads": self.leads,
+                "clients": self.clients,
                 "first_event": self.first_event, "last_event": self.last_event,
             }
         try:

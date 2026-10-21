@@ -1367,7 +1367,7 @@ class AttestHandler(BaseHTTPRequestHandler):
         # платформе, упирается в наш 402 (их ревью поймало это 19.10).
         if self._gateway_call():
             METRICS.check(channel_of(self.path, self.headers.get("Referer")),
-                          paid=False)
+                          paid=False, client=self.client_id())
             return self._handle_entitled(
                 payload, source,
                 "api.market gateway — billed by the marketplace")
@@ -1397,7 +1397,7 @@ class AttestHandler(BaseHTTPRequestHandler):
         try:
             self.free_tier.spend(client)
             METRICS.check(channel_of(self.path, self.headers.get("Referer")),
-                          paid=False)
+                          paid=False, client=self.client_id())
         except FreeTierExhausted as exc:
             if not payment_header:
                 token = self._challenge_header()
@@ -1457,7 +1457,7 @@ class AttestHandler(BaseHTTPRequestHandler):
         ent_token = self.headers.get(ENT_HEADER)
         ent_ok, ent_why = self._entitlement_access(ent_token)
         if ent_ok:
-            METRICS.check(channel, paid=False)
+            METRICS.check(channel, paid=False, client=self.client_id())
             return True
         if ent_token:
             print(f"attest: entitlement отвергнут: {ent_why}")
@@ -1493,7 +1493,7 @@ class AttestHandler(BaseHTTPRequestHandler):
                             extra_headers=({"Payment-Required": token}
                                             if token else None))
             return False
-        METRICS.check(channel, paid=False)
+        METRICS.check(channel, paid=False, client=self.client_id())
         return True
 
     def _handle_mcp(self) -> None:

@@ -306,3 +306,34 @@ class TestRepeatUsage:
         for i in range(MAX_PAYERS * 2):
             m.payment("direct", 1, payer=f"0x{i:040x}")
         assert len(m.payers) <= MAX_PAYERS
+
+
+# --- 21.10.2026: «75 проверок» и «75 клиентов по одной» давали одинаковый
+# checks_total, и по метрике нельзя было понять, работает воронка или нет.
+
+def test_clients_are_counted_separately(tmp_path, monkeypatch):
+    import attest.metrics as m
+    monkeypatch.setattr(m, "STATE_PATH", tmp_path / "metrics.json")
+    met = m.Metrics()
+    met.check("direct", False, client="client-a")
+    met.check("direct", False, client="client-a")
+    met.check("direct", False, client="client-b")
+    met.check("direct", False)  # без клиента — счётчик проверок растёт, клиент нет
+    snap = met.snapshot()
+    assert snap["checks_total"] == 4
+    assert snap["unique_clients"] == 2
+    assert snap["checks_per_client"] == {"1": 1, "2-5": 1, "6-20": 0, "20+": 0}
+
+
+def test_clients_survive_restart(tmp_path, monkeypatch):
+    import attest.metrics as m
+    monkeypatch.setattr(m, "STATE_PATH", tmp_path / "metrics.json")
+    first = m.Metrics()
+    for _ in range(7):
+        first.check("mcp", False, client="heavy")
+    first.save()
+    second = m.Metrics()
+    second.load()
+    snap = second.snapshot()
+    assert snap["unique_clients"] == 1
+    assert snap["checks_per_client"]["6-20"] == 1
