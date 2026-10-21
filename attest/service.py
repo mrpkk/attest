@@ -1304,6 +1304,12 @@ class AttestHandler(BaseHTTPRequestHandler):
             self._send_html(CATALOGS_HTML)
         elif path == "/plans":
             self._send_html(_PLANS_HTML)
+        elif path == "/.well-known/mcp/server-card.json":
+            # Статическая карточка сервера: каталоги (Smithery и другие)
+            # берут из неё список инструментов, если скан живого /mcp не
+            # прошёл. Собирается из тех же описаний, что отдаёт /mcp.
+            from .server_card import SERVER_CARD
+            self._send(200, SERVER_CARD.encode("utf-8"), "application/json")
         elif path == "/start":
             self._send_html(_START_HTML)
         elif path == "/demo":

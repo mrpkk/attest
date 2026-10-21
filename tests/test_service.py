@@ -1141,3 +1141,21 @@ def test_plans_page_is_human_readable(server):
     with urllib.request.urlopen(f"{server}/pricing", timeout=10) as r2:
         data = json.loads(r2.read().decode("utf-8"))
     assert data["pricing"]["subscription"]["price"] == "9.0"
+
+
+def test_server_card_is_served(server):
+    """Каталоги берут список инструментов из статической карточки.
+
+    Расхождение карточки с живым /mcp — это расхождение листинга с
+    продуктом, поэтому проверяем, что имена инструментов совпадают.
+    """
+    import json as _json
+    import urllib.request as _u
+    with _u.urlopen(f"{server}/.well-known/mcp/server-card.json", timeout=10) as r:
+        card = _json.loads(r.read().decode("utf-8"))
+    assert card["serverInfo"]["name"] == "attest"
+    names = {t["name"] for t in card["tools"]}
+    assert {"verify_artifact", "verify_artifact_batch", "bridge_check"} <= names
+    for tool in card["tools"]:
+        assert tool["description"].strip(), f"у {tool['name']} пустое описание"
+        assert tool["inputSchema"]["type"] == "object"

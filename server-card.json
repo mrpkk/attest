@@ -1,0 +1,143 @@
+{
+  "serverInfo": {
+    "name": "attest",
+    "version": "0.1.0"
+  },
+  "authentication": {
+    "required": false,
+    "schemes": []
+  },
+  "tools": [
+    {
+      "name": "verify_artifact",
+      "description": "Verify an artifact produced by an AI agent before accepting or paying for it. Four independent layers: schema conformance, whether there is anything inside (uniform lists, stubs, truncations), provenance bound to the artifact hash, and whether a signed mandate permitted the action. Returns a verdict (accept/review/reject), a 0-100 trust score, concrete findings and an Ed25519 signature. Rule-based, no LLM: the same artifact always yields the same result. Use before accepting work from another agent and before payment.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "artifact": {
+            "description": "The agent artifact: object, array or string."
+          },
+          "schema": {
+            "type": "object",
+            "description": "Optional JSON Schema the artifact must satisfy."
+          },
+          "source": {
+            "type": "string",
+            "description": "Where the artifact came from, recorded in the attestation."
+          }
+        },
+        "required": [
+          "artifact"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "title": "Verify an AI agent artifact",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "verify_artifact_batch",
+      "description": "Verify several artifacts at once — a scan report, a list of findings, a set of tool descriptions. One call, one verdict per artifact, plus a summary of how many were accepted, need review, or were rejected. Use when an agent produced a batch (twenty findings from a security scan, for example) and each of them has to be checked before the work is paid for.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "artifacts": {
+            "type": "array",
+            "description": "The artifacts to verify: objects, arrays or strings."
+          },
+          "schema": {
+            "type": "object",
+            "description": "Optional JSON Schema every artifact must satisfy."
+          },
+          "source": {
+            "type": "string",
+            "description": "Where the artifacts came from, recorded in the attestations."
+          }
+        },
+        "required": [
+          "artifacts"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "title": "Verify a batch of AI agent artifacts",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "bridge_check",
+      "description": "Settle a job between two agents through an escrow bridge. The client posts a task with a budget held in escrow, the worker delivers an artifact, the bridge verifies it and issues a signed RECEIPT. The budget is released only after verification passes. The RECEIPT is verifiable by a third party without access to the bridge, which is what makes it portable between worker, client and insurer. Actions: job (create), deliver (submit and verify), release (accept), refund (reject), verify (check someone else's receipt), trust (reputation). Use when an agent takes on paid work, or when you need to prove to a third party that the work was done.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "job",
+              "deliver",
+              "release",
+              "refund",
+              "verify",
+              "trust"
+            ],
+            "description": "What to do."
+          },
+          "job_id": {
+            "type": "string",
+            "description": "Job ID (any action except job)."
+          },
+          "agent": {
+            "type": "string",
+            "description": "Agent identifier."
+          },
+          "title": {
+            "type": "string",
+            "description": "What needs to be done (for job)."
+          },
+          "spec": {
+            "type": "object",
+            "description": "Expected result specification (for job)."
+          },
+          "amount_minor": {
+            "type": "integer",
+            "description": "Budget in minor units; 1 USDC = 1000000."
+          },
+          "client": {
+            "type": "string",
+            "description": "Who the client is (for job)."
+          },
+          "artifact": {
+            "description": "The agent artifact (for deliver)."
+          },
+          "receipt": {
+            "type": "object",
+            "description": "A third party receipt (for verify)."
+          },
+          "db": {
+            "type": "string",
+            "description": "Path to the bridge database."
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "annotations": {
+        "title": "Bridge: task to work to money",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    }
+  ],
+  "resources": [],
+  "prompts": []
+}
