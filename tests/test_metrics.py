@@ -337,3 +337,22 @@ def test_clients_survive_restart(tmp_path, monkeypatch):
     snap = second.snapshot()
     assert snap["unique_clients"] == 1
     assert snap["checks_per_client"]["6-20"] == 1
+
+
+def test_paywall_hits_are_counted(tmp_path, monkeypatch):
+    """Сколько клиентов упёрлись в бесплатный лимит — ключевая метрика воронки.
+
+    Без неё «100 проверок и 0 оплат» неотличимо от «никто не дошёл до барьера».
+    """
+    import attest.metrics as m
+    monkeypatch.setattr(m, "STATE_PATH", tmp_path / "metrics.json")
+    met = m.Metrics()
+    assert met.snapshot()["paywall_hits"] == 0
+    met.paywall_hit()
+    met.paywall_hit()
+    assert met.snapshot()["paywall_hits"] == 2
+
+    met.save()
+    again = m.Metrics()
+    again.load()
+    assert again.snapshot()["paywall_hits"] == 2

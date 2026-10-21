@@ -142,6 +142,11 @@ class Metrics:
     # Заявки на пакет раннего доступа (лид-магнит). Считаем, но не храним
     # почту в метриках — она лежит отдельно, в leads.jsonl.
     leads: int = 0
+    # Сколько раз клиент упёрся в бесплатный лимит и получил 402.
+    # Это единственная метрика, которая показывает, доходит ли кто-то до
+    # платного барьера: 100 проверок без единого 402 значат «никто не
+    # исчерпал лимит», а не «всё хорошо».
+    paywall: int = 0
     # Кошелёк → [первая оплата, последняя оплата, сколько всего]. Только
     # время и счётчик: этого хватает для repeat_usage_7d и мало для профиля.
     payers: dict[str, list] = field(default_factory=dict)
@@ -183,6 +188,15 @@ class Metrics:
         # Проверок много, а ценность каждой события невелика — пишем с
         # троттлингом, иначе каждый вызов ударяет по диску.
         self._save_if_due()
+
+    def paywall_hit(self) -> None:
+        """Клиент получил 402: бесплатный лимит исчерпан."""
+        if not self.enabled:
+            return
+        with self._lock:
+            self.paywall += 1
+            self._touch()
+        self.save()
 
     def lead(self) -> None:
         """Одна заявка на пакет раннего доступа."""
@@ -314,6 +328,7 @@ class Metrics:
                 "checks_per_client": self._client_histogram(),
                 "unique_payers": len(self.payers),
                 "leads_total": self.leads,
+                "paywall_hits": self.paywall,
                 "by_channel": dict(sorted(self.paid.items())),
                 "since": self.first_event,
                 "last_event": self.last_event,
@@ -343,6 +358,7 @@ class Metrics:
             str(k): [float(v[0]), float(v[1]), int(v[2])]
             for k, v in (data.get("clients") or {}).items()
             if isinstance(v, (list, tuple)) and len(v) == 3}
+        self.paywall = int(data.get("paywall") or 0)
         self.revenue_atoms = int(data.get("revenue_atoms") or 0)
         self.leads = int(data.get("leads") or 0)
         self.first_event = float(data.get("first_event") or 0)
@@ -355,6 +371,7 @@ class Metrics:
                 "views": self.views, "checks": self.checks,
                 "paid": self.paid, "revenue_atoms": self.revenue_atoms,
                 "payers": self.payers, "leads": self.leads,
+                "paywall": self.paywall,
                 "clients": self.clients,
                 "first_event": self.first_event, "last_event": self.last_event,
             }

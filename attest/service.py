@@ -1523,6 +1523,7 @@ class AttestHandler(BaseHTTPRequestHandler):
                           paid=False, client=self.client_id())
         except FreeTierExhausted as exc:
             if not payment_header:
+                METRICS.paywall_hit()
                 token = self._challenge_header()
                 self._send_json(
                     402,
@@ -1606,6 +1607,7 @@ class AttestHandler(BaseHTTPRequestHandler):
         try:
             self.free_tier.spend(client)
         except FreeTierExhausted as exc:
+            METRICS.paywall_hit()
             token = self._challenge_header(resource=f"{self._base_url()}/mcp")
             body = self._exhausted_body(exc, client)
             # Клиент по MCP должен знать, какой ресурс оплачивать и каким
