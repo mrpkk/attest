@@ -1066,7 +1066,8 @@ def _sitemap() -> str:
     base = _base_url()
     urls = "".join(
         f"<url><loc>{base}{page}</loc></url>"
-        for page in ("", "/hi", "/demo", "/pricing", "/article", "/health")
+        for page in ("", "/hi", "/demo", "/pricing", "/article", "/catalogs",
+                     "/start", "/privacy", "/health")
     )
     return ('<?xml version="1.0" encoding="UTF-8"?>'
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
@@ -1180,6 +1181,9 @@ class AttestHandler(BaseHTTPRequestHandler):
             self._send_json(405, {"error": "use POST /mcp"})
         elif path == "/privacy":
             self._send_html(_PRIVACY_HTML)
+        elif path == "/catalogs":
+            from .catalogs import CATALOGS_HTML
+            self._send_html(CATALOGS_HTML)
         elif path == "/start":
             self._send_html(_START_HTML)
         elif path == "/demo":

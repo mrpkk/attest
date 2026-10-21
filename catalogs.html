@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nine reasons your MCP server never shows up in the directories — attest</title>
+<meta name="description" content="What actually blocks MCP servers from appearing in directories: the 100-character description limit, empty resources/prompts lists, tool annotations, privacy policy 404, and a placeholder hostname in llms-install.md.">
+<meta property="og:title" content="Nine reasons your MCP server never shows up in the directories">
+<meta property="og:description" content="Nine checks that decide whether a directory lists your MCP server — with the exact request that broke each one.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://attest.rta.lat/catalogs">
+<meta property="og:site_name" content="attest">
+<meta property="og:image" content="https://attest.rta.lat/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://attest.rta.lat/og.png">
+<link rel="canonical" content="https://attest.rta.lat/catalogs">
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#0b0d10; color:#e6e6e6;
+         font:16px/1.65 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width: 720px; margin:0 auto; padding: 40px 20px 80px; }
+  h1 { font-size:30px; line-height:1.25; margin:0 0 8px; letter-spacing:-.02em; }
+  h2 { font-size:21px; margin:38px 0 10px; letter-spacing:-.01em; }
+  h3 { font-size:17px; margin:26px 0 8px; }
+  p { margin:0 0 15px; }
+  a { color:#7fd1b9; }
+  code { background:#171b21; padding:2px 5px; border-radius:4px; font-size:.9em;
+         font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  pre { background:#12161c; border:1px solid #232a33; border-radius:8px;
+        padding:13px 15px; overflow:auto; margin:0 0 18px; }
+  pre code { background:none; padding:0; font-size:13.5px; line-height:1.5; }
+  ul { margin:0 0 16px; padding-left:22px; }
+  li { margin:0 0 6px; }
+  blockquote { border-left:3px solid #2b3440; margin:0 0 16px; padding:2px 0 2px 15px;
+               color:#a9b4c0; }
+  hr { border:0; border-top:1px solid #232a33; margin:34px 0; }
+  .cta { border:1px solid #232a33; border-radius:10px; padding:16px 18px;
+         margin:34px 0 0; background:#10141a; }
+  .cta b { color:#7fd1b9; }
+</style>
+</head><body><main>
+<article>
+<h1>Nine reasons your MCP server never shows up in the directories</h1>
+<p class="byline">By mrpkk · <code>attest</code> · verified against live scanner output</p>
+<p>I spent one night making three MCP servers visible to the directories, and almost every hour of it went into things that have nothing to do with how good your server is. This is the list I wish I had before I started, with the exact evidence for each item.</p>
+<p>Nothing here is theory. Every item below is something that was broken in a real server, and I can show you the request that broke it.</p>
+<hr>
+<h2>1. The description limit is 100 characters, and it fails silently</h2>
+<p>The official MCP Registry validates <code>server.json</code> before publishing. If <code>description</code> is longer than 100 characters, the publish call returns:</p>
+<pre><code>422 Unprocessable Entity
+{&quot;errors&quot;:[{&quot;message&quot;:&quot;expected length &lt;= 100&quot;,&quot;location&quot;:&quot;body.description&quot;}]}</code></pre>
+<p>That is the friendly one. The unfriendly case is a description that is 101 characters and passes local validation, because you never run the registry's validator before you publish. Run it:</p>
+<pre><code>mcp-publisher validate</code></pre>
+<h2>2. <code>resources/list</code> and <code>prompts/list</code> must answer with empty lists</h2>
+<p>If you have no resources and no prompts, the correct answer is an empty list. The wrong answer is "method not found".</p>
+<p>Directory scanners treat a JSON-RPC error as a broken server and stop there. A one-line server that returns <code>{"resources": []}</code> passes every scan. It costs three lines and it is the difference between "listed" and "not listed".</p>
+<pre><code>if method in (&quot;resources/list&quot;, &quot;prompts/list&quot;):
+    return _result(request_id, {&quot;resources&quot;: [], &quot;prompts&quot;: []})</code></pre>
+<h2>3. Tool annotations are not decoration</h2>
+<p>Every tool needs <code>title</code>, <code>readOnlyHint</code>, <code>destructiveHint</code> and <code>openWorldHint</code>. Some directories reject the listing outright without them; the rest render them as badges, which is the only place a buyer sees that your tool does not write anything.</p>
+<pre><code>&quot;annotations&quot;: {
+  &quot;title&quot;: &quot;Verify an AI agent artifact&quot;,
+  &quot;readOnlyHint&quot;: true,
+  &quot;destructiveHint&quot;: false,
+  &quot;idempotentHint&quot;: true,
+  &quot;openWorldHint&quot;: false
+}</code></pre>
+<h2>4. Return failures as tool results, not as protocol errors</h2>
+<p>A reviewer will call your tool. If the tool fails and you answer with a JSON-RPC <code>-32603</code>, the reviewer sees an opaque "Internal error" and marks the server as broken. Answer with a result that carries <code>isError: true</code> and the real message. The tool failed — say so, in words, in the place the tool is read.</p>
+<pre><code>return {
+    &quot;content&quot;: [{&quot;type&quot;: &quot;text&quot;, &quot;text&quot;: f&quot;{verdict} · {reason}&quot;}],
+    &quot;structuredContent&quot;: payload,
+    &quot;isError&quot;: verdict == &quot;reject&quot;,
+}</code></pre>
+<h2>5. <code>llms-install.md</code> with a placeholder is worse than no file</h2>
+<p>Cline, and other agents, install servers by reading the README and <code>llms-install.md</code>. Mine said:</p>
+<pre><code>claude mcp add --transport http attest https://REPLACE_WITH_DOMAIN/mcp</code></pre>
+<p>An agent that follows that literally installs nothing, and the failure looks like the agent's problem, not yours. Put the real hostname in.</p>
+<h2>6. A 404 on your privacy policy is a rejection, not a detail</h2>
+<p>At least one major directory requires a working privacy policy URL and treats its absence as an automatic rejection. <code>/privacy</code> returning 404 is enough. What it should say is short: what you store (counters, feedback, requests), what you do not (artifacts, prompts, IP addresses), and how to ask for deletion.</p>
+<h2>7. Point your Gemini extension at the MCP endpoint, not at your home page</h2>
+<p>Gemini CLI picks up <code>gemini-extension.json</code> from the repository root and indexes it within a day. Mine pointed at the site root:</p>
+<pre><code>{ &quot;name&quot;: &quot;attest&quot;, &quot;httpUrl&quot;: &quot;https://attest.rta.lat&quot; }</code></pre>
+<p>That is a web page, not an MCP server. The gallery would have listed a server that cannot answer <code>tools/list</code>. It should be:</p>
+<pre><code>{
+  &quot;name&quot;: &quot;attest&quot;,
+  &quot;mcpServers&quot;: { &quot;attest&quot;: { &quot;httpUrl&quot;: &quot;https://attest.rta.lat/mcp&quot; } }
+}</code></pre>
+<p>Add the <code>gemini-cli-extension</code> topic to the repository, or the crawler does not look.</p>
+<h2>8. Dead endpoints in your spec make the whole listing look broken</h2>
+<p>Our OpenAPI spec still advertised two endpoints that had been removed months earlier. A buyer who read the spec and called them got a 404 — and concluded the server was abandoned. The spec is the product page for anyone who reads it before connecting. Keep it equal to what the server actually answers:</p>
+<pre><code>curl -s -X POST https://your.host/mcp -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/list&quot;}&#x27;</code></pre>
+<p>Every path in the spec should appear in that answer, and nothing should appear in the spec that does not.</p>
+<h2>9. One remote URL is one registry entry</h2>
+<p>The official registry accepts <code>io.github.user/name</code> (GitHub authentication) or <code>com.example.name</code> (domain authentication). I tried to give my servers a namespace of their own while keeping the URLs I already had:</p>
+<pre><code>400 Bad Request
+{&quot;message&quot;:&quot;remote URL https://attest.rta.lat/mcp is already used by server io.github.mrpkk/attest&quot;}</code></pre>
+<p>The registry keys entries by remote URL. One endpoint, one entry, one name. If you want a different namespace, you have to give up the URL first.</p>
+<p>Domain authentication has a second trap: the TXT record goes on the <strong>apex</strong> of the domain, not on a selector. <code>_mcp-registry.example.com</code> will not be seen. It follows SPF placement, not DKIM.</p>
+<pre><code>openssl genpkey -algorithm Ed25519 -out key.pem
+PUBLIC_KEY=&quot;$(openssl pkey -in key.pem -pubout -outform DER | tail -c 32 | base64)&quot;
+echo &quot;example.com. IN TXT \&quot;v=MCPv1; k=ed25519; p=${PUBLIC_KEY}\&quot;&quot;</code></pre>
+<p>Then host the same string at <code>/.well-known/mcp-registry-auth</code> and log in with <code>mcp-publisher login http --domain example.com --private-key "..."</code>. Keep the private key out of your repository.</p>
+<hr>
+<h2>What actually moved the numbers</h2>
+<p>After fixing the list above, one server went from quality <strong>C</strong> to <strong>B</strong> in a directory that grades servers automatically, and all three servers ended up inside the official registry, which is what makes them appear in three other directories without a second submission.</p>
+<p>The one thing that does not work and never will: paying for placement. The premium tiers that guarantee a badge cost money, and the badge is not the product. A directory listing is a distribution channel, not a feature. Fix the server, describe it honestly, and let the tools answer for themselves.</p>
+<h2>Check your own server in five commands</h2>
+<pre><code>curl -s -X POST https://your.host/mcp -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/list&quot;}&#x27;          # tools exist
+curl -s -X POST https://your.host/mcp -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:2,&quot;method&quot;:&quot;resources/list&quot;}&#x27;        # empty, not an error
+curl -s -X POST https://your.host/mcp -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:3,&quot;method&quot;:&quot;prompts/list&quot;}&#x27;          # empty, not an error
+curl -s -o /dev/null -w &#x27;%{http_code}\n&#x27; https://your.host/privacy
+curl -s https://your.host/llms-install.md | head -5             # real hostname</code></pre>
+<p>If the first three answer and the last two do not, the directory will not list you — and it will not tell you why.</p>
+<div class="cta">
+<b>attest</b> — проверка артефактов, которые агент получает от другого агента:
+схема, пустота, привязка к условиям генерации, право действовать по мандату.
+Вердикт подписан Ed25519 и проверяется офлайн.<br>
+20 проверок в сутки бесплатно и без регистрации, дальше $0.005 за вызов
+(x402, USDC в сети Base) или $9 за 30 дней. Для Индии — те же 30 дней за $3.<br>
+MCP: <code>https://attest.rta.lat/mcp</code> ·
+<a href="https://attest.rta.lat/start">100 бесплатных проверок по заявке</a> ·
+<a href="https://attest.rta.lat/demo">демо</a>
+</div>
+</article>
+</main></body></html>
