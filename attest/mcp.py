@@ -70,6 +70,45 @@ VERIFY_TOOL: dict[str, Any] = {
     },
 }
 
+BATCH_TOOL: dict[str, Any] = {
+    "name": "verify_artifact_batch",
+    "title": "Verify a batch of AI agent artifacts",
+    "annotations": {
+        "title": "Verify a batch of AI agent artifacts",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+    "description": (
+        "Verify several artifacts at once — a scan report, a list of findings, "
+        "a set of tool descriptions. One call, one verdict per artifact, plus "
+        "a summary of how many were accepted, need review, or were rejected. "
+        "Use when an agent produced a batch (twenty findings from a security "
+        "scan, for example) and each of them has to be checked before the "
+        "work is paid for."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "artifacts": {
+                "type": "array",
+                "description": "The artifacts to verify: objects, arrays or strings.",
+            },
+            "schema": {
+                "type": "object",
+                "description": "Optional JSON Schema every artifact must satisfy.",
+            },
+            "source": {
+                "type": "string",
+                "description": "Where the artifacts came from, recorded in the attestations.",
+            },
+        },
+        "required": ["artifacts"],
+        "additionalProperties": False,
+    },
+}
+
 JSONRPC_PARSE_ERROR = -32700
 JSONRPC_INVALID_REQUEST = -32600
 JSONRPC_METHOD_NOT_FOUND = -32601
@@ -77,6 +116,9 @@ JSONRPC_INVALID_PARAMS = -32602
 JSONRPC_INTERNAL = -32603
 
 MAX_ARTIFACT_BYTES = 256 * 1024
+# Пачка: сколько артефактов за один вызов. Больше — расточительно
+# для обеих сторон: клиент платит за каждый, а ответ растёт линейно.
+MAX_BATCH_ITEMS = 50
 
 
 class RpcError(Exception):
@@ -181,7 +223,7 @@ def handle_request(
                 "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
             })
         if method == "tools/list":
-            return _result(request_id, {"tools": [VERIFY_TOOL, BRIDGE_TOOL]})
+            return _result(request_id, {"tools": [VERIFY_TOOL, BRIDGE_TOOL, BATCH_TOOL, ]})
         # Пустые списки вместо «метод не найден»: так требуют все сканеры
         # каталогов. Отсутствие этих методов читается как сломанный сервер и
         # портит карточку листинга, хотя инструменты при этом работают.
@@ -205,6 +247,67 @@ def handle_request(
         return _error(request_id, RpcError(JSONRPC_INTERNAL, f"внутренняя ошибка: {exc}"))
 
 
+def _call_batch(arguments: Mapping[str, Any],
+                verify: Callable[..., Any]) -> dict[str, Any]:
+    """Проверить пачку артефактов одним вызовом.
+
+    Один вердикт на артефакт плюс сводка. Агенту важно видеть, что именно
+    плохое, а не только счётчик, поэтому в structuredContent — полный
+    список результатов.
+    """
+    artifacts = arguments.get("artifacts")
+    if not isinstance(artifacts, list) or not artifacts:
+        raise RpcError(JSONRPC_INVALID_PARAMS,
+                       'нужен непустой массив "artifacts"')
+    if len(artifacts) > MAX_BATCH_ITEMS:
+        raise RpcError(
+            JSONRPC_INVALID_PARAMS,
+            f"в пачке {len(artifacts)} артефактов, максимум {MAX_BATCH_ITEMS}",
+        )
+    schema = arguments.get("schema")
+    source = arguments.get("source")
+    source = source if isinstance(source, str) and source.strip() else "mcp-batch"
+
+    results = []
+    summary = {"accept": 0, "review": 0, "reject": 0}
+    for index, artifact in enumerate(artifacts):
+        encoded = json.dumps(artifact, ensure_ascii=False, default=str)
+        if len(encoded.encode("utf-8")) > MAX_ARTIFACT_BYTES:
+            raise RpcError(
+                JSONRPC_INVALID_PARAMS,
+                f"артефакт [{index}] больше {MAX_ARTIFACT_BYTES} байт",
+                {"index": index, "bytes": len(encoded.encode("utf-8"))},
+            )
+        result = verify(
+            artifact,
+            schema if isinstance(schema, Mapping) else None,
+            source=str(source)[:200],
+        )
+        payload = result.as_dict() if hasattr(result, "as_dict") else dict(result)
+        verdict = str(payload.get("verdict", ""))
+        if verdict in summary:
+            summary[verdict] += 1
+        results.append(payload)
+
+    worst = "reject" if summary["reject"] else ("review" if summary["review"]
+                                                else "accept")
+    return {
+        "content": [
+            {
+                "type": "text",
+                "text": (
+                    f"{worst.upper()} · {summary['accept']} принято, "
+                    f"{summary['review']} на проверку, {summary['reject']} отклонено "
+                    f"из {len(results)}"
+                ),
+            }
+        ],
+        "structuredContent": {"results": results, "summary": summary,
+                              "verdict": worst, "count": len(results)},
+        "isError": worst == "reject",
+    }
+
+
 def _call_tool(
     params: Mapping[str, Any],
     verify: Callable[..., Any],
@@ -221,6 +324,8 @@ def _call_tool(
                 "инструмент bridge_check недоступен: мост не подключён",
             )
         return _call_bridge(arguments, bridge)
+    if name == BATCH_TOOL["name"]:
+        return _call_batch(arguments, verify)
     if name != VERIFY_TOOL["name"]:
         raise RpcError(JSONRPC_METHOD_NOT_FOUND, f"no such tool: {name!r}")
     if "artifact" not in arguments:

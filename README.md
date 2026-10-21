@@ -120,6 +120,45 @@ shown immediately.
 Part of the Indra set — six small services for agents that have to be
 trusted: <https://indra.rta.lat>
 
+## MCP server (Model Context Protocol)
+
+`attest` is an **MCP server**: it speaks the Model Context Protocol over
+Streamable HTTP (JSON-RPC 2.0) and exposes the verifier as MCP tools.
+
+- **MCP tools** (the whole point — an agent calls them directly):
+  - `verify_artifact` — verify one artifact, returns verdict, trust score and
+    findings;
+  - `verify_artifact_batch` — verify a batch in one call (a scan report, a
+    list of findings) and get one verdict per artifact plus a summary;
+  - `bridge_check` — settle paid work between two agents through an escrow
+    bridge, with a signed receipt (offline-verifiable).
+- **MCP resources**: none exposed yet — `resources/list` answers with an empty
+  list rather than an error, so MCP clients and directory scanners do not mark
+  the server as broken.
+- **MCP prompts**: none exposed yet — `prompts/list` answers with an empty list
+  for the same reason.
+- **Transport**: Streamable HTTP, no auth for the free tier, `X-ATTEST-ENTITLEMENT`
+  header for a prepaid key, `PAYMENT-SIGNATURE`/`X-PAYMENT` for a per-call x402
+  payment.
+
+### Connect an MCP client
+
+```json
+{
+  "mcpServers": {
+    "attest": { "url": "https://attest.rta.lat/mcp" }
+  }
+}
+```
+
+Claude Desktop, Claude Code, Cursor, Codex, VS Code and any other MCP client
+that supports remote Streamable HTTP servers work with that block as is.
+
+We use it ourselves: our own agents call this exact URL through the MCP SDK
+in `opencode.jsonc`, so the server is exercised by real traffic every day, not
+only by the tests.
+
+
 ## Use it from your agent
 
 ```json

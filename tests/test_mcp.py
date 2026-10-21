@@ -222,3 +222,66 @@ class TestDirectoryScannerRequirements:
         assert "error" not in out, "отказ проверки — это результат, а не ошибка протокола"
         assert out["result"]["isError"] is True
         assert out["result"]["structuredContent"]["verdict"] == "reject"
+
+
+class TestBatchTool:
+    """verify_artifact_batch: проверка пачки за один вызов.
+
+    Инструмент был обещан в каталогах (mcprush, mcpservers.org), но в живом
+    эндпоинте его не было — список инструментов его не содержал.
+    """
+
+    def _call(self, body: dict) -> dict:
+        import json as _json
+        import urllib.request
+        req = urllib.request.Request(
+            "http://127.0.0.1:8178/mcp",
+            data=_json.dumps(body).encode(), method="POST")
+        req.add_header("Content-Type", "application/json")
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return _json.loads(r.read().decode("utf-8"))
+
+    def test_batch_is_listed(self):
+        from attest import mcp
+        from attest.core import attest
+        status, body = mcp.respond(
+            b'{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}',
+            lambda artifact, schema=None, source="test": attest(
+                artifact, schema, source=source),
+        )
+        assert status == 200
+        import json as _json
+        names = [t["name"] for t in _json.loads(body)["result"]["tools"]]
+        assert "verify_artifact_batch" in names, names
+
+    def test_batch_returns_one_verdict_per_artifact(self):
+        from attest import mcp
+        from attest.core import attest
+        schema = {"type": "object", "properties": {"findings": {
+            "type": "array", "items": {"type": "object", "required": ["id", "title"],
+                                      "properties": {"id": {"type": "string",
+                                                            "minLength": 1},
+                                                     "title": {"type": "string",
+                                                              "minLength": 1}}}}}}
+        out = mcp._call_batch(
+            {"artifacts": [{"findings": [{"id": "f1", "title": "ok"}]},
+                           {"findings": [{"id": "", "title": ""}]}],
+             "schema": schema},
+            lambda artifact, schema=None, source="test": attest(
+                artifact, schema, source=source),
+        )
+        structured = out["structuredContent"]
+        assert structured["count"] == 2
+        assert structured["summary"]["accept"] == 1
+        assert structured["summary"]["reject"] == 1
+        assert out["isError"] is True
+
+    def test_empty_batch_is_rejected(self):
+        from attest import mcp
+        from attest.core import attest
+        try:
+            mcp._call_batch({"artifacts": []},
+                            lambda a, schema=None, source="t": attest(a, schema))
+            assert False, "пустая пачка должна отклоняться"
+        except mcp.RpcError as exc:
+            assert exc.code == mcp.JSONRPC_INVALID_PARAMS
