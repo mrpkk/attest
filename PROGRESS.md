@@ -379,8 +379,23 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
       50 симв. тема, 959 симв. описание. Подтверждения нет — `/dashboard/tickets`
       отдаёт 404, тикеты уходят во внешнюю поддержку. Ответ придёт на почту.
       Грабля: диалог открывается через ~6 с, раньше полей в DOM нет.
-- [ ] **Остались: businessMCP, PulseMCP, Dify.** Сессий в профиле нет
-      (`.dify.ai` — 0 куков), нужен вход владельца.
+- [x] **Dify — опубликовано 21.10.2026.** PR #3419 `add attest 0.0.1` в `langgenius/dify-plugins`
+      **вмержен** (ревью `crazywoola`: Pre Check и Risk Label пройдены, Web3 не найден).
+      Пакет в каталоге: `mrpkk/attest/dify-attest.difypkg`, страница
+      `https://marketplace.dify.ai/plugin/mrpkk/attest` — 200, заголовок «attest - Dify Marketplace».
+      Регистрация в Dify не понадобилась: подача идёт PR-ом в GitHub-каталог.
+- [ ] **PulseMCP — приём закрыт на их стороне (23.10.2026).** `/submit` отдаёт 200, но на странице:
+      «Apologies, submissions and changes are temporarily paused… we are not accepting new MCP
+      server or client submissions right now». Формы в HTML нет вообще — подать нечего.
+      Возвращаться на `/submit` раз в неделю; обещать срок они сами отказались.
+- [ ] **businessMCP — нужна ручная подача (23.10.2026).** Форма `businessmcp.com/mcp-servers/submit`
+      без API и без почты: `POST`-эндпоинта в разметке нет (Next.js server action), `mailto:` в доках нет.
+      Проверено 4 способа: (1) curl — только HTML; (2) прямая запись `value` — `TypeError: Illegal invocation`
+      (страница ставит rrweb-рекордер поверх сеттеров); (3) реальный ввод `Input.insertText` — поля
+      заполняются, но `textarea` описания остаётся пустой; (4) отправка — ни одного POST не уходит,
+      `cf-turnstile-response` пуст (виджет не рендерится в automation). Нужен человек в обычном браузере:
+      ссылка + готовый текст — в отчёте владельцу. Код подтверждения приходит на `maxim.pkk@gmail.com`
+      (IMAP читается через `MYACCOUNT_GOOGLE`, `GMAIL_PAS` недействителен — записать в `.env` отдельной строкой).
 
 ---
 

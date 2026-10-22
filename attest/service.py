@@ -30,7 +30,8 @@ from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+import uuid as _uuid
+from urllib.parse import parse_qs, urlparse
 
 from . import __version__
 from .core import attest, _coerce_json_field
@@ -48,6 +49,7 @@ _GEN_FIELDS = ("model", "model_version", "prompt", "parameters",
 from .emptiness import (emptiness_score, emptiness_verdict,
                            scan_for_emptiness)
 from .payment import PaymentError
+from . import enot
 from .x402 import atomic_to_usd, agent_card, discovery_document
 
 DEFAULT_FREE_DAILY = 20
@@ -1481,6 +1483,10 @@ class AttestHandler(BaseHTTPRequestHandler):
                 body["header"] = ENT_HEADER
             self._send_json(200, body)
             return
+        if path == "/pay/enot":
+            return self._handle_enot_create()
+        if path == "/pay/enot/notify":
+            return self._handle_enot_notify()
         if path == "/feedback":
             payload = self._read_json()
             if payload is None:
@@ -1768,6 +1774,127 @@ class AttestHandler(BaseHTTPRequestHandler):
         if params.get("plan") == "ppp":
             return max(0.0, float(self.ppp_price_usd))
         return float(entitlement.PRICE_USD)
+
+    # ── Оплата картой через ENOT ────────────────────────────────────────────
+    # Клиент платит картой или СБП, деньги приходят нам в USDT. Наш код —
+    # счёт и проверка уведомления; эквайринг и конвертация на стороне ENOT.
+    # Контракт API и границы доверия — в attest/enot.py.
+
+    def _enot_orders_path(self) -> Path:
+        return self.leads_path.with_name("enot_orders.jsonl")
+
+    def _enot_record(self, record: dict[str, Any]) -> None:
+        path = self._enot_orders_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    def _enot_already_paid(self, order_id: str) -> bool:
+        """Идемпотентность: провайдер вправе повторить уведомление.
+
+        Второй токен за один платёж — это подарок, который мы не планировали,
+        поэтому журнал заказов читается до выдачи.
+        """
+        try:
+            lines = self._enot_orders_path().read_text(encoding="utf-8").splitlines()
+        except OSError:
+            return False
+        for line in lines:
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if record.get("order_id") == order_id and record.get("status") == "paid":
+                return True
+        return False
+
+    def _handle_enot_create(self) -> None:
+        if not enot.enabled():
+            self._send_json(503, {
+                "error": "card payments are not enabled yet",
+                "hint": "set ENOT_SHOP_ID and ENOT_API_KEY in ~/.env",
+            })
+            return
+        # Тело необязательно: цена одна, поэтому клиенту достаточно нажать кнопку.
+        length = int(self.headers.get("Content-Length") or 0)
+        if length:
+            self.rfile.read(length)
+        order_id = _uuid.uuid4().hex
+        data, error = enot.create_invoice(order_id)
+        if error:
+            self._send_json(502, {"error": f"payment provider: {error}"})
+            return
+        self._enot_record({"ts": int(time.time()), "order_id": order_id,
+                           "invoice_id": data.get("id"),
+                           "amount": data.get("amount"), "status": "created"})
+        METRICS.pay_attempt()
+        body: dict[str, Any] = {"ok": True, "url": data.get("url"),
+                                "order_id": order_id,
+                                "amount": data.get("amount")}
+        warning = enot.wallet_warning()
+        if warning:
+            body["warning"] = warning
+        self._send_json(200, body)
+
+    def _handle_enot_notify(self) -> None:
+        """Уведомление об оплате. Отвечаем 200 и не выдаём токен дважды."""
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            self._send_json(400, {"error": "bad Content-Length"})
+            return
+        raw = self.rfile.read(min(length, 64 * 1024)) if length > 0 else b""
+        form = {key: values[0] for key, values in
+                parse_qs(raw.decode("utf-8", errors="replace")).items()}
+        # order_id мы кладём в custom_fields: документация прямо говорит, что
+        # эта строка возвращается в уведомлении. Если провайдер пришлёт её
+        # отдельным полем — берём и его.
+        order_id = ""
+        custom = form.get("custom_field") or form.get("custom_fields") or ""
+        if custom:
+            try:
+                parsed = json.loads(custom) if isinstance(custom, str) else custom
+                if isinstance(parsed, dict):
+                    order_id = str(parsed.get("order_id") or "")
+            except json.JSONDecodeError:
+                order_id = ""
+        order_id = order_id or str(form.get("order_id") or "")
+
+        ok, reason = enot.verify_notification(form)
+        if not ok:
+            self._enot_record({"ts": int(time.time()), "order_id": order_id,
+                               "status": "rejected", "reason": reason,
+                               "amount": form.get("amount")})
+            self._send_json(400, {"error": reason})
+            return
+        if not order_id:
+            self._enot_record({"ts": int(time.time()), "status": "rejected",
+                               "reason": "no order id in notification"})
+            self._send_json(400, {"error": "no order id"})
+            return
+        if self._enot_already_paid(order_id):
+            self._send_json(200, {"ok": True, "duplicate": True})
+            return
+
+        amount = float(str(form.get("amount") or enot.PRICE_RUB).replace(",", "."))
+        grant = issue_entitlement(f"enot:{order_id}", days=30, max_calls=100)
+        self._enot_record({"ts": int(time.time()), "order_id": order_id,
+                           "status": "paid", "amount": amount,
+                           "currency": form.get("currency"),
+                           "signature_seen": enot.signature_seen(form),
+                           "signature": enot.signature_digest(form),
+                           "valid_until": grant["valid_until"]})
+        # Валюта разная: x402 считает в микро-USDC, карта — в копейках. Пишем
+        # в тот же счётчик канала, чтобы «сколько заплатили» было видно, но
+        # не складываем единицы измерения молча.
+        METRICS.payment("enot", int(round(amount * 100)))
+        email = str(form.get("email") or "").strip()
+        body = {"ok": True, "order_id": order_id,
+                "valid_until": grant["valid_until"]}
+        if email:
+            send_error = _send_key_email(email, grant["token"], grant["valid_until"])
+            body["email_sent"] = not send_error
+        self._send_json(200, body)
 
     def _handle_subscribe(self, describe_only: bool = False) -> None:
         """Купить 30 дней неограниченного доступа за один платёж.
