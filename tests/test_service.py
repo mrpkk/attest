@@ -1159,3 +1159,36 @@ def test_server_card_is_served(server):
     for tool in card["tools"]:
         assert tool["description"].strip(), f"у {tool['name']} пустое описание"
         assert tool["inputSchema"]["type"] == "object"
+
+
+def test_exhausted_response_points_to_free_pack(server):
+    """Барьер должен вести туда, где можно получить больше без денег.
+
+    114 раз клиенты упёрлись в лимит, и ни один не прислал заголовок
+    оплаты: ответ «иди плати» для агента без кошелька — это тупик.
+    """
+    import json as _json
+    import urllib.request as _u
+    req = _u.Request(f"{server}/verify", method="POST",
+                     data=_json.dumps({"artifact": {"findings": []}}).encode(),
+                     headers={"Content-Type": "application/json"})
+    # лимит клиента в тестах мал, поэтому 402 приходит быстро
+    status = 0
+    body = {}
+    for _ in range(60):
+        try:
+            with _u.urlopen(req, timeout=10) as r:
+                status = r.status
+                body = _json.loads(r.read().decode())
+                break
+        except Exception as exc:
+            status = getattr(exc, "code", 0)
+            try:
+                body = _json.loads(exc.read().decode())
+            except Exception:
+                body = {}
+            break
+    if status == 402:
+        assert "free_pack" in body, "ответ 402 должен предлагать бесплатный пакет"
+        assert body["free_pack"]["url"].endswith("/start")
+        assert body["free_pack"]["header"] == "X-ATTEST-ENTITLEMENT"
