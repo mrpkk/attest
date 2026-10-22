@@ -660,6 +660,8 @@ goes straight into its context. Four checks, each answering only its own questio
 </div>
 
 <h2 style="font-size:17px;margin:26px 0 6px">Buying a 30-day token</h2>
+<p class="hint"><b>Card payments are being enabled (ENOT, moderation in progress).</b>
+<a href="/start">Leave an email</a> — the day it goes live we send you a payment link.</p>
 <p class="hint">x402 is a three-step flow: ask, sign, retry. No account, no card, no dashboard.</p>
 <pre style="background:#141821;border:1px solid #1f242e;border-radius:8px;padding:12px;overflow:auto;font:12.5px/1.5 ui-monospace,monospace;color:#e8ecf4">curl -X POST https://attest.rta.lat/subscribe
 # 402 + challenge: price, asset, network, payTo
@@ -751,6 +753,8 @@ _HI_REPLACEMENTS: tuple[tuple[str, str], ...] = (
      ' <div class="t"><b>भारत (PPP)</b>3 USDC<br><span class="hint">वही 30 दिन, खरीद-क्षमता के अनुसार मूल्य</span></div>'),
     ('<h2 style="font-size:17px;margin:26px 0 6px">Buying a 30-day token</h2>',
      '<h2 style="font-size:17px;margin:26px 0 6px">30 दिन का टोकन कैसे खरीदें</h2>'),
+    ('<p class="hint"><b>Card payments are being enabled (ENOT, moderation in progress).</b>\n<a href="/start">Leave an email</a> — the day it goes live we send you a payment link.</p>',
+     '<p class="hint"><b>कार्ड से भुगतान चालू हो रहा है (ENOT, मॉडरेशन चल रहा है)।</b>\n<a href="/start">ईमेल छोड़ें</a> — चालू होने के दिन हम भुगतान लिंक भेज देंगे।</p>'),
     ('<p class="hint">x402 is a three-step flow: ask, sign, retry. No account, no card, no dashboard.</p>',
      '<p class="hint">x402 तीन कदमों का प्रवाह है: अनुरोध, हस्ताक्षर, पुनः प्रयास। कोई खाता नहीं, कोई कार्ड नहीं, कोई डैशबोर्ड नहीं।</p>'),
     ('# 402 + challenge: price, asset, network, payTo', '# 402 + चुनौती: कीमत, संपत्ति, नेटवर्क, payTo'),
