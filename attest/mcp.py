@@ -223,7 +223,13 @@ def handle_request(
                 "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
             })
         if method == "tools/list":
-            return _result(request_id, {"tools": [VERIFY_TOOL, BRIDGE_TOOL, BATCH_TOOL, ]})
+            # Инструмент, который нельзя вызвать, не должен попадать в листинг:
+            # сканер каталога вызывает всё подряд и читает ошибку вызова как
+            # «сервер сломан» (так bridge_check выпал из листинга Smithery).
+            tools = [VERIFY_TOOL, BATCH_TOOL]
+            if bridge is not None:
+                tools.append(BRIDGE_TOOL)
+            return _result(request_id, {"tools": tools})
         # Пустые списки вместо «метод не найден»: так требуют все сканеры
         # каталогов. Отсутствие этих методов читается как сломанный сервер и
         # портит карточку листинга, хотя инструменты при этом работают.

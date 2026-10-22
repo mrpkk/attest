@@ -45,7 +45,7 @@ class TestProtocol:
         assert out["result"]["protocolVersion"] == mcp.PROTOCOL_VERSION
 
     def test_tools_list_exposes_tools_with_schema(self):
-        """Инструментов два с 06.10.2026: проверка артефакта и мост сделок."""
+        """Проверка артефакта и пакетная проверка — с описаниями и схемами."""
         out = rpc("tools/list")
         tools = out["result"]["tools"]
         by_name = {t["name"]: t for t in tools}
@@ -56,6 +56,14 @@ class TestProtocol:
         assert "verdict" in verify["description"].lower()
         assert "pay" in verify["description"].lower(), (
             "описание должно объяснять агенту, зачем проверять перед оплатой")
+        assert "verify_artifact_batch" in by_name
+        batch = by_name["verify_artifact_batch"]
+        assert batch["inputSchema"]["required"] == ["artifacts"]
+
+    def test_bridge_check_appears_when_bridge_is_connected(self):
+        """С мостом инструмент появляется в листинге."""
+        out = rpc("tools/list", {}, bridge=stub_bridge())
+        by_name = {t["name"]: t for t in out["result"]["tools"]}
         assert "bridge_check" in by_name
         bridge = by_name["bridge_check"]
         assert bridge["inputSchema"]["required"] == ["action"]
@@ -65,7 +73,7 @@ class TestProtocol:
         # Мост двигает деньги, поэтому readOnlyHint обязан быть False:
         # агент должен понимать, что это действие с побочным эффектом.
         assert bridge["annotations"]["readOnlyHint"] is False
-        assert verify["annotations"]["readOnlyHint"] is True
+        assert by_name["verify_artifact"]["annotations"]["readOnlyHint"] is True
 
     def test_bridge_without_backend_is_refused(self):
         """Мост не подключён — честный отказ, и это результат, а не
@@ -335,3 +343,24 @@ class TestHostileArguments:
                          {"artifacts": ["constructor", {"findings": "proto"}, "x" * 10000]})
         assert "error" not in out, f"пакет упал: {out.get('error')}"
         assert "result" in out
+
+
+class TestToolsList:
+    """В листинге не должно быть инструментов, которые нельзя вызвать.
+
+    Сканер каталога вызывает все инструменты подряд и читает ошибку вызова
+    как «сервер сломан». Из-за этого bridge_check выпал из листинга
+    Smithery (22.10.2026) — он был объявлен, но мост к нему не подключён.
+    """
+
+    def test_bridge_not_listed_without_backend(self):
+        out = rpc("tools/list", {})
+        names = {t["name"] for t in out["result"]["tools"]}
+        assert "verify_artifact" in names
+        assert "verify_artifact_batch" in names
+        assert "bridge_check" not in names, "недоступный инструмент в листинге"
+
+    def test_bridge_listed_with_backend(self):
+        out = rpc("tools/list", {}, bridge=stub_bridge())
+        names = {t["name"] for t in out["result"]["tools"]}
+        assert "bridge_check" in names
