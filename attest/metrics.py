@@ -379,6 +379,16 @@ class Metrics:
         self.first_event = float(data.get("first_event") or 0)
         self.last_event = float(data.get("last_event") or 0)
 
+    @staticmethod
+    def _file_has_history() -> bool:
+        """Есть ли на диске уже накопленные данные, которые нельзя терять."""
+        try:
+            data = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return False
+        return bool(data.get("checks") or data.get("views") or data.get("paywall")
+                    or data.get("clients") or data.get("revenue_atoms") or data.get("leads"))
+
     def save(self) -> None:
         with self._lock:
             self._last_save = time.time()
@@ -395,6 +405,15 @@ class Metrics:
                 "clients": self.clients,
                 "first_event": self.first_event, "last_event": self.last_event,
             }
+            empty = not any((self.views, self.checks, self.paid, self.payers,
+                             self.paywall, self.pay_attempts, self.leads,
+                             self.clients, self.revenue_atoms))
+        # 23.10.2026: история за три дня обнулилась — поверх файла лёг пустой
+        # снимок от процесса, который не поднял состояние с диска. Терять
+        # накопленное молча нельзя, поэтому пустой снимок историю не затирает.
+        if empty and self._file_has_history():
+            print("attest: метрики не сохранены — пустой снимок поверх истории")
+            return
         try:
             STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
             tmp = STATE_PATH.with_suffix(".tmp")

@@ -59,6 +59,21 @@ class TestPersisted:
         assert data["revenue_atoms"] == 500_000
         assert data["paid"] == {"smithery": 1}
 
+    def test_empty_snapshot_does_not_wipe_history(self, store):
+        """23.10.2026: пустой снимок лёг поверх трёх дней статистики.
+
+        Процесс, не поднявший состояние с диска, не должен затирать историю.
+        """
+        real = Metrics()
+        real.check("direct", paid=False)
+        real.paywall_hit()
+        before = store.read_text(encoding="utf-8")
+
+        blank = Metrics()          # без load(): состояние пустое
+        blank.save()
+
+        assert store.read_text(encoding="utf-8") == before
+
     def test_failed_payment_attempt_is_counted(self, store):
         """Попытка оплаты видна отдельно от успеха.
 
