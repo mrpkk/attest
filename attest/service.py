@@ -480,8 +480,10 @@ the <code>X-ATTEST-ENTITLEMENT</code> header (HTTP) or the same header over MCP.
 whether anyone will — better a hundred real artifacts than a thousand page views.</p>
 </div>
 <form id="f" onsubmit="return false">
-<label for="email">Work email</label>
-<input id="email" type="email" required placeholder="you@company.com">
+<label for="email">Work email (optional)</label>
+<input id="email" type="email" placeholder="you@company.com">
+<p class="muted">Without an email the key is shorter (20 checks) and comes back
+in this window. With an email you get 100 checks and the key by mail.</p>
 <label for="note">What do you verify? (optional, one line)</label>
 <textarea id="note" placeholder="e.g. scan results from a security agent before we bill for them"></textarea>
 <button onclick="send()">Request access</button>
@@ -501,14 +503,22 @@ async function send(){
   const out = document.getElementById('out');
   const email = document.getElementById('email').value.trim();
   const note = document.getElementById('note').value.trim();
-  if (!email) { out.innerHTML = '<div class="err">Email is required.</div>'; return; }
+  if (!email && !note) {
+    out.innerHTML = '<div class="err">Give an email or one line about what you verify.</div>';
+    return;
+  }
   out.innerHTML = '<div class="muted">sending…</div>';
   try {
     const r = await fetch('/start', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({email: email, note: note})});
     const d = await r.json();
     if (d.error) { out.innerHTML = '<div class="err">' + d.error + '</div>'; return; }
-    out.innerHTML = '<div class="ok">' + d.message + '</div>';
+    var extra = d.key
+      ? '<p class="muted">Your key (header <code>' + (d.header || 'X-ATTEST-ENTITLEMENT') +
+        '</code>):</p><pre style="background:#141821;border:1px solid #232a33;border-radius:8px;padding:12px;overflow:auto;font:12px ui-monospace,monospace">' +
+        String(d.key).replace(/</g, '&lt;') + '</pre>'
+      : '';
+    out.innerHTML = '<div class="ok">' + d.message + '</div>' + extra;
     document.getElementById('f').style.display = 'none';
   } catch (e) { out.innerHTML = '<div class="err">' + e.message + '</div>'; }
 }
@@ -1423,16 +1433,23 @@ class AttestHandler(BaseHTTPRequestHandler):
                 return
             email = str(payload.get("email") or "").strip()[:200]
             note = str(payload.get("note") or "").strip()[:400]
-            if not EMAIL_RE.fullmatch(email):
+            # Почта не обязательна. Агент, который упёрся в лимит, почты не
+            # имеет: требование превращало лид-магнит в тупик именно для тех,
+            # кого мы хотели удержать. С почтой — 100 проверок и письмо с
+            # ключом; без почты — 20 проверок, ключ сразу в ответе.
+            if email and not EMAIL_RE.fullmatch(email):
                 self._send_json(400, {"error": "a valid email is required"})
                 return
             # Ключ выдаём сразу, а не «в течение дня»: заявка без ключа —
             # это человек, который ушёл ждать письмо, которого никто не
             # отправит. Токен пишется в заявку, поэтому даже при сбое SMTP
             # его можно отправить руками, не выдавая второй.
-            grant = issue_entitlement(email, days=30, max_calls=100)
+            subject = email or f"anon-{self.client_id()}"
+            max_calls = 100 if email else 20
+            grant = issue_entitlement(subject, days=30, max_calls=max_calls)
             record = {"ts": int(time.time()), "email": email, "note": note,
-                      "token": grant["token"], "valid_until": grant["valid_until"]}
+                      "token": grant["token"], "valid_until": grant["valid_until"],
+                      "max_calls": max_calls}
             try:
                 self.leads_path.parent.mkdir(parents=True, exist_ok=True)
                 with self.leads_path.open("a", encoding="utf-8") as fh:
@@ -1441,14 +1458,24 @@ class AttestHandler(BaseHTTPRequestHandler):
                 self._send_json(500, {"error": f"could not store the request: {exc}"})
                 return
             METRICS.lead()
-            send_error = _send_key_email(email, grant["token"], grant["valid_until"])
-            if send_error:
-                print(f"attest: ключ выдан, письмо не ушло ({email}): {send_error}")
-                message = ("Request received and the key is issued. Email delivery "
-                           "failed on our side — we will send it by hand today.")
+            if email:
+                send_error = _send_key_email(email, grant["token"], grant["valid_until"])
+                if send_error:
+                    print(f"attest: ключ выдан, письмо не ушло ({email}): {send_error}")
+                    message = ("Request received and the key is issued. Email delivery "
+                               "failed on our side — we will send it by hand today.")
+                else:
+                    message = f"Key sent to {email}. Check the inbox (and spam)."
             else:
-                message = f"Key sent to {email}. Check the inbox (and spam)."
-            self._send_json(200, {"ok": True, "message": message})
+                message = ("Key issued — no email, so it is shorter: 20 checks. "
+                           "Send us an email and we will send a 100-check key too.")
+            body = {"ok": True, "message": message}
+            if not email:
+                # Без почты письмо не отправить — отдаём ключ сразу.
+                body["key"] = grant["token"]
+                body["max_calls"] = max_calls
+                body["header"] = ENT_HEADER
+            self._send_json(200, body)
             return
         if path == "/feedback":
             payload = self._read_json()

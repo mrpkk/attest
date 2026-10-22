@@ -1192,3 +1192,33 @@ def test_exhausted_response_points_to_free_pack(server):
         assert "free_pack" in body, "ответ 402 должен предлагать бесплатный пакет"
         assert body["free_pack"]["url"].endswith("/start")
         assert body["free_pack"]["header"] == "X-ATTEST-ENTITLEMENT"
+
+
+def test_start_works_without_email(server, tmp_path, monkeypatch):
+    """Заявка без почты должна выдать ключ сразу, а не отказ.
+
+    Агент, который упёрся в бесплатный лимит, почты не имеет. Требование
+    почты превращало лид-магнит в тупик именно для тех, кого мы хотели
+    удержать. Без почты — ключ на 20 проверок в ответе.
+    """
+    import json as _json
+    import urllib.request as _u
+    import attest.service as svc
+    leads = tmp_path / "leads.jsonl"
+    monkeypatch.setattr(svc.AttestHandler, "leads_path", leads)
+    body = _json.dumps({"email": "", "note": "scan results before billing"}).encode()
+    req = _u.Request(f"{BASE}/start", data=body, method="POST")
+    req.add_header("Content-Type", "application/json")
+    with _u.urlopen(req, timeout=10) as r:
+        data = _json.loads(r.read().decode("utf-8"))
+    assert data["ok"] is True
+    assert data.get("key"), "без почты ключ должен прийти сразу"
+    assert data["max_calls"] == 20
+    assert data["header"] == "X-ATTEST-ENTITLEMENT"
+    record = _json.loads(leads.read_text(encoding="utf-8").strip().splitlines()[0])
+    assert record["email"] == ""
+    # ключ из ответа рабочий
+    import attest.entitlement as ent
+    from attest.signing import public_key_b64
+    ok, why = ent.redeem(data["key"], trusted_key=public_key_b64())
+    assert ok, why
