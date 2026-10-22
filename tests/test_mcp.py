@@ -68,9 +68,17 @@ class TestProtocol:
         assert verify["annotations"]["readOnlyHint"] is True
 
     def test_bridge_without_backend_is_refused(self):
-        """Мост не подключён — честная ошибка, а не тихий успех."""
+        """Мост не подключён — честный отказ, и это результат, а не
+        протокольная ошибка.
+
+        Инструмент объявлен в tools/list, значит его вызов обязан вернуть
+        результат: -32601 читался клиентом как «сервер сломан» и из-за
+        этого bridge_check выпадал из листингов каталогов (Smithery, 22.10).
+        """
         out = rpc("tools/call", {"name": "bridge_check", "arguments": {"action": "trust"}})
-        assert out["error"]["code"] == mcp.JSONRPC_METHOD_NOT_FOUND
+        assert "error" not in out, "протокольная ошибка вместо результата"
+        assert out["result"]["isError"] is True
+        assert "мост" in out["result"]["content"][0]["text"]
 
     def test_bridge_rejects_unknown_action(self):
         out = rpc("tools/call",
@@ -157,8 +165,14 @@ class TestToolCall:
         assert out["result"]["structuredContent"]["attestation"]["record"]["source"] == "агент X"
 
     def test_missing_artifact_is_invalid_params(self):
+        """Отсутствующий аргумент — ошибка выполнения, а не протокола.
+
+        Клиент должен прочитать, что именно не так, а не получить -32602.
+        """
         out = rpc("tools/call", {"name": "verify_artifact", "arguments": {}})
-        assert out["error"]["code"] == mcp.JSONRPC_INVALID_PARAMS
+        assert "error" not in out
+        assert out["result"]["isError"] is True
+        assert "artifact" in out["result"]["content"][0]["text"]
 
     def test_unknown_tool_is_refused(self):
         out = rpc("tools/call", {"name": "delete_everything", "arguments": {"artifact": {}}})
@@ -169,7 +183,8 @@ class TestToolCall:
             "name": "verify_artifact",
             "arguments": {"artifact": {"blob": "x" * (mcp.MAX_ARTIFACT_BYTES + 10)}},
         })
-        assert out["error"]["code"] == mcp.JSONRPC_INVALID_PARAMS
+        assert "error" not in out
+        assert out["result"]["isError"] is True
 
     def test_verbatim_injection_text_is_still_caught(self):
         """Агент не должен суметь протащить инструкцию через аргумент."""
@@ -285,3 +300,38 @@ class TestBatchTool:
             assert False, "пустая пачка должна отклоняться"
         except mcp.RpcError as exc:
             assert exc.code == mcp.JSONRPC_INVALID_PARAMS
+
+
+class TestHostileArguments:
+    """Хостельный ввод не должен ронять инструмент.
+
+    Подсказка из комментария Arhan Canli к статье на dev.to (22.10.2026):
+    обращение к свойству прототипа ("constructor", "proto") возвращает
+    собственный конструктор объекта, и если это происходит ДО сборки
+    результата, клиент видит -32603 вместо ответа. Проверяем явно.
+    """
+
+    def _call(self, tool: str, arguments: dict) -> dict:
+        return rpc("tools/call", {"name": tool, "arguments": arguments})
+
+    def test_prototype_names_do_not_crash(self):
+        for hostile in ("constructor", "proto", "toString", "__proto__", ""):
+            out = self._call("verify_artifact", {"artifact": hostile})
+            assert "error" not in out, f"{hostile!r} дал {out.get('error')}"
+            assert "result" in out
+
+    def test_prototype_names_in_object_do_not_crash(self):
+        for hostile in ("constructor", "proto", "toString", ""):
+            out = self._call("verify_artifact", {"artifact": {"findings": hostile}})
+            assert "error" not in out, f"{hostile!r} дал {out.get('error')}"
+
+    def test_huge_string_is_a_result_not_a_crash(self):
+        out = self._call("verify_artifact", {"artifact": "x" * 10000})
+        assert "error" not in out
+        assert "result" in out
+
+    def test_batch_with_hostile_items_returns_results(self):
+        out = self._call("verify_artifact_batch",
+                         {"artifacts": ["constructor", {"findings": "proto"}, "x" * 10000]})
+        assert "error" not in out, f"пакет упал: {out.get('error')}"
+        assert "result" in out

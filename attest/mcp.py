@@ -308,6 +308,26 @@ def _call_batch(arguments: Mapping[str, Any],
     }
 
 
+def _tool_error(message: str) -> dict[str, Any]:
+    """Ошибка ВЫПОЛНЕНИЯ инструмента — это результат с isError, а не
+    протокольная ошибка.
+
+    Разница видна клиенту: JSON-RPC error (-32601/-32602) читается как
+    «сервер сломан», а результат с isError — как «инструмент сказал, что
+    не может». По спецификации MCP протокольная ошибка означает, что запрос
+    нельзя было понять (неизвестный инструмент, битый JSON), а всё, что
+    случилось уже внутри инструмента, — это содержимое ответа.
+
+    Именно на этом различии построен комментарий Arhan Canli к статье
+    на dev.to (22.10.2026): его find_tool падал на "constructor" раньше,
+    чем успевал собрать результат, и клиент видел -32603 вместо ответа.
+    """
+    return {
+        "content": [{"type": "text", "text": message}],
+        "isError": True,
+    }
+
+
 def _call_tool(
     params: Mapping[str, Any],
     verify: Callable[..., Any],
@@ -319,9 +339,12 @@ def _call_tool(
         raise RpcError(JSONRPC_INVALID_PARAMS, "arguments должны быть объектом")
     if name == BRIDGE_TOOL["name"]:
         if bridge is None:
-            raise RpcError(
-                JSONRPC_METHOD_NOT_FOUND,
-                "инструмент bridge_check недоступен: мост не подключён",
+            # Инструмент объявлен в tools/list, значит вызов обязан вернуть
+            # результат. -32601 здесь читался как «сервер сломан», и из-за
+            # этого bridge_check выпадал из листингов каталогов.
+            return _tool_error(
+                "bridge_check недоступен: мост не подключён к этому развёртыванию. "
+                "Используйте verify_artifact или verify_artifact_batch."
             )
         return _call_bridge(arguments, bridge)
     if name == BATCH_TOOL["name"]:
@@ -329,14 +352,13 @@ def _call_tool(
     if name != VERIFY_TOOL["name"]:
         raise RpcError(JSONRPC_METHOD_NOT_FOUND, f"no such tool: {name!r}")
     if "artifact" not in arguments:
-        raise RpcError(JSONRPC_INVALID_PARAMS, 'нужен аргумент "artifact"')
+        return _tool_error('нужен аргумент "artifact"')
 
     encoded = json.dumps(arguments["artifact"], ensure_ascii=False, default=str)
     if len(encoded.encode("utf-8")) > MAX_ARTIFACT_BYTES:
-        raise RpcError(
-            JSONRPC_INVALID_PARAMS,
-            f"артефакт больше {MAX_ARTIFACT_BYTES} байт",
-            {"bytes": len(encoded.encode('utf-8'))},
+        return _tool_error(
+            f"артефакт больше {MAX_ARTIFACT_BYTES} байт "
+            f"({len(encoded.encode('utf-8'))})"
         )
 
     schema = arguments.get("schema")
