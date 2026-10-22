@@ -661,6 +661,17 @@ goes straight into its context. Four checks, each answering only its own questio
  <div class="t"><b>India (PPP)</b>3 USDC<br><span class="hint">same 30 days, purchasing-power price</span></div>
 </div>
 
+<h2 style="font-size:17px;margin:26px 0 6px">What 790 ₽ / 30 days includes</h2>
+<ul class="hint" style="margin:6px 0 0 18px;padding:0">
+<li>100 checks — five times the free daily tier.</li>
+<li>Field-level verdict: which field is critical, which is data, and why.</li>
+<li>Same MCP endpoint and the same <code>POST /verify</code> — nothing to reinstall.</li>
+<li>Ed25519-signed verdict you can verify without trusting us.</li>
+<li>No auto-renewal: the key simply stops working after 30 days.</li>
+</ul>
+<p class="hint" style="margin-top:10px"><b>Not included:</b> no guarantee that an artifact is safe,
+no blocking, no human review. It is one more check before you ship — not a replacement for review.</p>
+
 <h2 style="font-size:17px;margin:26px 0 6px">Buying a 30-day token</h2>
 <p class="hint"><b>Card payments are being enabled (ENOT, moderation in progress).</b>
 <a href="/start">Leave an email</a> — the day it goes live we send you a payment link.</p>
@@ -753,8 +764,30 @@ _HI_REPLACEMENTS: tuple[tuple[str, str], ...] = (
      '<div class="warn"><b>यह क्या नहीं करता।</b> सही रूप का अर्थ वास्तविक सामग्री नहीं है, और हस्ताक्षरित आर्टिफैक्ट का अर्थ अनुमत क्रिया नहीं है। संकेतों का न होना केवल यह दिखाता है कि स्थूल जाँचें नहीं चलीं — यह सिद्ध नहीं करता कि आर्टिफैक्ट ठीक है। हस्ताक्षर Ed25519 है: सार्वजनिक कुंजी सत्यापन के साथ चलती है, इसलिए आप इस सेवा पर भरोसा किए बिना स्वयं जाँच सकते हैं।</div>'),
     (' <div class="t"><b>India (PPP)</b>3 USDC<br><span class="hint">same 30 days, purchasing-power price</span></div>',
      ' <div class="t"><b>भारत (PPP)</b>3 USDC<br><span class="hint">वही 30 दिन, खरीद-क्षमता के अनुसार मूल्य</span></div>'),
-    ('<h2 style="font-size:17px;margin:26px 0 6px">Buying a 30-day token</h2>',
-     '<h2 style="font-size:17px;margin:26px 0 6px">30 दिन का टोकन कैसे खरीदें</h2>'),
+    ("""<h2 style="font-size:17px;margin:26px 0 6px">What 790 ₽ / 30 days includes</h2>
+<ul class="hint" style="margin:6px 0 0 18px;padding:0">
+<li>100 checks — five times the free daily tier.</li>
+<li>Field-level verdict: which field is critical, which is data, and why.</li>
+<li>Same MCP endpoint and the same <code>POST /verify</code> — nothing to reinstall.</li>
+<li>Ed25519-signed verdict you can verify without trusting us.</li>
+<li>No auto-renewal: the key simply stops working after 30 days.</li>
+</ul>
+<p class="hint" style="margin-top:10px"><b>Not included:</b> no guarantee that an artifact is safe,
+no blocking, no human review. It is one more check before you ship — not a replacement for review.</p>
+
+<h2 style="font-size:17px;margin:26px 0 6px">Buying a 30-day token</h2>""",
+     """<h2 style="font-size:17px;margin:26px 0 6px">790 ₽ / 30 दिन में क्या शामिल है</h2>
+<ul class="hint" style="margin:6px 0 0 18px;padding:0">
+<li>100 जाँचें — मुफ़्त दैनिक सीमा से पाँच गुना।</li>
+<li>हर फ़ील्ड पर निर्णय: कौन-सा फ़ील्ड गंभीर है, कौन-सा केवल डेटा है, और क्यों।</li>
+<li>वही MCP एंडपॉइंट और वही <code>POST /verify</code> — कुछ दोबारा इंस्टॉल नहीं करना।</li>
+<li>Ed25519 हस्ताक्षरित निर्णय — हम पर भरोसा किए बिना जाँच सकते हैं।</li>
+<li>कोई ऑटो-नवीनीकरण नहीं: 30 दिन बाद कुंजी बस काम करना बंद कर देती है।</li>
+</ul>
+<p class="hint" style="margin-top:10px"><b>शामिल नहीं:</b> आर्टिफैक्ट सुरक्षित होने की गारंटी नहीं,
+कुछ ब्लॉक नहीं होता, मानवीय समीक्षा नहीं। यह रिलीज़ से पहले एक और जाँच है — समीक्षा का विकल्प नहीं।</p>
+
+<h2 style="font-size:17px;margin:26px 0 6px">30 दिन का टोकन कैसे खरीदें</h2>"""),
     ('<p class="hint"><b>Card payments are being enabled (ENOT, moderation in progress).</b>\n<a href="/start">Leave an email</a> — the day it goes live we send you a payment link.</p>',
      '<p class="hint"><b>कार्ड से भुगतान चालू हो रहा है (ENOT, मॉडरेशन चल रहा है)।</b>\n<a href="/start">ईमेल छोड़ें</a> — चालू होने के दिन हम भुगतान लिंक भेज देंगे।</p>'),
     ('<p class="hint">x402 is a three-step flow: ask, sign, retry. No account, no card, no dashboard.</p>',
