@@ -202,6 +202,15 @@ class Metrics:
             self._touch()
         self.save()
 
+    def pay_attempt(self) -> None:
+        """Клиент прислал заголовок оплаты — попытка была, исход считаем отдельно."""
+        if not self.enabled:
+            return
+        with self._lock:
+            self.pay_attempts += 1
+            self._touch()
+        self.save()
+
     def lead(self) -> None:
         """Одна заявка на пакет раннего доступа."""
         if not self.enabled:
@@ -333,6 +342,7 @@ class Metrics:
                 "unique_payers": len(self.payers),
                 "leads_total": self.leads,
                 "paywall_hits": self.paywall,
+                "pay_attempts": self.pay_attempts,
                 "by_channel": dict(sorted(self.paid.items())),
                 "since": self.first_event,
                 "last_event": self.last_event,
@@ -363,6 +373,7 @@ class Metrics:
             for k, v in (data.get("clients") or {}).items()
             if isinstance(v, (list, tuple)) and len(v) == 3}
         self.paywall = int(data.get("paywall") or 0)
+        self.pay_attempts = int(data.get("pay_attempts") or 0)
         self.revenue_atoms = int(data.get("revenue_atoms") or 0)
         self.leads = int(data.get("leads") or 0)
         self.first_event = float(data.get("first_event") or 0)
@@ -376,6 +387,11 @@ class Metrics:
                 "paid": self.paid, "revenue_atoms": self.revenue_atoms,
                 "payers": self.payers, "leads": self.leads,
                 "paywall": self.paywall,
+                # Без этой строки поле жило только в памяти: файл его не
+                # сохранял, и после рестарта «попытки оплаты» всегда читались
+                # как 0 — то есть отчёт врал в самую важную сторону
+                # (23.10.2026, поймал pre-commit тест).
+                "pay_attempts": self.pay_attempts,
                 "clients": self.clients,
                 "first_event": self.first_event, "last_event": self.last_event,
             }

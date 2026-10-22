@@ -59,6 +59,26 @@ class TestPersisted:
         assert data["revenue_atoms"] == 500_000
         assert data["paid"] == {"smithery": 1}
 
+    def test_failed_payment_attempt_is_counted(self, store):
+        """Попытка оплаты видна отдельно от успеха.
+
+        Без этого «0 оплат» неотличимо от «никто не пытался заплатить», и
+        решение о цене принимается по неверной картине.
+        """
+        m = Metrics()
+        m.paywall_hit()
+        m.pay_attempt()
+        m.pay_attempt()
+        data = _read(store)
+        assert data["paywall"] == 1
+        assert data["pay_attempts"] == 2
+
+        second = Metrics()
+        second.load()
+        snap = second.snapshot()
+        assert snap["paywall_hits"] == 1
+        assert snap["pay_attempts"] == 2
+
     def test_revenue_survives_new_instance(self, store):
         """Главное: перезапуск не обнуляет выручку."""
         first = Metrics()

@@ -1569,6 +1569,7 @@ class AttestHandler(BaseHTTPRequestHandler):
                 )
                 return
             try:
+                METRICS.pay_attempt()
                 payment = self._verify_payment(payment_header)
                 METRICS.payment(
                     channel_of(self.path, self.headers.get("Referer")),
@@ -1633,6 +1634,7 @@ class AttestHandler(BaseHTTPRequestHandler):
                           or self.headers.get("X-PAYMENT"))
         if payment_header:
             try:
+                METRICS.pay_attempt()
                 payment = self._verify_payment(payment_header)
             except PaymentError as exc:
                 self._send_json(exc.status, {"error": exc.reason, "paid": False})
