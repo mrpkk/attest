@@ -531,3 +531,11 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
   1. Glama собирает сервер в контейнере и запускает под `mcp-proxy`, ожидая **stdio**, а не HTTP. Добавлен `attest/mcp_stdio.py` — тот же `mcp.respond`, транспорт stdin/stdout (`b56028e`).
   2. `ckzg` (зависимость eth-account) на Python 3.15 собирается из исходников и требует `make`; в шаги сборки добавлен `apt-get install build-essential`.
   3. CMD в Glama: `[".venv/bin/python","-m","attest.mcp_stdio"]`; Glama сам добавляет `mcp-proxy --`.
+
+- [x] **Учёт семейства клиента (UA), 23.10.2026.** `view`/`check` пишут `agents`:
+      `businessmcp` / `crawler` / `script` / `browser` / `other` / `none`. Хранится семейство,
+      не строка UA: полный UA — отпечаток, а вопрос воронки — «люди или роботы».
+      Порядок проверок: businessmcp раньше crawler (их шлюз может представляться ботом),
+      crawler раньше browser (Googlebot пишет Mozilla). 7 тестов, полный прогон **573 passed**.
+      Зачем: 708 «direct» просмотров не отвечали, есть ли среди них живые люди. Через сутки
+      `agents` в `/metrics` даст первый ответ.
