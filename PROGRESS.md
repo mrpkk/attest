@@ -518,3 +518,12 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
 - [x] **Reddit r/mcp:** тред «Positional prompt-injection scanning for MCP tool descriptions» — 18 комментариев. 23.10 опубликованы ответы на два незакрытых: Sumsub_Insights (низкий риск ≠ безопасно) — `19ritcflgb5mt`; LeastAd2616 (что именно ловит слой артефакта при unpinned/outdated пакете) — `19ritcg9itxkx`. Это единственный канал, где идёт техническая дискуссия, а не просмотры.
 - [ ] **Glama: оценка качества не запущена.** Кнопка/страница оценки доступна только из аккаунта (`Sign Up` виден анонимно, `Admin` — за логином). Пока оценки нет, PR `punkpeye/awesome-mcp-servers#17078` не мержат.
 - [ ] **Glama Marketplace: $0, payout account не настроен** (Stripe). Продаж нет; выплаты начинаются с $25 на 15-е число, платформенная комиссия 20%.
+
+### Glama — релиз и оценка (23.10.2026)
+
+- [x] **TDQS A — 4.3/5** (release 0.1.0): verify_artifact 4.3, verify_artifact_batch 4.2. Публичная страница показывает оценку: https://glama.ai/mcp/servers/mrpkk/attest. Discovery score 33% → 67%.
+- [x] **PR прокомментированы**: `punkpeye/awesome-mcp-servers#17078` и `punkpeye/awesome-remote-mcp-servers#2364` — «оценка есть, готово к мержу». Токен GitHub не имел прав на комментарии (`Resource not accessible`), поэтому комментарии отправлены из браузерной сессии владельца.
+- **Что понадобилось, чтобы сборка прошла** (на будущее, чтобы не искать заново):
+  1. Glama собирает сервер в контейнере и запускает под `mcp-proxy`, ожидая **stdio**, а не HTTP. Добавлен `attest/mcp_stdio.py` — тот же `mcp.respond`, транспорт stdin/stdout (`b56028e`).
+  2. `ckzg` (зависимость eth-account) на Python 3.15 собирается из исходников и требует `make`; в шаги сборки добавлен `apt-get install build-essential`.
+  3. CMD в Glama: `[".venv/bin/python","-m","attest.mcp_stdio"]`; Glama сам добавляет `mcp-proxy --`.
