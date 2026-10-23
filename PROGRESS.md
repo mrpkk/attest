@@ -522,6 +522,13 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
       TDQS **A 4.3/5** (сервер) и **A 4.4/5** (коннектор `io.github.mrpkk/attest`, статус Healthy, последняя проверка 15:22).
       PR `awesome-remote-mcp-servers#2364` — **смержен** 15:35 UTC (бейдж коннектора + описание 88 символов, коммит `98ce81b`).
       PR `awesome-mcp-servers#17078` — открыт, `mergeable: clean`, ждёт мержа мейнтейнера.
+- [x] **Glama: заявка на сервер `drift` отправлена (23.10.2026).** Публичного коннектора у drift не было
+      (`glama.ai/mcp/connectors/lat.rta/drift` → «нет коннектора», `/mcp/servers/mrpkk/drift` → 404).
+      Через UI Glama: **Add Server → Hosted endpoint** → name `drift`, URL `https://drift.rta.lat/mcp`,
+      описание (мандаты, шесть правил, порядок применения). Форма ушла, статус — **на ревью**
+      (страница появится после одобрения; письма пока нет). Вход в Glama — по OTP на `maxim.pkk@gmail.com`,
+      код читается через IMAP (`MYACCOUNT_GOOGLE`); GitHub-OAuth в модалке нет.
+      Приватный коннектор создаётся отдельно (`/settings/mcp/connectors/ud3vqjsd2x`) — это не публичный каталог.
 - [ ] **Glama Marketplace: $0, payout account не настроен** (Stripe). Продаж нет; выплаты начинаются с $25 на 15-е число, платформенная комиссия 20%.
 
 ### Glama — релиз и оценка (23.10.2026)
