@@ -409,7 +409,7 @@ def _send_key_email(to: str, token: str, valid_until: int) -> str:
 _PLANS_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>attest — pricing</title>
-<meta name="description" content="attest pricing: 20 checks a day free, $0.005 per call over x402, $9 for 30 days, $3 for 30 days at India purchasing-power pricing.">
+<meta name="description" content="attest pricing: 20 checks a day free, $0.005 per call over x402, $9 for 30 days, $4 for 30 days at India purchasing-power pricing.">
 <link rel="canonical" href="https://attest.rta.lat/plans">
 <style>
  body{background:#0b0d12;color:#e8ecf4;font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:0 auto;padding:44px 22px 80px}
@@ -430,7 +430,7 @@ _PLANS_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
  <div class="t"><b>Free</b><p class="p">0 USDC</p><span class="hint">20 checks a day, forever. Full check: schema, emptiness, provenance, authority.</span></div>
  <div class="t"><b>Per call</b><p class="p">0.005 USDC</p><span class="hint">Beyond the free tier, paid over x402 on Base. Three steps: ask, sign, retry.</span></div>
  <div class="t"><b>30 days</b><p class="p">9 USDC</p><span class="hint">No daily cap while the token is valid. One-time prepayment, no auto-renewal.</span></div>
- <div class="t"><b>India (PPP)</b><p class="p">3 USDC</p><span class="hint">Same 30 days, purchasing-power price. <a href="/subscribe?plan=ppp">Subscribe</a>.</span></div>
+ <div class="t"><b>India (PPP)</b><p class="p">4 USDC</p><span class="hint">Same 30 days, purchasing-power price. <a href="/subscribe?plan=ppp">Subscribe</a>.</span></div>
 </div>
 <a class="cta" href="/start">100 free checks for 30 days</a>
 <h2>Why a subscription if a call costs $0.005</h2>
@@ -442,7 +442,7 @@ _PLANS_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
 <h2>Why India has its own price</h2>
 <p>A price is a share of a buyer's income. At Western levels most Indian teams cannot
 justify a $9 line item for a verification step, and a product nobody can afford is not
-a product. The $3 tier is the same 30 days — same four checks, same signed verdict —
+a product. The $4 tier is the same 30 days — same four checks, same signed verdict —
 at purchasing-power parity.</p>
 <h2>What you actually buy</h2>
 <p>A verdict you can check without trusting us. Every answer is Ed25519-signed; the
@@ -497,7 +497,7 @@ in this window. With an email you get 100 checks and the key by mail.</p>
 • four layers per check: schema contract, emptiness, generation provenance, mandate authority<br>
 • an Ed25519-signed verdict you can verify offline, without trusting this service</p>
 <p class="muted">After 30 days the key simply stops working. If it is useful, $9/30 days
-keeps it running — or $3/30 days for India pricing. <a href="/plans">pricing</a> ·
+keeps it running — or $4/30 days for India pricing. <a href="/plans">pricing</a> ·
 <a href="/demo">demo</a> · <a href="/article">why positional scanning</a></p>
 </div>
 <script>
@@ -658,7 +658,7 @@ goes straight into its context. Four checks, each answering only its own questio
  <div class="t"><b>Trial</b>0 USDC<br><span class="hint">__FREE_LIMIT__ checks per day, full check, no limit on artifact size</span></div>
  <div class="t"><b>Per call</b>0.005 USDC<br><span class="hint">beyond the free tier, paid over x402 on Base</span></div>
  <div class="t"><b>Subscription</b>9 USDC<br><span class="hint">removes the limit, suitable for CI pipelines</span></div>
- <div class="t"><b>India (PPP)</b>3 USDC<br><span class="hint">same 30 days, purchasing-power price</span></div>
+ <div class="t"><b>India (PPP)</b>4 USDC<br><span class="hint">same 30 days, purchasing-power price</span></div>
 </div>
 
 <h2 style="font-size:17px;margin:26px 0 6px">What 790 ₽ / 30 days includes</h2>
@@ -762,8 +762,8 @@ _HI_REPLACEMENTS: tuple[tuple[str, str], ...] = (
      '<div class="t"><b>सदस्यता (30 दिन)</b>9 USDC<br><span class="hint">सीमा हटाती है, CI पाइपलाइन के लिए उपयुक्त</span></div>'),
     ('<div class="warn"><b>What this does not do.</b> A valid form is not meaningful content, and a\nsigned artifact is not a permitted action. Absence of signals means the coarse checks did not fire —\nit does not prove the artifact is sound. The signature is Ed25519: the public key travels with\nthe attestation, so you can verify it yourself without trusting this service.</div>',
      '<div class="warn"><b>यह क्या नहीं करता।</b> सही रूप का अर्थ वास्तविक सामग्री नहीं है, और हस्ताक्षरित आर्टिफैक्ट का अर्थ अनुमत क्रिया नहीं है। संकेतों का न होना केवल यह दिखाता है कि स्थूल जाँचें नहीं चलीं — यह सिद्ध नहीं करता कि आर्टिफैक्ट ठीक है। हस्ताक्षर Ed25519 है: सार्वजनिक कुंजी सत्यापन के साथ चलती है, इसलिए आप इस सेवा पर भरोसा किए बिना स्वयं जाँच सकते हैं।</div>'),
-    (' <div class="t"><b>India (PPP)</b>3 USDC<br><span class="hint">same 30 days, purchasing-power price</span></div>',
-     ' <div class="t"><b>भारत (PPP)</b>3 USDC<br><span class="hint">वही 30 दिन, खरीद-क्षमता के अनुसार मूल्य</span></div>'),
+    (' <div class="t"><b>India (PPP)</b>4 USDC<br><span class="hint">same 30 days, purchasing-power price</span></div>',
+     ' <div class="t"><b>भारत (PPP)</b>4 USDC<br><span class="hint">वही 30 दिन, खरीद-क्षमता के अनुसार मूल्य</span></div>'),
     ("""<h2 style="font-size:17px;margin:26px 0 6px">What 790 ₽ / 30 days includes</h2>
 <ul class="hint" style="margin:6px 0 0 18px;padding:0">
 <li>100 checks — five times the free daily tier.</li>
@@ -1266,7 +1266,7 @@ class AttestHandler(BaseHTTPRequestHandler):
     # Цена 30-дневной подписки для покупателей с низкой покупательной способностью
     # (Индия — обязательное направление, правило 20.10.2026). Поштучная цена
     # не снижается: ниже $0.002 рельс съедает больше половины выручки.
-    ppp_price_usd: float = _env_float("ATTEST_PPP_PRICE_USD", 3.0)
+    ppp_price_usd: float = _env_float("ATTEST_PPP_PRICE_USD", 4.0)
     # Отзывы пользователей: append-only JSONL рядом с метриками.
     feedback_path: Path = STATE_PATH.with_name("feedback.jsonl")
     # Заявки на пакет раннего доступа. Append-only, как отзывы: IP не
@@ -1799,16 +1799,21 @@ class AttestHandler(BaseHTTPRequestHandler):
         body["entitlement"] = {"valid": True, "detail": detail}
         self._send_json(200, body)
 
+    @staticmethod
+    def _plan_is_ppp(path: str) -> bool:
+        """Выбран ли тариф по паритету покупательной способности (?plan=ppp)."""
+        query = urlparse(path).query or ""
+        params = dict(pair.split("=", 1) for pair in query.split("&") if "=" in pair)
+        return params.get("plan") == "ppp"
+
     def _subscription_price_usd(self) -> float:
         """Цена 30-дневного доступа: обычная или PPP (?plan=ppp).
 
         PPP-цена не публикуется в общем прайсе: она для покупателей с низкой
         покупательной способностью (Индия) и передаётся ссылкой. Иначе
-        западный покупатель просто выберет $3 вместо $9.
+        западный покупатель просто выберет $4 вместо $9.
         """
-        query = urlparse(self.path).query or ""
-        params = dict(pair.split("=", 1) for pair in query.split("&") if "=" in pair)
-        if params.get("plan") == "ppp":
+        if self._plan_is_ppp(self.path):
             return max(0.0, float(self.ppp_price_usd))
         return float(entitlement.PRICE_USD)
 
@@ -1956,10 +1961,16 @@ class AttestHandler(BaseHTTPRequestHandler):
             challenge = self._challenge_header(
                 amount_atoms=amount_atoms,
                 resource=f"{self._base_url()}/subscribe")
+            desc = entitlement_describe()
+            # Цена в теле обязана совпадать с ценой в заголовке: иначе
+            # покупатель из Индии видит 9 USDC там, где с него просят 4.
+            desc["price"] = f"{price_usd:g}"
+            if self._plan_is_ppp(self.path):
+                desc["plan"] = "ppp-30d"
             return self._send_json(
                 402,
                 {"error": f"pay {price_usd:g} USDC for 30 days of unlimited access",
-                 "subscription": entitlement_describe(),
+                 "subscription": desc,
                  "header": entitlement.HEADER},
                 extra_headers={"Payment-Required": challenge}
                 if challenge else None)

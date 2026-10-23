@@ -384,6 +384,23 @@ class TestSubscriptionPricing:
         finally:
             monkeypatch.setattr(AttestHandler, "x402_pay_to", None)
 
+    def test_ppp_plan_body_price_matches_the_challenge(self, server, monkeypatch):
+        """Тело 402 не должно называть чужую цену.
+
+        Регрессия 23.10.2026: заголовок требовал 4 USDC (Индия), а тело
+        отдавало цену базового плана 9 USDC — покупатель видел две разные
+        суммы в одном ответе.
+        """
+        monkeypatch.setattr(AttestHandler, "x402_pay_to", "0x" + "aa" * 20)
+        monkeypatch.setattr(AttestHandler, "ppp_price_usd", 4.0)
+        try:
+            status, body = post(f"{server}/subscribe?plan=ppp", {})
+            assert status == 402, status
+        finally:
+            monkeypatch.setattr(AttestHandler, "x402_pay_to", None)
+        assert body["subscription"]["price"] == "4"
+        assert body["subscription"]["plan"] == "ppp-30d"
+
     def test_payment_is_checked_against_the_plan_price(self, server, monkeypatch):
         import attest.payment as payment_mod
         seen: list[int] = []
@@ -1135,7 +1152,7 @@ def test_plans_page_is_human_readable(server):
         html = r.read().decode("utf-8")
     assert r.status == 200
     assert "text/html" in r.headers.get("Content-Type", "")
-    for needle in ("9 USDC", "3 USDC", "India (PPP)", 'href="/start"'):
+    for needle in ("9 USDC", "4 USDC", "India (PPP)", 'href="/start"'):
         assert needle in html, f"на странице цен нет {needle}"
     # машинный прайс остался на месте
     with urllib.request.urlopen(f"{server}/pricing", timeout=10) as r2:
