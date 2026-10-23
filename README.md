@@ -18,7 +18,7 @@ artifact:
 - is not a base64 wrapper around such an instruction,
 - has not changed since it was checked.
 
-`attest` closes that gap. No dependencies, 399 tests green.
+`attest` closes that gap. No dependencies, 574 tests green.
 
 ## Four layers, four different questions
 
@@ -131,7 +131,10 @@ Streamable HTTP (JSON-RPC 2.0) and exposes the verifier as MCP tools.
   - `verify_artifact_batch` — verify a batch in one call (a scan report, a
     list of findings) and get one verdict per artifact plus a summary;
   - `bridge_check` — settle paid work between two agents through an escrow
-    bridge, with a signed receipt (offline-verifiable).
+    bridge, with a signed receipt (offline-verifiable). **Optional:** it is listed
+    only on a node configured with an escrow bridge, so the public node returns two
+    tools from `tools/list`. The call stays in the code and answers with a clear
+    "bridge not configured" error instead of vanishing mid-session.
 - **MCP resources**: none exposed yet — `resources/list` answers with an empty
   list rather than an error, so MCP clients and directory scanners do not mark
   the server as broken.
@@ -158,6 +161,79 @@ We use it ourselves: our own agents call this exact URL through the MCP SDK
 in `opencode.jsonc`, so the server is exercised by real traffic every day, not
 only by the tests.
 
+
+
+### Tool reference
+
+Both tools take plain JSON. No SDK is needed.
+
+#### `verify_artifact`
+
+| field | type | required | meaning |
+|---|---|---|---|
+| `artifact` | object \| array \| string | yes | what to verify |
+| `schema` | object | no | JSON Schema the artifact must satisfy |
+| `source` | string | no | where the artifact came from; recorded in the verdict |
+
+Request:
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"tools/call",
+ "params":{"name":"verify_artifact",
+           "arguments":{"artifact":{"findings":[{"rule":"x","severity":"high"}]},
+                        "source":"nightly-scan"}}}
+```
+
+Response (one verdict, signed):
+
+```json
+{"verdict":"accept","trust_score":0.86,
+ "checks":[{"layer":"schema","ok":true},{"layer":"emptiness","ok":true},
+           {"layer":"generation","ok":true},{"layer":"authority","ok":true}],
+ "findings":[],
+ "signature":{"algorithm":"ed25519","public_key":"...","signature":"..."}}
+```
+
+#### `verify_artifact_batch`
+
+| field | type | required | meaning |
+|---|---|---|---|
+| `artifacts` | array | yes | one verdict per element |
+| `schema` | object | no | applied to every element |
+| `source` | string | no | recorded once for the batch |
+
+```json
+{"jsonrpc":"2.0","id":2,"method":"tools/call",
+ "params":{"name":"verify_artifact_batch",
+           "arguments":{"artifacts":[{"a":1},{"a":2}],"source":"batch"}}}
+```
+
+Response: `{"verdicts":[...],"summary":{"accepted":1,"rejected":1,"total":2}}`.
+
+### When the free tier runs out
+
+The free tier is **20 checks per day per client**. On the 21st call the server answers
+**HTTP 402** with a body naming the limit, and a `Payment-Required` header carrying the
+x402 terms:
+
+```json
+{"error":"free limit reached (20/20 per day)","free_remaining":0,"resets_at":"00:00 UTC",
+ "x402":{"enabled":true,"network":"eip155:8453","asset":"0x8335...2913",
+         "price_atoms":5000,"pay_to":"0x..."}}
+```
+
+An MCP client sees that text as a tool error — nothing hangs and nothing is retried
+blindly. To continue, repeat the same call with `PAYMENT-SIGNATURE` (per-call x402,
+USDC on Base) or with `X-ATTEST-ENTITLEMENT` (a 30-day prepaid key). The free quota
+resets at 00:00 UTC.
+
+
+## Maintenance
+
+Maintained and general-purpose, MIT-licensed. The hosted node at
+`https://attest.rta.lat` is production and is exercised daily by our own agents, so it
+is not a demo that rots. Breaking protocol changes get a major bump in `CHANGELOG.md`;
+issues and pull requests are reviewed. Security reports follow `SECURITY.md`.
 
 ## Use it from your agent
 

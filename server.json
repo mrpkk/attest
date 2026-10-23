@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "lat.rta/attest",
+  "name": "io.github.mrpkk/attest",
   "title": "attest — verification for AI agent artifacts",
   "description": "Verify artifacts produced by AI agents: schema, emptiness, provenance, authority.",
   "repository": {
