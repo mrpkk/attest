@@ -388,14 +388,16 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
       «Apologies, submissions and changes are temporarily paused… we are not accepting new MCP
       server or client submissions right now». Формы в HTML нет вообще — подать нечего.
       Возвращаться на `/submit` раз в неделю; обещать срок они сами отказались.
-- [ ] **businessMCP — нужна ручная подача (23.10.2026).** Форма `businessmcp.com/mcp-servers/submit`
-      без API и без почты: `POST`-эндпоинта в разметке нет (Next.js server action), `mailto:` в доках нет.
-      Проверено 4 способа: (1) curl — только HTML; (2) прямая запись `value` — `TypeError: Illegal invocation`
-      (страница ставит rrweb-рекордер поверх сеттеров); (3) реальный ввод `Input.insertText` — поля
-      заполняются, но `textarea` описания остаётся пустой; (4) отправка — ни одного POST не уходит,
-      `cf-turnstile-response` пуст (виджет не рендерится в automation). Нужен человек в обычном браузере:
-      ссылка + готовый текст — в отчёте владельцу. Код подтверждения приходит на `maxim.pkk@gmail.com`
-      (IMAP читается через `MYACCOUNT_GOOGLE`, `GMAIL_PAS` недействителен — записать в `.env` отдельной строкой).
+- [x] **businessMCP — ОПУБЛИКОВАНО 23.10.2026.** Владелец подал форму вручную, домен подтверждён файлом
+      `https://rta.lat/.well-known/businessmcp-verify.txt` (маршрут добавлен в `rta/http_api.py`, тест
+      `test_businessmcp_verify_file_is_served`, коммит rta `02d98e2`). Цены: **$0.01 за вызов**, нам 80% ($0.008).
+      Автопроверки пройдены все: https, публичный хост, `well_known`, без ключа, `tools/list` = 2 инструмента,
+      медиана round trip 1371 мс, `readOnlyHint` у обоих, схемы — JSON object, определения совпадают с живым сервером.
+      Статус **Live**. Ссылка на каталог: `businessmcp.com/mcp-servers/submit` (страница редактирования сервера).
+      Открыто: «Connect payouts» — без него выплаты не придут (кошелёк проекта `0xefCD68…5C59`).
+- [ ] **Наблюдение: шлюз businessMCP ходит к нам без ключа.** Их проверки дали +24 проверки и +7 клиентов
+      (296 против 272, клиентов 15). Лимит у нас 20/сутки на IP: если их шлюз упрётся в 402, каталог начнёт
+      отдавать ошибку. Смотреть `paywall_hits` и клиента с их адреса; при упоре — выдать шлюзу allowance.
 
 ---
 
