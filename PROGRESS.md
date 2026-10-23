@@ -388,6 +388,12 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
       «Apologies, submissions and changes are temporarily paused… we are not accepting new MCP
       server or client submissions right now». Формы в HTML нет вообще — подать нечего.
       Возвращаться на `/submit` раз в неделю; обещать срок они сами отказались.
+      **Уточнено 24.10.2026:** страница `/submit` открывается (200, в том числе через Tor),
+      но приём осознанно остановлен на их стороне — «submissions and changes are temporarily
+      paused» с 03.09.2026. Их же совет: публиковать в официальный реестр, откуда они
+      подхватывают автоматически. Наш `soma-protocol` в реестре — версия **1.3.1**,
+      remote `https://rta.lat/soma-protocol/mcp` отвечает 200 на `initialize` (без токена).
+      Значит от нас ничего не требуется: ждём их открытия, подхват произойдёт сам.
 - [x] **businessMCP — ОПУБЛИКОВАНО 23.10.2026.** Владелец подал форму вручную, домен подтверждён файлом
       `https://rta.lat/.well-known/businessmcp-verify.txt` (маршрут добавлен в `rta/http_api.py`, тест
       `test_businessmcp_verify_file_is_served`, коммит rta `02d98e2`). Цены: **$0.01 за вызов**, нам 80% ($0.008).
