@@ -1325,7 +1325,8 @@ class AttestHandler(BaseHTTPRequestHandler):
         # Показ страницы — верх воронки. Считаем ДО обработчиков: они
         # возвращают управление и до этой точки дело не доходит.
         if path in ("/", "/demo", "/pricing", "/article"):
-            METRICS.view(channel_of(self.path, self.headers.get("Referer")))
+            METRICS.view(channel_of(self.path, self.headers.get("Referer")),
+                         agent=self.headers.get("User-Agent"))
             METRICS.save()
         if path == "/":
             page = _with_schema(LANDING).replace("__FREE_LIMIT__", str(self.free_tier.daily_limit))
@@ -1377,7 +1378,8 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/.well-known/mcp/server-card.json":
             self._send_json(200, _server_card())
         elif path == "/hi":
-            METRICS.view(channel_of(self.path, self.headers.get("Referer")))
+            METRICS.view(channel_of(self.path, self.headers.get("Referer")),
+                         agent=self.headers.get("User-Agent"))
             METRICS.save()
             page = _with_schema(landing_hi()).replace(
                 "__FREE_LIMIT__", str(self.free_tier.daily_limit))
@@ -1566,7 +1568,8 @@ class AttestHandler(BaseHTTPRequestHandler):
         # платформе, упирается в наш 402 (их ревью поймало это 19.10).
         if self._gateway_call():
             METRICS.check(channel_of(self.path, self.headers.get("Referer")),
-                          paid=False, client=self.client_id())
+                          paid=False, client=self.client_id(),
+                          agent=self.headers.get("User-Agent"))
             return self._handle_entitled(
                 payload, source,
                 "api.market gateway — billed by the marketplace")
@@ -1596,7 +1599,8 @@ class AttestHandler(BaseHTTPRequestHandler):
         try:
             self.free_tier.spend(client)
             METRICS.check(channel_of(self.path, self.headers.get("Referer")),
-                          paid=False, client=self.client_id())
+                          paid=False, client=self.client_id(),
+                          agent=self.headers.get("User-Agent"))
         except FreeTierExhausted as exc:
             if not payment_header:
                 METRICS.paywall_hit()

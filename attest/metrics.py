@@ -130,6 +130,36 @@ KNOWN_CHANNELS = (
     "producthunt", "laborx", "devto", "hn", "github",
 )
 
+#: Кто именно постучался. Без этого «708 просмотров» и «327 проверок»
+#: неотличимы от «пришёл человек» — а воронка продаёт людям, не краулерам.
+#: Порядок проверок важен: businessmcp раньше crawler (их шлюз может
+#: представляться ботом), crawler раньше browser (Googlebot пишет Mozilla).
+_AGENT_BOT = ("bot", "crawler", "spider", "slurp", "preview", "uptime", "monitor", "scan")
+_AGENT_SCRIPT = ("curl/", "wget/", "python-requests", "python-httpx", "httpx/", "aiohttp",
+                 "node-fetch", "go-http-client", "okhttp", "axios", "httpie", "libwww")
+#: Семейств мало и они не растут: потолок нужен только от мусора в UA.
+MAX_AGENTS = 16
+
+
+def agent_family(user_agent: str | None) -> str:
+    """Семейство клиента по User-Agent: businessmcp / crawler / script / browser / other.
+
+    Хранить полный UA нельзя: это отпечаток. Для воронки достаточно ответа
+    на один вопрос — человек это или робот, и не шлёт ли к нам шлюз каталога.
+    """
+    ua = (user_agent or "").strip().lower()
+    if not ua:
+        return "none"
+    if "businessmcp" in ua:
+        return "businessmcp"
+    if any(marker in ua for marker in _AGENT_BOT):
+        return "crawler"
+    if any(marker in ua for marker in _AGENT_SCRIPT):
+        return "script"
+    if "mozilla" in ua:
+        return "browser"
+    return "other"
+
 
 @dataclass
 class Metrics:
@@ -159,6 +189,10 @@ class Metrics:
     # ровно тот вопрос, который решает, работает воронка или нет.
     # Хранится только хэш (тот же, что считает квоту), не адрес.
     clients: dict[str, list] = field(default_factory=dict)
+    # Семейство клиента (User-Agent) → [первый, последний, сколько раз].
+    # Храним семейство, а не строку UA: полный UA — это отпечаток, а
+    # вопрос воронки — «люди или роботы», не «кто именно».
+    agents: dict[str, list] = field(default_factory=dict)
     first_event: float = 0.0
     last_event: float = 0.0
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
@@ -170,15 +204,18 @@ class Metrics:
 
     # ---- запись -------------------------------------------------------
 
-    def view(self, channel: str) -> None:
+    def view(self, channel: str, agent: str | None = None) -> None:
         if not self.enabled:
             return
         with self._lock:
             self._bounded(self.views, channel)
+            if agent:
+                self._note_agent(agent)
             self._touch()
         self._save_if_due()
 
-    def check(self, channel: str, paid: bool, client: str | None = None) -> None:
+    def check(self, channel: str, paid: bool, client: str | None = None,
+              agent: str | None = None) -> None:
         if not self.enabled:
             return
         key = f"{channel}:{'paid' if paid else 'free'}"
@@ -188,6 +225,8 @@ class Metrics:
                 self._bounded(self.paid, channel)
             if client:
                 self._note_client(str(client))
+            if agent:
+                self._note_agent(agent)
             self._touch()
         # Проверок много, а ценность каждой события невелика — пишем с
         # троттлингом, иначе каждый вызов ударяет по диску.
@@ -250,6 +289,24 @@ class Metrics:
             self.clients[key] = row
         if len(self.clients) > MAX_PAYERS:
             self.clients.pop(next(iter(self.clients)), None)
+
+    def _note_agent(self, user_agent: str | None) -> None:
+        """Запомнить семейство клиента: [первый, последний, сколько раз].
+
+        Семейств мало (сейчас шесть), поэтому потолок — только страховка
+        от мусора в User-Agent, а не экономия памяти.
+        """
+        family = agent_family(user_agent)
+        now = time.time()
+        row = self.agents.pop(family, None)
+        if row is None:
+            self.agents[family] = [now, now, 1]
+        else:
+            row[1] = now
+            row[2] = int(row[2]) + 1
+            self.agents[family] = row
+        if len(self.agents) > MAX_AGENTS:
+            self.agents.pop(next(iter(self.agents)), None)
 
     def _note_payer(self, payer: str) -> None:
         """Запомнить оплату кошелька: [первая, последняя, сколько раз].
@@ -340,6 +397,7 @@ class Metrics:
                 "unique_clients": len(self.clients),
                 "checks_per_client": self._client_histogram(),
                 "unique_payers": len(self.payers),
+                "agents": {k: int(v[2]) for k, v in sorted(self.agents.items())},
                 "leads_total": self.leads,
                 "paywall_hits": self.paywall,
                 "pay_attempts": self.pay_attempts,
@@ -372,6 +430,10 @@ class Metrics:
             str(k): [float(v[0]), float(v[1]), int(v[2])]
             for k, v in (data.get("clients") or {}).items()
             if isinstance(v, (list, tuple)) and len(v) == 3}
+        self.agents = {
+            str(k): [float(v[0]), float(v[1]), int(v[2])]
+            for k, v in (data.get("agents") or {}).items()
+            if isinstance(v, (list, tuple)) and len(v) == 3}
         self.paywall = int(data.get("paywall") or 0)
         self.pay_attempts = int(data.get("pay_attempts") or 0)
         self.revenue_atoms = int(data.get("revenue_atoms") or 0)
@@ -387,7 +449,8 @@ class Metrics:
         except (OSError, json.JSONDecodeError):
             return False
         return bool(data.get("checks") or data.get("views") or data.get("paywall")
-                    or data.get("clients") or data.get("revenue_atoms") or data.get("leads"))
+                    or data.get("clients") or data.get("revenue_atoms") or data.get("leads")
+                    or data.get("agents"))
 
     def save(self) -> None:
         with self._lock:
@@ -403,11 +466,12 @@ class Metrics:
                 # (23.10.2026, поймал pre-commit тест).
                 "pay_attempts": self.pay_attempts,
                 "clients": self.clients,
+                "agents": self.agents,
                 "first_event": self.first_event, "last_event": self.last_event,
             }
             empty = not any((self.views, self.checks, self.paid, self.payers,
                              self.paywall, self.pay_attempts, self.leads,
-                             self.clients, self.revenue_atoms))
+                             self.clients, self.agents, self.revenue_atoms))
         # 23.10.2026: история за три дня обнулилась — поверх файла лёг пустой
         # снимок от процесса, который не поднял состояние с диска. Терять
         # накопленное молча нельзя, поэтому пустой снимок историю не затирает.
