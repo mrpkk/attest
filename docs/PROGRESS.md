@@ -564,3 +564,14 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
       `X-ATTEST-ENTITLEMENT`); (4) `server.json` name → `io.github.mrpkk/attest`;
       (5) рабочие заметки убраны из корня в `docs/`, добавлен раздел Maintenance.
       Ответ отправлен, ждём повторного ревью.
+
+- [x] **Каталоги: attest принят в три списка (24.10.2026).**
+      `punkpeye/awesome-mcp-servers` **#17078 merged** — репозиторий **96 800 звёзд**,
+      строка 4123 README ведёт на `mrpkk/attest` с Glama-бейджем;
+      `punkpeye/awesome-remote-mcp-servers` **#2364 merged** (1 830 звёзд);
+      `langgenius/dify-plugins` **#3419 merged** (560 звёзд). Проверено: листинг живой,
+      бейдж на месте. Это первый канал, который реально даёт постоянный поток, — не рассылка.
+- [ ] **Soma в awesome-mcp-servers — ждёт Glama.** PR `#17341` закрыт ботом: требуется
+      страница сервера на Glama с пройденными проверками и Dockerfile. Dockerfile в репозитории
+      есть, страница была (Healthy, оценка B), но 24.10 Glama недоступен (000 и напрямую,
+      и через Tor). Как откроется — переоткрыть PR со ссылкой на карточку.
