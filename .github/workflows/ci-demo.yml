@@ -1,0 +1,28 @@
+name: attest CI demo
+on:
+  push:
+    paths: ['examples/ci/**', 'scripts/verify_artifacts.py', 'action.yml', '.github/workflows/ci-demo.yml']
+  workflow_dispatch:
+
+jobs:
+  accepted:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: A real artifact must pass
+        uses: ./
+        with:
+          paths: 'examples/ci/good.json'
+          fail-on: reject
+
+  refused:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: An empty artifact must be refused (expected failure)
+        run: |
+          set +e
+          python3 scripts/verify_artifacts.py 'examples/ci/empty.json' --fail-on reject
+          code=$?
+          echo "exit code: $code"
+          test "$code" -eq 1

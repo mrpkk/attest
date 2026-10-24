@@ -1,0 +1,1 @@
+{"summary":"Nightly scan","findings":[{"rule":"sql-injection","severity":"high","line":42},{"rule":"sql-injection","severity":"high","line":42},{"rule":"sql-injection","severity":"high","line":42},{"rule":"sql-injection","severity":"high","line":42},{"rule":"sql-injection","severity":"high","line":42}]}
