@@ -2061,7 +2061,11 @@ document.getElementById('go').onclick = async () => {{
                 402,
                 {"error": f"pay {price_usd:g} USDC for 30 days of unlimited access",
                  "subscription": desc,
-                 "header": entitlement.HEADER},
+                 "header": entitlement.HEADER,
+                 # Без x402-клиента человек платит переводом: /pay проверяет
+                 # транзакцию в блокчейне и выдаёт тот же токен.
+                 "pay_human": {"url": f"{self._base_url()}/pay",
+                               "price_usdc": price_usd}}, 
                 extra_headers={"Payment-Required": challenge}
                 if challenge else None)
         try:
