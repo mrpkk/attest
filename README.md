@@ -235,6 +235,29 @@ Maintained and general-purpose, MIT-licensed. The hosted node at
 is not a demo that rots. Breaking protocol changes get a major bump in `CHANGELOG.md`;
 issues and pull requests are reviewed. Security reports follow `SECURITY.md`.
 
+
+## Use it in CI
+
+A one-off check in a browser does not protect a pipeline. This repository ships a composite
+GitHub Action: it verifies every artifact file and fails the build on a rejection.
+
+```yaml
+- uses: mrpkk/attest@main
+  with:
+    paths: 'reports/*.json'
+    schema: 'schemas/scan.schema.json'   # optional
+    fail-on: reject                      # or 'any' to fail on violations too
+```
+
+Without Actions, the same check runs locally:
+
+```bash
+python3 scripts/verify_artifacts.py 'reports/*.json' --fail-on reject
+```
+
+Exit codes: `0` all accepted, `1` a rejection or an error, `2` nothing matched. A network
+error or an exhausted free quota is reported as an error — never as "accepted".
+
 ## Use it from your agent
 
 ```json

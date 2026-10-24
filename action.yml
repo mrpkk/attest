@@ -1,0 +1,38 @@
+name: 'attest — verify agent artifacts'
+description: >-
+  Reject artifacts that pass schema validation but carry no content, no provenance
+  or no authority. One call per file; the build fails on a rejection.
+branding:
+  icon: 'shield'
+  color: 'orange'
+inputs:
+  paths:
+    description: 'Glob pattern(s) of artifact files, space-separated'
+    required: true
+    default: 'artifacts/*.json'
+  schema:
+    description: 'Path to a JSON Schema file (optional)'
+    required: false
+    default: ''
+  url:
+    description: 'attest endpoint'
+    required: false
+    default: 'https://attest.rta.lat/verify'
+  fail-on:
+    description: 'reject (only refusals fail the build) or any (violations too)'
+    required: false
+    default: 'reject'
+runs:
+  using: 'composite'
+  steps:
+    - name: Verify artifacts
+      shell: bash
+      env:
+        ATTEST_PATHS: ${{ inputs.paths }}
+        ATTEST_SCHEMA: ${{ inputs.schema }}
+        ATTEST_URL: ${{ inputs.url }}
+        ATTEST_FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        args=( $ATTEST_PATHS --url "$ATTEST_URL" --fail-on "$ATTEST_FAIL_ON" )
+        if [ -n "$ATTEST_SCHEMA" ]; then args+=( --schema "$ATTEST_SCHEMA" ); fi
+        python3 "${{ github.action_path }}/scripts/verify_artifacts.py" "${args[@]}"
