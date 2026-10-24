@@ -36,6 +36,9 @@
 | **Glama одобрила drift (24.10)** | ✅ Письмо «has been approved», страница `https://glama.ai/mcp/servers/mrpkk/drift` отдаёт 200, бейдж оценки — SVG 200. Это снимает условие пункта ревью PR #16698 |
 | **PR #16698 приведён в порядок (24.10)** | ✅ Конфликт (`mergeable: false`) разведён ребейзом на `main`: `attest` уже влит отдельно (#17078), поэтому PR сокращён до **одной строки — `drift` в разделе Security сразу после `attest`** (раньше drift стоял в Agreements). Дубль `attest`, который добавлял наш коммит, убран. Итог: `mergeable: true`, 1 файл, +1 строка. Комментарий в PR отправить не удалось — токен `GITHUB_TOKEN_OPENCODEDEV` ограничен нашими репозиториями (403 «Resource not accessible»), а смена заголовка/описания PR требует тех же прав. Мейнтейнер получит уведомление о пуше |
 
+| **Живой диалог в r/mcp (25.10)** | 🔔 u/LeastAd2616 ответил на наш комментарий в треде «Positional prompt-injection scanning for MCP tool…» (https://www.reddit.com/r/mcp/comments/1xbgoxv/): «Thanks, that makes the boundary clear. I'll run the opposite case you describe: two versions of the same public MCP package, one inside a published advisory range and one current…». Это первый человек, который сам собрался проверить продукт. Ответить из нашей среды нельзя: Reddit отдаёт 403 напрямую, 403 через Tor, а в браузере — блок-страница «whoa there»; форма входа не появляется ни на old.reddit, ни на www. Готовый текст ответа передан владельцу |
+| **Письмо не дошло (25.10)** | ❗`charleshernandez0619504@gmail.com` (mcp-audit-tool, 543★) — мёртвый ящик: `550 5.2.1 account inactive`. Из 6 писем второго захода доставлено 5. Нужен другой контакт: профиль GitHub или issue в репозитории |
+
 ## Д8 · Статический анализ через solc AST ✅ закрыт (ecfbc08)
 
 - [x] Д8 Сканер: движок `ast` на solc 0.8.24 рядом с regex, выбор `--engine auto|ast|regex`
