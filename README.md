@@ -240,9 +240,10 @@ issues and pull requests are reviewed. Security reports follow `SECURITY.md`.
 
 A one-off check in a browser does not protect a pipeline. This repository ships a composite
 GitHub Action: it verifies every artifact file and fails the build on a rejection.
+Pinned to `v1` — [release v1.0.0](https://github.com/mrpkk/attest/releases/tag/v1.0.0).
 
 ```yaml
-- uses: mrpkk/attest@main
+- uses: mrpkk/attest@v1
   with:
     paths: 'reports/*.json'
     schema: 'schemas/scan.schema.json'   # optional
