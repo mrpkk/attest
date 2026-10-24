@@ -684,8 +684,9 @@ goes straight into its context. Four checks, each answering only its own questio
 no blocking, no human review. It is one more check before you ship — not a replacement for review.</p>
 
 <h2 style="font-size:17px;margin:26px 0 6px">Buying a 30-day token</h2>
-<p class="hint"><b>Card payments are being enabled (ENOT, moderation in progress).</b>
-<a href="/start">Leave an email</a> — the day it goes live we send you a payment link.</p>
+<p class="hint"><b>Pay from any wallet, no account:</b> send 9 USDC on Base (4 for India)
+to the project address, paste the transaction hash — the transfer is verified on-chain and a
+30-day token is issued in the same response. <a href="/pay">Pay with USDC →</a></p>
 <p class="hint">x402 is a three-step flow: ask, sign, retry. No account, no card, no dashboard.</p>
 <pre style="background:#141821;border:1px solid #1f242e;border-radius:8px;padding:12px;overflow:auto;font:12.5px/1.5 ui-monospace,monospace;color:#e8ecf4">curl -X POST https://attest.rta.lat/subscribe
 # 402 + challenge: price, asset, network, payTo
@@ -799,8 +800,8 @@ no blocking, no human review. It is one more check before you ship — not a rep
 कुछ ब्लॉक नहीं होता, मानवीय समीक्षा नहीं। यह रिलीज़ से पहले एक और जाँच है — समीक्षा का विकल्प नहीं।</p>
 
 <h2 style="font-size:17px;margin:26px 0 6px">30 दिन का टोकन कैसे खरीदें</h2>"""),
-    ('<p class="hint"><b>Card payments are being enabled (ENOT, moderation in progress).</b>\n<a href="/start">Leave an email</a> — the day it goes live we send you a payment link.</p>',
-     '<p class="hint"><b>कार्ड से भुगतान चालू हो रहा है (ENOT, मॉडरेशन चल रहा है)।</b>\n<a href="/start">ईमेल छोड़ें</a> — चालू होने के दिन हम भुगतान लिंक भेज देंगे।</p>'),
+    ('<p class="hint"><b>Pay from any wallet, no account:</b> send 9 USDC on Base (4 for India)\nto the project address, paste the transaction hash — the transfer is verified on-chain and a\n30-day token is issued in the same response. <a href="/pay">Pay with USDC →</a></p>',
+     '<p class="hint"><b>किसी भी वॉलेट से भुगतान करें, कोई खाता नहीं:</b> Base पर 9 USDC (भारत के लिए 4)\nभेजें, ट्रांज़ैक्शन हैश चिपकाएँ — ब्लॉकचेन पर जाँच के बाद उसी उत्तर में 30 दिन का टोकन मिलता है।\n<a href="/pay">USDC से भुगतान करें →</a></p>'),
     ('<p class="hint">x402 is a three-step flow: ask, sign, retry. No account, no card, no dashboard.</p>',
      '<p class="hint">x402 तीन कदमों का प्रवाह है: अनुरोध, हस्ताक्षर, पुनः प्रयास। कोई खाता नहीं, कोई कार्ड नहीं, कोई डैशबोर्ड नहीं।</p>'),
     ('# 402 + challenge: price, asset, network, payTo', '# 402 + चुनौती: कीमत, संपत्ति, नेटवर्क, payTo'),
@@ -1894,6 +1895,9 @@ document.getElementById('go').onclick = async () => {{
         try:
             transfer = onchain.confirm_transfer(
                 tx, pay_to=self.x402_pay_to, min_atoms=atoms,
+                # Актив и сеть — из конфигурации: на тестовой сети USDC другой,
+                # и зашитый mainnet-адрес отверг бы настоящий перевод.
+                asset=self.x402_asset or USDC_BY_NETWORK.get(self.x402_network, USDC_BASE),
                 rpc_url=os.environ.get("ATTEST_RPC_URL", onchain.DEFAULT_RPC),
                 confirmations=int(os.environ.get("ATTEST_RPC_CONFIRMATIONS", "2")))
         except onchain.TransferRejected as exc:
