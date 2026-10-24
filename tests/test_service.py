@@ -29,9 +29,16 @@ BASE = f"http://127.0.0.1:{PORT}"
 
 @pytest.fixture(scope="module")
 def server():
+    global BASE
     from http.server import ThreadingHTTPServer
 
-    httpd = ThreadingHTTPServer(("127.0.0.1", PORT), AttestHandler)
+    # Фиксированный порт занимает параллельный прогон (две сессии сразу).
+    # Тогда берём свободный у ОС и перенаправляем BASE на него.
+    try:
+        httpd = ThreadingHTTPServer(("127.0.0.1", PORT), AttestHandler)
+    except OSError:
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), AttestHandler)
+    BASE = f"http://127.0.0.1:{httpd.server_address[1]}"
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     yield f"http://127.0.0.1:{httpd.server_address[1]}"
