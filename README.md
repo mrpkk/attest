@@ -273,4 +273,4 @@ That block is not a doc snippet — it is how our own agents call this server
 (the same public URL, no key, no signup).
 
 Tools: `verify_artifact`, `verify_artifact_batch`. 20 free checks per day, then
-$0.005 per call over x402 (USDC, Base) or $9/30 days. India pricing: $3/30 days.
+$0.005 per call over x402 (USDC, Base) or $9/30 days. India pricing: $4/30 days.

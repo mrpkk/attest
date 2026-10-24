@@ -326,6 +326,16 @@ for the others.</div>
   <pre id="vk" style="max-height:110px">run a check to see the attestation</pre></div>
 </div>
 
+<h2>Run it in CI, on every commit</h2>
+<p class=s>A check that runs only when someone remembers does not protect a pipeline.
+Same four layers, one call per artifact file, the build fails on a rejection.</p>
+<pre>- uses: mrpkk/attest@v1
+  with:
+    paths: 'reports/*.json'
+    fail-on: reject</pre>
+<p class=s><a href="https://github.com/mrpkk/attest">Action and CLI</a> ·
+a network error or an exhausted quota is reported as an error, never as accepted.</p>
+
 <h2 style="font-size:16px;margin-top:28px">Response</h2>
 <pre id="out">press any button above</pre>
 
@@ -441,9 +451,10 @@ _PLANS_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
  <div class="t"><b>Free</b><p class="p">0 USDC</p><span class="hint">20 checks a day, forever. Full check: schema, emptiness, provenance, authority.</span></div>
  <div class="t"><b>Per call</b><p class="p">0.005 USDC</p><span class="hint">Beyond the free tier, paid over x402 on Base. Three steps: ask, sign, retry.</span></div>
  <div class="t"><b>30 days</b><p class="p">9 USDC</p><span class="hint">No daily cap while the token is valid. One-time prepayment, no auto-renewal.</span></div>
- <div class="t"><b>India (PPP)</b><p class="p">4 USDC</p><span class="hint">Same 30 days, purchasing-power price. <a href="/subscribe?plan=ppp">Subscribe</a>.</span></div>
+ <div class="t"><b>India (PPP)</b><p class="p">4 USDC</p><span class="hint">Same 30 days, purchasing-power price. <a href="/pay?plan=ppp">Pay</a>.</span></div>
 </div>
 <a class="cta" href="/start">100 free checks for 30 days</a>
+<p class="hint">Or buy 30 days of unlimited checks: 9 USDC (4 for India), paid from any wallet — <a href="/pay">pay with USDC</a>. The transfer is verified on-chain and the token is issued in the same step.</p>
 <h2>Why a subscription if a call costs $0.005</h2>
 <ul>
  <li>A per-call price is paid every call, and a payment rail takes its share of a small amount. At $0.005 the fee eats most of the value.</li>
@@ -644,7 +655,6 @@ goes straight into its context. Four checks, each answering only its own questio
   <button id="go" onclick="run()">Verify</button>
   <a class="hint" href="/demo">four-layer demo →</a>
   <a class="hint" href="/start">100 free checks →</a>
-  <a class="hint" href="/start">100 free checks →</a>
 </div>
 
 <div class="card" id="res" style="display:none">
@@ -662,6 +672,16 @@ goes straight into its context. Four checks, each answering only its own questio
 <tr><td>Provenance</td><td>what conditions produced it?</td><td><code>generation</code></td></tr>
 <tr><td>Authority</td><td>was the action permitted?</td><td><code>authority</code></td></tr>
 </table>
+
+<h2 style="font-size:17px;margin:26px 0 6px">In CI, on every commit</h2>
+<p class="hint">A check that runs only when someone remembers does not protect a pipeline.
+The same four layers run from a GitHub Action; a rejection fails the build.</p>
+<pre style="background:#010409;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:13px">- uses: mrpkk/attest@v1
+  with:
+    paths: 'reports/*.json'
+    fail-on: reject</pre>
+<p class="hint"><a href="https://github.com/mrpkk/attest">Action and CLI</a> · a network error or
+an exhausted quota is reported as an error, never as accepted.</p>
 
 <h2 style="font-size:17px;margin:26px 0 6px">Pricing</h2>
 <p class="hint">__FREE_LIMIT__ free checks per day.</p>
@@ -1856,7 +1876,8 @@ button{{margin-top:10px;padding:10px 16px;border-radius:8px;border:1px solid #11
 #out{{margin-top:16px;padding:12px;border-radius:8px;background:#f7f7f7;white-space:pre-wrap;font:14px ui-monospace,monospace}}</style>
 <h1>Pay {price:g} USDC for 30 days</h1>
 <p>{note}. Send USDC on <b>Base</b> to this address, then paste the transaction hash below.
-No account, no card, no signup.</p>
+No account, no card, no signup. Buying from India? <a href="/pay?plan=ppp">This page at the
+purchasing-power price</a>.</p>
 <p><code>{pay_to}</code></p>
 <p>Any wallet works: MetaMask, Rabby, Coinbase Wallet, an exchange withdrawal to Base.
 Send at least {price:g} USDC; a smaller amount is rejected rather than silently accepted.</p>

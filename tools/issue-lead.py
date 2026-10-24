@@ -68,7 +68,7 @@ What you get per check: schema contract, emptiness, generation provenance and
 mandate authority, with an Ed25519-signed verdict you can verify offline.
 
 When the {days} days run out, the key stops working. $9/30 days keeps it running
-($3 for India pricing) — or just keep using the free tier: 20 checks a day,
+($4 for India pricing) — or just keep using the free tier: 20 checks a day,
 no signup.
 
 If the checks do not help, tell us what you were trying to verify and we will
