@@ -50,6 +50,7 @@ from .emptiness import (emptiness_score, emptiness_verdict,
                            scan_for_emptiness)
 from .payment import PaymentError
 from . import enot
+from . import onchain
 from .x402 import atomic_to_usd, agent_card, discovery_document
 
 DEFAULT_FREE_DAILY = 20
@@ -297,7 +298,17 @@ for the others.</div>
  <div class=c><h2>1. Artifact — form and emptiness</h2>
   <label>Artifact JSON</label>
   <textarea id="art">{"summary":"Analysis complete","findings":["first finding","second finding","third finding"]}</textarea>
-  <button onclick="run()">Check form and emptiness</button></div>
+  <button onclick="run()">Check form and emptiness</button>
+  <button type="button" onclick="badExample()" title="Same form, no content: every validator passes, the artifact is empty">Try a bad one</button>
+  <span id="badhint" style="display:none;color:#f0a35e;font-size:13px">5 identical findings: the schema is perfect, the content is not.</span>
+  </div>
+  <script>
+  function badExample(){
+    var f = []; for (var i = 0; i < 5; i++) f.push({rule: "sql-injection", severity: "high", line: 42});
+    document.getElementById("art").value = JSON.stringify({summary: "Scan complete", findings: f});
+    var h = document.getElementById("badhint"); if (h) h.style.display = "inline";
+  }
+  </script>
  <div class=c><h2>2. Generation conditions</h2>
   <label>Model</label><input id="model" value="claude-sonnet-4" style="width:100%;background:#0b0d12;color:#e8ecf4;border:1px solid #2a3140;border-radius:8px;padding:8px">
   <label>Prompt</label><input id="prompt" value="Find vulnerabilities in the contract" style="width:100%;background:#0b0d12;color:#e8ecf4;border:1px solid #2a3140;border-radius:8px;padding:8px">
@@ -1328,7 +1339,9 @@ class AttestHandler(BaseHTTPRequestHandler):
             METRICS.view(channel_of(self.path, self.headers.get("Referer")),
                          agent=self.headers.get("User-Agent"))
             METRICS.save()
-        if path == "/":
+        if path == "/pay":
+            self._send(200, self._pay_page().encode(), "text/html; charset=utf-8")
+        elif path == "/":
             page = _with_schema(LANDING).replace("__FREE_LIMIT__", str(self.free_tier.daily_limit))
             self._send(200, page.encode(), "text/html; charset=utf-8")
         elif path == "/article":
@@ -1518,6 +1531,8 @@ class AttestHandler(BaseHTTPRequestHandler):
                 body["header"] = ENT_HEADER
             self._send_json(200, body)
             return
+        if path == "/pay/claim":
+            return self._handle_onchain_claim()
         if path == "/pay/enot":
             return self._handle_enot_create()
         if path == "/pay/enot/notify":
@@ -1821,6 +1836,81 @@ class AttestHandler(BaseHTTPRequestHandler):
     # Клиент платит картой или СБП, деньги приходят нам в USDT. Наш код —
     # счёт и проверка уведомления; эквайринг и конвертация на стороне ENOT.
     # Контракт API и границы доверия — в attest/enot.py.
+
+    def _onchain_orders_path(self) -> Path:
+        return self.leads_path.with_name("onchain_orders.jsonl")
+
+    def _pay_page(self) -> str:
+        """Страница прямой оплаты: адрес, цена и поле для хеша транзакции."""
+        pay_to = self.x402_pay_to or ""
+        price = self._subscription_price_usd()
+        ppp = self._plan_is_ppp(self.path)
+        note = ("India price (purchasing power)" if ppp else "Standard price")
+        return f"""<!doctype html><html lang=en><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>Pay for attest with USDC</title>
+<style>body{{font:16px/1.55 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 18px;color:#111}}
+code{{background:#f2f2f2;padding:2px 6px;border-radius:5px}}input{{width:100%;padding:10px;font:15px ui-monospace,monospace;border:1px solid #ccc;border-radius:8px}}
+button{{margin-top:10px;padding:10px 16px;border-radius:8px;border:1px solid #111;background:#111;color:#fff;font:inherit;cursor:pointer}}
+#out{{margin-top:16px;padding:12px;border-radius:8px;background:#f7f7f7;white-space:pre-wrap;font:14px ui-monospace,monospace}}</style>
+<h1>Pay {price:g} USDC for 30 days</h1>
+<p>{note}. Send USDC on <b>Base</b> to this address, then paste the transaction hash below.
+No account, no card, no signup.</p>
+<p><code>{pay_to}</code></p>
+<p>Any wallet works: MetaMask, Rabby, Coinbase Wallet, an exchange withdrawal to Base.
+Send at least {price:g} USDC; a smaller amount is rejected rather than silently accepted.</p>
+<input id=tx placeholder="0x… transaction hash">
+<button id=go>Check payment</button>
+<div id=out>Nothing checked yet.</div>
+<script>
+document.getElementById('go').onclick = async () => {{
+  const out = document.getElementById('out');
+  out.textContent = 'Checking the transaction on Base…';
+  const r = await fetch('/pay/claim', {{method:'POST', headers:{{'Content-Type':'application/json'}},
+    body: JSON.stringify({{tx: document.getElementById('tx').value.trim()}})}});
+  const j = await r.json();
+  out.textContent = j.token
+    ? 'Paid. Send this token in the ' + j.header + ' header:\n\n' + j.token
+    : 'Not accepted: ' + (j.error || 'unknown reason');
+}};
+</script></html>"""
+
+    def _handle_onchain_claim(self) -> None:
+        """Принять оплату, проверенную в блокчейне, и выдать токен на 30 дней."""
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+            payload = json.loads(self.rfile.read(length).decode() or "{}")
+        except ValueError:
+            return self._send_json(400, {"error": "body must be JSON with a tx field"})
+        tx = str((payload or {}).get("tx") or "").strip()
+        if not self.x402_pay_to:
+            return self._send_json(503, {"error": "payment is not configured: no wallet set"})
+        orders = self._onchain_orders_path()
+        used = onchain.load_used(orders)
+        if tx.lower() in used:
+            return self._send_json(409, {"error": "this transaction was already used"})
+        price = self._subscription_price_usd()
+        atoms = int(round(price * 1_000_000))
+        try:
+            transfer = onchain.confirm_transfer(
+                tx, pay_to=self.x402_pay_to, min_atoms=atoms,
+                rpc_url=os.environ.get("ATTEST_RPC_URL", onchain.DEFAULT_RPC),
+                confirmations=int(os.environ.get("ATTEST_RPC_CONFIRMATIONS", "2")))
+        except onchain.TransferRejected as exc:
+            return self._send_json(402, {"error": str(exc), "required_usdc": price})
+        except Exception as exc:  # noqa: BLE001 — сеть важна как причина
+            return self._send_json(503, {"error": f"could not check the chain: {type(exc).__name__}"})
+        grant = entitlement.issue(subject=transfer.payer or transfer.tx_hash,
+                                  days=30, max_calls=None)
+        orders.parent.mkdir(parents=True, exist_ok=True)
+        onchain.record(orders, transfer, plan=grant["plan"], subject=transfer.payer)
+        METRICS.payment("onchain", transfer.amount_atoms, payer=transfer.payer)
+        self._send_json(200, {
+            "paid": True, "amount_usdc": transfer.amount_atoms / 1_000_000,
+            "payer": transfer.payer, "block": transfer.block,
+            "valid_until": grant["valid_until"], "header": grant["header"],
+            "token": grant["token"],
+        })
 
     def _enot_orders_path(self) -> Path:
         return self.leads_path.with_name("enot_orders.jsonl")
@@ -2369,6 +2459,15 @@ class AttestHandler(BaseHTTPRequestHandler):
                                 "приходит на почту."),
                 "url": f"{self._base_url()}/start",
                 "header": ENT_HEADER,
+            },
+            # Человеку без x402-клиента нужен способ заплатить. Страница /pay
+            # проверяет перевод USDC в блокчейне и выдаёт тот же токен.
+            "pay_human": {
+                "description": ("Send USDC on Base from any wallet and paste the "
+                                "transaction hash: the transfer is verified on-chain "
+                                "and a 30-day token is issued in the same response."),
+                "url": f"{self._base_url()}/pay",
+                "price_usdc": self._subscription_price_usd(),
             },
         }
 
