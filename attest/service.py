@@ -36,6 +36,14 @@ from urllib.parse import parse_qs, urlparse
 from . import __version__
 from .core import attest, _coerce_json_field
 from .metrics import METRICS, STATE_PATH, channel_of, spent_nonces
+from .receipt import cose as _cose
+from .receipt import log as _tlog
+
+
+def _tlog_public_key(private_key) -> str:
+    """Публичный ключ головы дерева — в base64, чтобы проверяющий не ходил к нам."""
+    import base64 as _b64
+    return _b64.b64encode(private_key.public_key().public_bytes_raw()).decode()
 from .signing import public_key_b64
 from . import entitlement
 from .entitlement import (HEADER as ENT_HEADER, issue as issue_entitlement,
@@ -1382,6 +1390,35 @@ class AttestHandler(BaseHTTPRequestHandler):
             return
         super().log_message(fmt, *args)
 
+    def _transparency(self):
+        """Журнал прозрачности: файл рядом со состоянием, ключ головы — свой.
+
+        Свой ключ, а не ключ подписи вердиктов: голова дерева и квитанция —
+        разные заявления, и один ключ на оба позволял бы подменить одно другим.
+        """
+        if getattr(self, "_tlog_cache", None) is None:
+            from pathlib import Path as _Path
+            path = _Path(STATE_PATH).with_name("transparency.log")
+            log = _tlog.TransparencyLog(path)
+            key_path = _Path(STATE_PATH).with_name("transparency.key")
+            key_path.parent.mkdir(parents=True, exist_ok=True)
+            if key_path.exists():
+                raw = key_path.read_bytes()
+            else:
+                from cryptography.hazmat.primitives import serialization
+                from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+                priv = Ed25519PrivateKey.generate()
+                raw = priv.private_bytes(
+                    encoding=serialization.Encoding.Raw,
+                    format=serialization.PrivateFormat.Raw,
+                    encryption_algorithm=serialization.NoEncryption(),
+                )
+                key_path.write_bytes(raw)
+                key_path.chmod(0o600)
+            from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey as _K
+            self._tlog_cache = (log, _K.from_private_bytes(raw))
+        return self._tlog_cache
+
     def client_id(self) -> str:
         """Кто платит лимит.
 
@@ -1553,6 +1590,32 @@ class AttestHandler(BaseHTTPRequestHandler):
                 services=self._catalog_services(),
                 version=__version__,
             ))
+        elif path == "/log/head":
+            log, key = self._transparency()
+            head = log.head(key)
+            self._send_json(200, {"size": head.size, "root": head.root,
+                                  "timestamp": head.timestamp, "signature": head.signature,
+                                  "public_key": _tlog_public_key(key)})
+        elif path.startswith("/log/proof/"):
+            log, key = self._transparency()
+            try:
+                index = int(path.rsplit("/", 1)[-1])
+                proof = log.inclusion(index)
+            except (ValueError, IndexError):
+                self._send_json(404, {"error": "no such leaf", "path": path})
+                return
+            proof["head"] = log.head(key).__dict__
+            self._send_json(200, proof)
+        elif path.startswith("/log/consistency/"):
+            log, key = self._transparency()
+            try:
+                old_size = int(path.rsplit("/", 1)[-1])
+                proof = log.consistency(old_size)
+            except (ValueError, IndexError):
+                self._send_json(400, {"error": "old_size must be within the tree"})
+                return
+            proof["head"] = log.head(key).__dict__
+            self._send_json(200, proof)
         elif path.lstrip("/") in MANIFEST_FILES:
             self._serve_manifest(path.lstrip("/"))
         else:
@@ -1586,6 +1649,26 @@ class AttestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = route_path(self.path)
+        if path == "/log/register":
+            payload = self._read_json()
+            if payload is None:
+                return
+            statement = payload.get("statement")
+            if not isinstance(statement, str) or not statement.strip():
+                self._send_json(400, {"error": "statement must be a non-empty string"})
+                return
+            log, key = self._transparency()
+            index = log.append(statement.encode())
+            head = log.head(key)
+            self._send_json(200, {
+                "index": index,
+                "leaf": log.leaves[index].hex(),
+                "proof": [h.hex() for h in _tlog.inclusion_proof(log.leaves, index)],
+                "head": head.__dict__,
+                "public_key": _tlog_public_key(key),
+                "note": "inclusion proves membership in this tree; non-equivocation needs a monitor",
+            })
+            return
         if path == "/start":
             payload = self._read_json()
             if payload is None:

@@ -77,7 +77,16 @@ class Tag:
         return f"Tag({self.number}, {self.value!r})"
 
 
-def _loads(data: bytes, pos: int) -> tuple[Any, int]:
+MAX_DEPTH = 32
+MAX_ITEMS = 10_000
+
+
+def _loads(data: bytes, pos: int, depth: int = 0) -> tuple[Any, int]:
+    # Пределы не украшение: декодер разбирает вход от того, кого проверяют.
+    # Без счётчика глубины конверт с тысячей вложенных массивов роняет стек,
+    # а это отказ в обслуживании проверяющего, а не его ошибка.
+    if depth > MAX_DEPTH:
+        raise CBORError(f"nesting deeper than {MAX_DEPTH}")
     if pos >= len(data):
         raise CBORError("truncated input")
     initial = data[pos]
@@ -135,33 +144,39 @@ def _loads(data: bytes, pos: int) -> tuple[Any, int]:
         except UnicodeDecodeError as exc:
             raise CBORError("text string is not UTF-8") from exc
     if major == 4:
+        if value > MAX_ITEMS:
+            raise CBORError(f"array longer than {MAX_ITEMS}")
         items = []
         for _ in range(value):
-            item, pos = _loads(data, pos)
+            item, pos = _loads(data, pos, depth + 1)
             items.append(item)
         return items, pos
     if major == 5:
+        if value > MAX_ITEMS:
+            raise CBORError(f"map longer than {MAX_ITEMS}")
         pairs: dict[Any, Any] = {}
         last_key_bytes: bytes | None = None
         for _ in range(value):
             start = pos
-            key, pos = _loads(data, pos)
+            key, pos = _loads(data, pos, depth + 1)
             key_bytes = data[start:pos]
             if last_key_bytes is not None and key_bytes <= last_key_bytes:
                 raise CBORError("map keys are not in deterministic order")
             last_key_bytes = key_bytes
             if key in pairs:
                 raise CBORError("duplicate map key")
-            item, pos = _loads(data, pos)
+            item, pos = _loads(data, pos, depth + 1)
             pairs[key] = item
         return pairs, pos
     if major == 6:
-        inner, pos = _loads(data, pos)
+        inner, pos = _loads(data, pos, depth + 1)
         return Tag(value, inner), pos
     raise CBORError(f"unsupported major type {major}")
 
 
 def loads(data: bytes) -> Any:
+    if len(data) > 1_048_576:
+        raise CBORError("input larger than 1 MiB")
     value, pos = _loads(data, 0)
     if pos != len(data):
         raise CBORError("trailing bytes after the CBOR item")
