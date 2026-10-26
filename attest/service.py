@@ -750,6 +750,7 @@ it does not prove the artifact is sound. The signature is Ed25519: the public ke
 the attestation, so you can verify it yourself without trusting this service.</div>
 
 <p class="hint">Source: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·
+BusinessMCP: <a href="https://businessmcp.com/mcp-servers/attest">marketplace</a> ·
 Set: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/hi">हिन्दी</a></p>
 </div>
 <script src="/feedback.js" defer></script>
@@ -860,8 +861,8 @@ no blocking, no human review. It is one more check before you ship — not a rep
     ('# 402 + challenge: price, asset, network, payTo', '# 402 + चुनौती: कीमत, संपत्ति, नेटवर्क, payTo'),
     ('# sign the EIP-3009 authorization with any x402 client, then:',
      '# किसी भी x402 क्लाइंट से EIP-3009 प्राधिकरण पर हस्ताक्षर करें, फिर:'),
-    ('<p class="hint">Source: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nSet: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/hi">हिन्दी</a></p>',
-     '<p class="hint">स्रोत: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nसेट: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/">English</a></p>'),
+    ('<p class="hint">Source: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nBusinessMCP: <a href="https://businessmcp.com/mcp-servers/attest">marketplace</a> ·\nSet: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/hi">हिन्दी</a></p>',
+     '<p class="hint">स्रोत: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nबिज़नेसMCP: <a href="https://businessmcp.com/mcp-servers/attest">मार्केटप्लेस</a> ·\nसेट: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/">English</a></p>'),
 )
 
 
