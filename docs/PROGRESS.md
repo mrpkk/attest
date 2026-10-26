@@ -602,3 +602,10 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
 - На главной attest добавлена ссылка `BusinessMCP: marketplace` на публичный
   листинг; хинди-версия переведена в том же словаре.
 - Полный прогон: **588 passed, 4 skipped**; `GET /` содержит BusinessMCP.
+
+## 27.10.2026 — Actions minutes: docs-only pushes не жгут CI
+
+- GitHub предупредил: **90% из 2 000 минут** израсходовано, сброс 01.11.
+  Причина — каждый docs-commit запускал полный audit/test.
+- В `audit.yml` добавлен `paths-ignore: docs/**, **/*.md, llms.txt` для push/PR.
+  Код по-прежнему проверяется; документация — нет.
