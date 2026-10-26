@@ -470,6 +470,7 @@ at purchasing-power parity.</p>
 <p>A verdict you can check without trusting us. Every answer is Ed25519-signed; the
 public key fingerprint is published, so a recipient can verify the verdict offline.
 The service can be down, the verdict still verifies.</p>
+<p class="hint">Not ready to pay? <a href="/review">Send one artifact for a free human review</a>.</p>
 <p class="hint">Machine-readable price list: <a href="/pricing">/pricing</a> (JSON) ·
 <a href="/privacy">privacy</a> · <a href="/demo">demo</a></p>
 </body></html>"""
@@ -547,6 +548,35 @@ async function send(){
   } catch (e) { out.innerHTML = '<div class="err">' + e.message + '</div>'; }
 }
 </script>
+</body></html>"""
+
+_REVIEW_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>attest — free human review of one artifact</title>
+<meta name="description" content="Send one agent artifact and get a free written human review: schema, emptiness, provenance, authority, and one fix.">
+<link rel="canonical" href="https://attest.rta.lat/review">
+<style>
+ body{background:#0b0d12;color:#e8ecf4;font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:0 auto;padding:44px 22px 80px}
+ h1{font-size:28px;margin:0 0 6px} .s{color:#969eac;margin:0 0 24px}
+ .box{background:#141821;border:1px solid #232a33;border-radius:12px;padding:18px;margin:18px 0}
+ a{color:#7fd1b9} code{background:#171b21;padding:2px 6px;border-radius:4px}
+ .cta{display:inline-block;background:#1c6b58;color:#eafff8;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600;margin-top:10px}
+ .muted{color:#8b939f;font-size:14px}
+</style></head><body>
+<h1>Free human review of one artifact</h1>
+<p class="s">Not ready to pay? Send one artifact. We return a written review in two working days.</p>
+<div class="box">
+<p><strong>What to send:</strong> a public repo/URL, one JSON artifact, or the exact output of a scanner
+that returned “no issues”. No keys, no customer data, no private prompts.</p>
+<p><strong>What you get:</strong> the four layers checked separately — schema contract, emptiness,
+generation provenance, mandate authority — plus the rule that fired and one concrete fix.</p>
+<p><strong>What we do not do:</strong> no “100% safe”, no legal opinion, no recovery promise.
+If the artifact is fine, the review says it is fine.</p>
+<a class="cta" href="mailto:maxim.pkk@gmail.com?subject=attest%20review">Email one artifact</a>
+</div>
+<p class="muted">Prefer self-serve? <a href="/start">100 free checks for 30 days</a> ·
+<a href="/demo">demo</a> · <a href="/plans">pricing</a>. The review is free because nobody has paid yet;
+it is how we learn whether the product is useful.</p>
 </body></html>"""
 
 _PRIVACY_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
@@ -1394,6 +1424,8 @@ class AttestHandler(BaseHTTPRequestHandler):
             # прошёл. Собирается из тех же описаний, что отдаёт /mcp.
             from .server_card import SERVER_CARD
             self._send(200, SERVER_CARD.encode("utf-8"), "application/json")
+        elif path == "/review":
+            self._send_html(_REVIEW_HTML)
         elif path == "/start":
             self._send_html(_START_HTML)
         elif path == "/demo":

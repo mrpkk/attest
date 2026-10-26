@@ -1246,3 +1246,12 @@ def test_start_works_without_email(server, tmp_path, monkeypatch):
     from attest.signing import public_key_b64
     ok, why = ent.redeem(data["key"], trusted_key=public_key_b64())
     assert ok, why
+
+
+def test_review_page_is_free_human_review(server):
+    with urllib.request.urlopen(f"{server}/review", timeout=10) as r:
+        assert r.status == 200
+        body = r.read().decode("utf-8")
+    for needle in ("Free human review", "maxim.pkk@gmail.com", "no “100% safe”"):
+        assert needle in body
+    assert "/start" in body
