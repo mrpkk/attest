@@ -535,7 +535,10 @@ in this window. With an email you get 100 checks and the key by mail.</p>
 • four layers per check: schema contract, emptiness, generation provenance, mandate authority<br>
 • an Ed25519-signed verdict you can verify offline, without trusting this service</p>
 <p class="muted">After 30 days the key simply stops working. If it is useful, $9/30 days
-keeps it running — or $4/30 days for India pricing. <a href="/plans">pricing</a> ·
+keeps it running — or $4/30 days for India pricing. If you run agents with wallets, the
+paid product is different: an <strong>audit at $1,250</strong> (first three, then $2,500),
+ten working days, one line of evidence per finding — <a href="/plans">pricing</a> ·
+<a href="https://mrpkk.github.io/nidhipati/audit-sample.html">sample report</a> ·
 <a href="/demo">demo</a> · <a href="/article">why positional scanning</a></p>
 </div>
 <script>
