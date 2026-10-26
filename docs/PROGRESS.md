@@ -589,5 +589,6 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
   Реальный MCP — по-прежнему JSON-RPC POST; GET не притворяется SSE.
 - **Проверено:** `GET /mcp` 200, `POST initialize` 200, `GET /health` 200;
   полный прогон **587 passed, 4 skipped**.
-- **Осталось:** войти в BusinessMCP developer portal и resubmit; без входа
-  (Google) сделать нельзя. Письмо в поддержку — с просьбой перепроверить.
+- **Проверено в портале:** BusinessMCP показывает **Live**, automated checks
+  last run 10/26/2026 22:12; resubmit не требуется. Письмо в поддержку отправлено
+  до проверки — это безвредно, но действие не нужно.
