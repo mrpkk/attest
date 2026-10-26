@@ -160,6 +160,7 @@ def verify_chain(
     keyring: dict[str, Any],
     *,
     checkpoint: dict | None = None,
+    manifest: dict[str, list[str]] | None = None,
 ) -> ChainVerdict:
     if not receipts:
         return ChainVerdict(False, ["chain-sequence-gap"], {"state": "unanswered", "result": None,
@@ -245,6 +246,18 @@ def verify_chain(
 
     by_seq = {(r.get("chain") or {}).get("seq"): r for r in receipts}
     checkpoint_state = _checkpoint_state(checkpoint, keyring, chain_id, by_seq)
+
+    # G16: точка, подписанная доверенным ключом, ещё не привязана к цепи.
+    # Право подписи принадлежит тому, кто открыл цепь.
+    if manifest is not None and checkpoint_state.get("state") == "answered":
+        opener = by_seq.get(0) or {}
+        opener_agent = str((opener.get("agent") or {}).get("id", ""))
+        cp_kid = str(((checkpoint or {}).get("sig") or {}).get("kid", ""))
+        allowed = manifest.get(opener_agent)
+        if allowed is not None and cp_kid not in allowed:
+            checkpoint_state = {"state": "unusable", "result": None,
+                                "reason": "UNTRUSTED: the checkpoint key is not authorized "
+                                          "for the agent that opened the chain"}
 
     ok = not conditions
     ambiguous = [r["id"] for r in per_receipt if r.get("kid_ambiguous")]

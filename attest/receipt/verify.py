@@ -31,7 +31,7 @@ from typing import Any
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-from . import jcs, schema
+from . import identity, jcs, schema
 
 DOMAIN = b"NOA-Receipt-v0.1-sig:"
 P = 2**255 - 19
@@ -165,6 +165,8 @@ def verify_receipt(
     public_key: bytes,
     *,
     envelope: Any = None,
+    manifest: dict[str, list[str]] | None = None,
+    envelope_kid: str | None = None,
 ) -> Verdict:
     """Проверить одну квитанцию без сети и без доверия к отправителю.
 
@@ -232,4 +234,17 @@ def verify_receipt(
 
     if rejections:
         return Verdict(False, "tampered", rejections, detail)
+
+    attribution = identity.check_attribution(receipt, manifest, envelope_kid=envelope_kid)
+    detail["attribution"] = {
+        "status": attribution.status,
+        "agent_id": attribution.agent_id,
+        "native_kid": attribution.native_kid,
+        "envelope_kid": attribution.envelope_kid,
+        "notes": attribution.notes,
+    }
+    if attribution.status == "unauthorized":
+        # UNTRUSTED ≠ TAMPERED: байты целы, подпись верна, ключ не тот.
+        return Verdict(False, "untrusted", [attribution.why()], detail)
+
     return Verdict(True, "valid", [], detail)
