@@ -30,6 +30,7 @@ beacon. Save the page and open it from disk, and even that disappears.</p>
 <button class="alt" onclick="example()">Load the example</button>
 
 <pre id="out">—</pre>
+<p class="note" id="caps"></p>
 <p class="note" id="size"></p>
 
 <script type="module">
@@ -231,8 +232,43 @@ function b64decode(text) {
   return out;
 }
 
+/* Что умеет этот браузер.
+ *
+ * Safari долго не поддерживал Ed25519 в WebCrypto, и страница без этой проверки
+ * просто молча не работала: кнопка нажимается, ответ не приходит, человек
+ * решает, что сломана проверка. Отсутствие возможности надо называть, а не
+ * прятать за пустым экраном.
+ */
+async function capabilities() {
+  const out = { subtle: false, ed25519: false, reason: "" };
+  if (typeof crypto === "undefined" || !crypto.subtle) {
+    out.reason = "WebCrypto недоступен";
+    return out;
+  }
+  out.subtle = true;
+  try {
+    // Пробный импорт заведомо валидного ключа: дешевле любой проверки версии.
+    await crypto.subtle.importKey("raw", new Uint8Array(32).fill(1),
+      { name: "Ed25519" }, false, ["verify"]);
+    out.ed25519 = true;
+  } catch (err) {
+    out.reason = err && err.message ? err.message : "Ed25519 не поддерживается";
+  }
+  return out;
+}
+
 async function verifyReceiptText(text, publicKeyB64) {
   const result = { ok: false, status: "malformed", rejections: [], detail: {} };
+
+  const caps = await capabilities();
+  if (!caps.ed25519) {
+    result.status = "unsupported";
+    result.rejections.push(
+      `этот браузер не умеет Ed25519 в WebCrypto (${caps.reason}). ` +
+      "Проверка не выполнена — это не «недействительно». " +
+      "Откройте страницу в Chromium-браузере или проверьте квитанцию через CLI.");
+    return result;
+  }
   let receipt;
   try {
     receipt = parseStrict(text);
@@ -301,6 +337,19 @@ function exactBytes(bytes) {
 
 
 const EXAMPLE = {"text": "{\"action\":{\"canonical\":\"wire.transfer\",\"id\":\"wire.transfer\",\"paramsHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"reversible\":true,\"riskClass\":\"HIGH\"},\"agent\":{\"id\":\"agent-1\",\"principal\":\"SERVICE\"},\"chain\":{\"hash\":\"sha256:ba1b8fb945cd29e62fb5d4ea412a8e524e528d7aac6f6aecd7674aec2b2213db\",\"prevHash\":null,\"seq\":0},\"governance\":{\"mode\":\"on\",\"sandboxed\":false,\"verdict\":\"EXECUTED\"},\"id\":\"r-1\",\"scope\":{\"chain\":\"chain-1\"},\"sig\":{\"alg\":\"ed25519\",\"kid\":\"k1\",\"value\":\"SSnqGxejEqqd+GveXf4ibKtuiPCIynIbPfoKjJNwI6rHlYVGCPSOrj5k579i9X8NXiUFr93KMGBYs25kP+SDCQ==\"},\"spec\":\"noa.receipt/0.1\",\"ts\":\"2026-10-26T12:00:00Z\"}", "key": "ZgswtcbCNFyPQfhzsgYGa90wVFfMHKw0ch3LKb8JtKE="};
+
+capabilities().then((c) => {
+  const el = document.getElementById("caps");
+  if (c.ed25519) {
+    el.className = "note ok";
+    el.textContent = "Проверка подписи доступна в этом браузере (Ed25519 через WebCrypto).";
+  } else {
+    el.className = "note bad";
+    el.textContent = "Этот браузер не умеет Ed25519 (" + c.reason + "). Проверка подписи здесь " +
+      "не выполнится — это ограничение браузера, а не приговор квитанции. " +
+      "Откройте страницу в Chromium-браузере или проверьте через CLI.";
+  }
+});
 
 window.example = () => {
   document.getElementById("receipt").value = EXAMPLE.text;

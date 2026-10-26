@@ -196,8 +196,43 @@ function b64decode(text) {
   return out;
 }
 
+/* Что умеет этот браузер.
+ *
+ * Safari долго не поддерживал Ed25519 в WebCrypto, и страница без этой проверки
+ * просто молча не работала: кнопка нажимается, ответ не приходит, человек
+ * решает, что сломана проверка. Отсутствие возможности надо называть, а не
+ * прятать за пустым экраном.
+ */
+export async function capabilities() {
+  const out = { subtle: false, ed25519: false, reason: "" };
+  if (typeof crypto === "undefined" || !crypto.subtle) {
+    out.reason = "WebCrypto недоступен";
+    return out;
+  }
+  out.subtle = true;
+  try {
+    // Пробный импорт заведомо валидного ключа: дешевле любой проверки версии.
+    await crypto.subtle.importKey("raw", new Uint8Array(32).fill(1),
+      { name: "Ed25519" }, false, ["verify"]);
+    out.ed25519 = true;
+  } catch (err) {
+    out.reason = err && err.message ? err.message : "Ed25519 не поддерживается";
+  }
+  return out;
+}
+
 export async function verifyReceiptText(text, publicKeyB64) {
   const result = { ok: false, status: "malformed", rejections: [], detail: {} };
+
+  const caps = await capabilities();
+  if (!caps.ed25519) {
+    result.status = "unsupported";
+    result.rejections.push(
+      `этот браузер не умеет Ed25519 в WebCrypto (${caps.reason}). ` +
+      "Проверка не выполнена — это не «недействительно». " +
+      "Откройте страницу в Chromium-браузере или проверьте квитанцию через CLI.");
+    return result;
+  }
   let receipt;
   try {
     receipt = parseStrict(text);

@@ -52,12 +52,26 @@ beacon. Save the page and open it from disk, and even that disappears.</p>
 <button class="alt" onclick="example()">Load the example</button>
 
 <pre id="out">—</pre>
+<p class="note" id="caps"></p>
 <p class="note" id="size"></p>
 
 <script type="module">
 {js}
 
 const EXAMPLE = {example};
+
+capabilities().then((c) => {{
+  const el = document.getElementById("caps");
+  if (c.ed25519) {{
+    el.className = "note ok";
+    el.textContent = "Проверка подписи доступна в этом браузере (Ed25519 через WebCrypto).";
+  }} else {{
+    el.className = "note bad";
+    el.textContent = "Этот браузер не умеет Ed25519 (" + c.reason + "). Проверка подписи здесь " +
+      "не выполнится — это ограничение браузера, а не приговор квитанции. " +
+      "Откройте страницу в Chromium-браузере или проверьте через CLI.";
+  }}
+}});
 
 window.example = () => {{
   document.getElementById("receipt").value = EXAMPLE.text;

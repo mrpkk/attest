@@ -1,0 +1,18 @@
+CC0 1.0 Universal — Public Domain Dedication
+=============================================
+
+The files in this directory (`receipt-vectors.json` and any vector corpora added
+here) are dedicated to the public domain under CC0 1.0 Universal.
+
+You may copy, modify, distribute and use them, including for commercial
+purposes, without asking permission and without attribution.
+
+Why: a conformance corpus that requires a licence to read is not a standard.
+The point of these vectors is that anyone can take them and test their own
+implementation against ours. If our verifier and yours disagree on these bytes,
+that disagreement is the useful product — and it belongs to everyone.
+
+The code that produced them (`attest/`, `attest/web/verify.js`) is licensed
+separately under Apache-2.0, as stated in the repository LICENSE file.
+
+Full CC0 text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
