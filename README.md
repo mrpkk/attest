@@ -18,7 +18,7 @@ artifact:
 - is not a base64 wrapper around such an instruction,
 - has not changed since it was checked.
 
-`attest` closes that gap. No dependencies, 574 tests green.
+`attest` closes that gap. No dependencies, 586 tests green.
 
 ## Four layers, four different questions
 
