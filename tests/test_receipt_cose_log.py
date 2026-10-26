@@ -178,3 +178,28 @@ def test_log_survives_restart(tmp_path):
     lg.append(b"two")
     again = tlog.TransparencyLog(path)
     assert again.leaves == lg.leaves
+
+
+def test_partial_last_line_is_survived_and_reported(tmp_path):
+    """Обрыв записи не должен мешать сервису подняться и не должен прятаться."""
+    path = tmp_path / "log.txt"
+    lg = tlog.TransparencyLog(path)
+    lg.append(b"a")
+    lg.append(b"b")
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write("deadbeef")  # оборванная hex-строка
+    again = tlog.TransparencyLog(path)
+    assert len(again.leaves) == 2
+    assert again.damaged_tail is True
+    # файл обрезан: следующая запись не приклеится к обрывку
+    again.append(b"c")
+    third = tlog.TransparencyLog(path)
+    assert len(third.leaves) == 3
+    assert third.damaged_tail is False
+
+
+def test_clean_log_is_not_marked_damaged(tmp_path):
+    path = tmp_path / "log.txt"
+    lg = tlog.TransparencyLog(path)
+    lg.append(b"a")
+    assert tlog.TransparencyLog(path).damaged_tail is False

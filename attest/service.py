@@ -1595,7 +1595,8 @@ class AttestHandler(BaseHTTPRequestHandler):
             head = log.head(key)
             self._send_json(200, {"size": head.size, "root": head.root,
                                   "timestamp": head.timestamp, "signature": head.signature,
-                                  "public_key": _tlog_public_key(key)})
+                                  "public_key": _tlog_public_key(key),
+                                  "damaged_tail": log.damaged_tail})
         elif path.startswith("/log/proof/"):
             log, key = self._transparency()
             try:

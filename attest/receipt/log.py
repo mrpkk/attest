@@ -176,10 +176,42 @@ class TransparencyLog:
     path: Path
     leaves: list[bytes] = field(default_factory=list)
 
+    damaged_tail: bool = False
+
     def __post_init__(self) -> None:
-        if self.path.exists():
-            self.leaves = [bytes.fromhex(line) for line in
-                           self.path.read_text().splitlines() if line.strip()]
+        """Загрузить журнал, пережив обрыв записи.
+
+        Журнал дописывается построчно, и обрыв между байтами оставляет
+        половину строки. Молча пропустить её нельзя: это сдвинуло бы индексы
+        и сломало доказательства. Уронить сервис — тоже нельзя: одна битая
+        строка не повод останавливать проверку.
+
+        Поэтому: читаем до первой негодной строки, обрезаем файл по
+        последней целой и **сообщаем** об этом флагом `damaged_tail`.
+        Усечение всегда с конца, потому что журнал только дописывается.
+        """
+        self.leaves = []
+        if not self.path.exists():
+            return
+        raw_lines = self.path.read_bytes().split(b"\n")
+        good: list[bytes] = []
+        for line in raw_lines:
+            if not line.strip():
+                continue
+            try:
+                digest = bytes.fromhex(line.decode().strip())
+            except (ValueError, UnicodeDecodeError):
+                self.damaged_tail = True
+                break
+            if len(digest) != 32:
+                self.damaged_tail = True
+                break
+            good.append(digest)
+        self.leaves = good
+        if self.damaged_tail:
+            # Переписываем только целую часть: иначе следующая запись
+            # приклеится к обрывку и журнал станет нечитаемым навсегда.
+            self.path.write_text("".join(d.hex() + "\n" for d in good), encoding="utf-8")
 
     def append(self, statement: bytes) -> int:
         digest = leaf_hash(statement)
