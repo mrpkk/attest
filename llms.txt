@@ -123,3 +123,7 @@ assembly, .transfer.
 
 Один артефакт — письменный разбор за два рабочих дня, без оплаты:
 https://attest.rta.lat/review
+
+## BusinessMCP Marketplace
+
+https://businessmcp.com/mcp-servers/attest

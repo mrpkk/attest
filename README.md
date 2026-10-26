@@ -19,7 +19,8 @@ artifact:
 - has not changed since it was checked.
 
 `attest` closes that gap. No dependencies, 586 tests green.  
-**Free human review of one artifact:** https://attest.rta.lat/review
+**Free human review of one artifact:** https://attest.rta.lat/review  
+**BusinessMCP Marketplace:** https://businessmcp.com/mcp-servers/attest
 
 ## Four layers, four different questions
 
