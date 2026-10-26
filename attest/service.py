@@ -685,6 +685,7 @@ goes straight into its context. Four checks, each answering only its own questio
   <button id="go" onclick="run()">Verify</button>
   <a class="hint" href="/demo">four-layer demo →</a>
   <a class="hint" href="/start">100 free checks →</a>
+  <a class="hint" href="/review">free human review →</a>
 </div>
 
 <div class="card" id="res" style="display:none">
@@ -801,6 +802,8 @@ _HI_REPLACEMENTS: tuple[tuple[str, str], ...] = (
     ('four-layer demo →', 'चार-स्तरीय डेमो →'),
     ('<a class="hint" href="/start">100 free checks →</a>',
      '<a class="hint" href="/start">100 मुफ़्त जाँच →</a>'),
+    ('<a class="hint" href="/review">free human review →</a>',
+     '<a class="hint" href="/review">मुफ़्त मानव समीक्षा →</a>'),
     ('<h2 style="font-size:17px;margin:30px 0 6px">Four layers, four questions</h2>',
      '<h2 style="font-size:17px;margin:30px 0 6px">चार स्तर, चार प्रश्न</h2>'),
     ('<tr><th>Layer</th><th>Question</th><th>Answers it</th></tr>',
