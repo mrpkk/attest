@@ -1216,6 +1216,7 @@ def test_exhausted_response_points_to_free_pack(server):
         assert "free_pack" in body, "ответ 402 должен предлагать бесплатный пакет"
         assert body["free_pack"]["url"].endswith("/start")
         assert body["free_pack"]["header"] == "X-ATTEST-ENTITLEMENT"
+        assert body["human_review"]["url"].endswith("/review")
 
 
 def test_start_works_without_email(server, tmp_path, monkeypatch):

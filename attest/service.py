@@ -2521,6 +2521,14 @@ document.getElementById('go').onclick = async () => {{
                 "url": f"{self._base_url()}/start",
                 "header": ENT_HEADER,
             },
+            # Если человек не готов платить, у него должен быть путь
+            # получить пользу и оставить след. Разбор одного артефакта
+            # бесплатный: это не продажа, а первый настоящий контакт.
+            "human_review": {
+                "description": ("One artifact reviewed by a human, free. "
+                                "Written reply in two working days."),
+                "url": f"{self._base_url()}/review",
+            },
             # Человеку без x402-клиента нужен способ заплатить. Страница /pay
             # проверяет перевод USDC в блокчейне и выдаёт тот же токен.
             "pay_human": {
