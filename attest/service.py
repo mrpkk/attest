@@ -1545,6 +1545,26 @@ class AttestHandler(BaseHTTPRequestHandler):
         data["free"]["limit_per_day"] = self.free_tier.daily_limit
         return data
 
+    def do_HEAD(self) -> None:  # noqa: N802
+        """HEAD для health-check площадок.
+
+        Каталоги (BusinessMCP и подобные) проверяют доступность HEAD-запросом.
+        Без этого метода BaseHTTPRequestHandler отвечает 501, и живой сервис
+        выглядит мёртвым — 26.10.2026 так приостановили листинг attest.
+        Тело для HEAD не отправляется по протоколу.
+        """
+        path = route_path(self.path)
+        if path in ("/", "/health", "/mcp", "/pricing", "/demo", "/article", "/stats"):
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json" if path in ("/health", "/mcp", "/stats")
+                             else "text/html; charset=utf-8")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+        else:
+            self.send_response(404)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
     def do_POST(self) -> None:  # noqa: N802
         path = route_path(self.path)
         if path == "/start":

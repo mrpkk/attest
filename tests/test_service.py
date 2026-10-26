@@ -1271,3 +1271,17 @@ def test_mcp_get_is_a_health_probe_not_405(server):
         body = _json.loads(r.read().decode())
     assert body["status"] == "ok"
     assert body["method"] == "POST"
+
+
+def test_mcp_head_is_ok_for_health_checks(server):
+    """HEAD /mcp must answer 200.
+
+    26.10.2026 BusinessMCP paused the listing: its check saw HEAD 501 and read
+    the service as unreachable, while GET and POST were fine. A health check
+    is allowed to use HEAD; the answer has to be honest.
+    """
+    import urllib.request as _u
+    request = _u.Request(f"{server}/mcp", method="HEAD")
+    with _u.urlopen(request, timeout=10) as response:
+        assert response.status == 200
+        assert response.headers.get("Content-Type", "").startswith("application/json")
