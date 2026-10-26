@@ -570,3 +570,12 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
   который зашёл на главную и не готов платить, уходил без следа.
 - Хинди-версия добавлена в тот же словарь.
 - Полный прогон: **586 passed, 4 skipped**. Живая главная содержит ссылку.
+
+## 26.10.2026 — все прямые вопросы в r/mcp отвечены
+
+- В посте «Pinning what the model reads…» (`1xel1la`) ответил пяти авторам:
+  `Ctbhatia` (per-session, не deploy), `MiserableFlatworm337` (изменённые examples
+  тоже ревью, но ниже вес), `BC_MARO` (оба хеша в одной записи), `jacobdevhq`
+  (pin + runtime diff), `radim11` (tools hash первым, package hash рядом).
+- `LeastAd2616` результатов пока не выложил; не дёргаю.
+- Учёт всех веток: `/media/Sruti/iamthat/work/sales/PROGRESS/THREADS-LEDGER.md`.
