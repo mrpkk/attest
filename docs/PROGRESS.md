@@ -534,3 +534,12 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
       Base mainnet (eip155:8453), USDC `0x8335…2913`, 5000 атомов = $0.005, адрес получателя
       задан, фасилитатор PayAI. 402-путь покрыт 66 тестами (троттлинг, обход после оплаты,
       учёт повторных). Живой лимит не сжигали: платить своими деньгами нельзя.
+
+## 26.10.2026 — warm replies in r/mcp (attest)
+
+- Ответил в посте «Pinning what the model reads vs what the package runs» (`1xel1la`):
+  - `u/radim11` (`19rny882okfhg`): audit trail = package digest + tools/list payload hash + policy hash; спросил, что записывать первым.
+  - `u/Ludynia_Keyko` (`19rny8a60i6w2`): drift между деплоями vs динамические upstream-описания; разные сигналы, не один.
+- Без ссылки на продукт: сначала разговор, не продажа.
+- Почта: ответов покупателей нет; bounce `contact@smithery.ai` относится к KARTA, не к attest.
+- Следующий шаг: ждать ответы; при запросе — бесплатный разбор одного артефакта.
