@@ -31,7 +31,7 @@ from typing import Any
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-from . import identity, jcs, schema
+from . import cose, identity, jcs, schema
 
 DOMAIN = b"NOA-Receipt-v0.1-sig:"
 P = 2**255 - 19
@@ -228,9 +228,18 @@ def verify_receipt(
     if envelope is None:
         detail["envelope"] = "absent: only the native signature was checked"
     else:
-        # Конверт COSE — S5. Здесь честно сказано, что он не проверен,
-        # а не выдан за проверенный.
-        detail["envelope"] = "present but not verified in this step"
+        # G4: обе подписи проверяются в одном входе и результаты раздельны.
+        outer = cose.verify(envelope, public_key)
+        if not outer.ok:
+            return Verdict(False, "tampered", [f"envelope: {outer.reason}"], detail)
+        if outer.payload != jcs.dumps(receipt).encode():
+            return Verdict(False, "tampered",
+                           ["envelope payload differs from the receipt it claims to carry"], detail)
+        detail["envelope"] = "verified: outer signature ok, payload matches"
+        detail["envelope_kid"] = outer.kid
+        detail["cwt_claims"] = {"iss": outer.issuer, "sub": outer.subject}
+        if envelope_kid is None:
+            envelope_kid = outer.kid
 
     if rejections:
         return Verdict(False, "tampered", rejections, detail)

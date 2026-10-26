@@ -162,3 +162,27 @@ def test_hash_input_excludes_chain_hash_and_signature_value():
     receipt["chain"]["hash"] = "sha256:" + "c" * 64
     receipt["sig"]["value"] = base64.b64encode(b"\x00" * 64).decode()
     assert verify.hash_input(receipt) == first
+
+
+def test_both_signatures_in_one_entry_point():
+    """G4: дан конверт — проверяются обе подписи, и результат говорит, какие."""
+    from attest.receipt import cose
+    priv = Ed25519PrivateKey.generate()
+    receipt = make(priv)
+    raw = jcs.dumps(receipt).encode()
+    envelope = cose.wrap(raw, kid="k1", issuer="acme", subject="chain-1", private_key=priv)
+    result = verify.verify_receipt(raw, priv.public_key().public_bytes_raw(), envelope=envelope)
+    assert result.ok, result.why()
+    assert result.detail["native_signature"] == "verified"
+    assert result.detail["envelope"].startswith("verified")
+
+
+def test_envelope_carrying_another_payload_is_rejected():
+    from attest.receipt import cose
+    priv = Ed25519PrivateKey.generate()
+    receipt = make(priv)
+    raw = jcs.dumps(receipt).encode()
+    envelope = cose.wrap(b'{"other":1}', kid="k1", issuer="a", subject="b", private_key=priv)
+    result = verify.verify_receipt(raw, priv.public_key().public_bytes_raw(), envelope=envelope)
+    assert not result.ok
+    assert "payload differs" in result.why()
