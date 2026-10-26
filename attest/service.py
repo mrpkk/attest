@@ -430,7 +430,7 @@ def _send_key_email(to: str, token: str, valid_until: int) -> str:
 _PLANS_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>attest — pricing</title>
-<meta name="description" content="attest pricing: 20 checks a day free, $0.005 per call over x402, $9 for 30 days, $4 for 30 days at India purchasing-power pricing.">
+<meta name="description" content="attest pricing: a free verifier, an agent spend audit at $1,250 for the first three, a $1,500/mo retainer, and developer access at $0.005 per call or $9 for 30 days.">
 <link rel="canonical" href="https://attest.rta.lat/plans">
 <style>
  body{background:#0b0d12;color:#e8ecf4;font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:0 auto;padding:44px 22px 80px}
@@ -446,7 +446,22 @@ _PLANS_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
  ul{color:#c3cad4} li{margin:0 0 6px}
 </style></head><body>
 <h1>Pricing</h1>
-<p class="s">A check is one artifact verified against one schema. No account, no card, no SDK.</p>
+<p class="s">One ladder, five lines. The verifier is free and stays free; the money is in the
+report a human signs and the log that keeps running when nobody watches.</p>
+
+<h2>Start here</h2>
+<div class="tiers">
+ <div class="t"><b>Audit</b><p class="p">$1,250</p><span class="hint">First three audits, then $2,500. Ten working days: what your agents actually spent, what they actually got, and one line of evidence per finding. <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">A public sample report</a>.</span></div>
+ <div class="t"><b>Retainer</b><p class="p">$1,500/mo</p><span class="hint">After an audit: monthly re-check, new rules, and an alert when the same class of spend comes back.</span></div>
+ <div class="t"><b>Enterprise</b><p class="p">On request</p><span class="hint">Private reserve confirmation, white-label receipts, the whole engine behind your brand.</span></div>
+</div>
+<p class="hint">Why an audit and not a subscription: a subscription asks to be trusted every month;
+a report can be read once and checked. If there is nothing to find, the report says so and there is
+no fee for finding nothing.</p>
+
+<h2>Developer access</h2>
+<p class="s">A check is one artifact verified against one schema. No account, no card, no SDK.
+This rail exists for pipelines, not for buyers — it is priced at cost.</p>
 <div class="tiers">
  <div class="t"><b>Free</b><p class="p">0 USDC</p><span class="hint">20 checks a day, forever. Full check: schema, emptiness, provenance, authority.</span></div>
  <div class="t"><b>Per call</b><p class="p">0.005 USDC</p><span class="hint">Beyond the free tier, paid over x402 on Base. Three steps: ask, sign, retry.</span></div>
