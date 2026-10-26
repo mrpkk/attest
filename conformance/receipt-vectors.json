@@ -1,0 +1,65 @@
+{
+ "public_key": "ZgswtcbCNFyPQfhzsgYGa90wVFfMHKw0ch3LKb8JtKE=",
+ "vectors": [
+  {
+   "name": "valid",
+   "text": "{\"action\":{\"canonical\":\"wire.transfer\",\"id\":\"wire.transfer\",\"paramsHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"reversible\":true,\"riskClass\":\"HIGH\"},\"agent\":{\"id\":\"agent-1\",\"principal\":\"SERVICE\"},\"chain\":{\"hash\":\"sha256:ba1b8fb945cd29e62fb5d4ea412a8e524e528d7aac6f6aecd7674aec2b2213db\",\"prevHash\":null,\"seq\":0},\"governance\":{\"mode\":\"on\",\"sandboxed\":false,\"verdict\":\"EXECUTED\"},\"id\":\"r-1\",\"scope\":{\"chain\":\"chain-1\"},\"sig\":{\"alg\":\"ed25519\",\"kid\":\"k1\",\"value\":\"SSnqGxejEqqd+GveXf4ibKtuiPCIynIbPfoKjJNwI6rHlYVGCPSOrj5k579i9X8NXiUFr93KMGBYs25kP+SDCQ==\"},\"spec\":\"noa.receipt/0.1\",\"ts\":\"2026-10-26T12:00:00Z\"}",
+   "expect_ok": true
+  },
+  {
+   "name": "changed_after_signing",
+   "text": "{\"action\":{\"canonical\":\"wire.transfer\",\"id\":\"wire.transfer\",\"paramsHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"reversible\":true,\"riskClass\":\"LOW\"},\"agent\":{\"id\":\"agent-1\",\"principal\":\"SERVICE\"},\"chain\":{\"hash\":\"sha256:b334b7e88670dc40c7b521d47b712a9562c2bb9cd24744052cff680d41c91332\",\"prevHash\":null,\"seq\":0},\"governance\":{\"mode\":\"on\",\"sandboxed\":false,\"verdict\":\"EXECUTED\"},\"id\":\"r-2\",\"scope\":{\"chain\":\"chain-1\"},\"sig\":{\"alg\":\"ed25519\",\"kid\":\"k1\",\"value\":\"sOKwsKa4pZH0EpHvZOOS1kI//G7XKzxtGIlqAhuYhnHpz175iN+LIE8YXlMy94zMWYosmbaUQu++ty8BFYZsDA==\"},\"spec\":\"noa.receipt/0.1\",\"ts\":\"2026-10-26T12:00:00Z\"}",
+   "expect_ok": false
+  },
+  {
+   "name": "chain_hash_substituted",
+   "text": "{\"action\":{\"canonical\":\"wire.transfer\",\"id\":\"wire.transfer\",\"paramsHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"reversible\":true,\"riskClass\":\"HIGH\"},\"agent\":{\"id\":\"agent-1\",\"principal\":\"SERVICE\"},\"chain\":{\"hash\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"prevHash\":null,\"seq\":0},\"governance\":{\"mode\":\"on\",\"sandboxed\":false,\"verdict\":\"EXECUTED\"},\"id\":\"r-3\",\"scope\":{\"chain\":\"chain-1\"},\"sig\":{\"alg\":\"ed25519\",\"kid\":\"k1\",\"value\":\"kTud0Axng0Bqe5pMVaRts/zN5F6kq6JP50b/UHVAQSb0G02AsvD863Jr/tueTrr5u8EaEAJK4eDwmxH4LhB0Bg==\"},\"spec\":\"noa.receipt/0.1\",\"ts\":\"2026-10-26T12:00:00Z\"}",
+   "expect_ok": false
+  },
+  {
+   "name": "not_canonical",
+   "text": "{\"action\":{\"canonical\":\"wire.transfer\", \"id\":\"wire.transfer\", \"paramsHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"reversible\":true, \"riskClass\":\"HIGH\"}, \"agent\":{\"id\":\"agent-1\", \"principal\":\"SERVICE\"}, \"chain\":{\"hash\":\"sha256:b572240424b187dacee4b368db46abd5b5e6612cb19905ff2dbb5033d427e0c2\", \"prevHash\":null, \"seq\":0}, \"governance\":{\"mode\":\"on\", \"sandboxed\":false, \"verdict\":\"EXECUTED\"}, \"id\":\"r-4\", \"scope\":{\"chain\":\"chain-1\"}, \"sig\":{\"alg\":\"ed25519\", \"kid\":\"k1\", \"value\":\"eL11+49wdLaQD6DOnLMdhdMoh1t1Wd+zNsKoTXeZGOBlbZM7aXZdUbAhCkO/xNNEVQ86AgFZA8mLgEAxsZJjCw==\"}, \"spec\":\"noa.receipt/0.1\", \"ts\":\"2026-10-26T12:00:00Z\"}",
+   "expect_ok": false
+  },
+  {
+   "name": "G1_sandbox_principal",
+   "text": "{\"action\":{\"canonical\":\"wire.transfer\",\"id\":\"wire.transfer\",\"paramsHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"reversible\":true,\"riskClass\":\"HIGH\"},\"agent\":{\"id\":\"agent-1\",\"principal\":\"SANDBOX_SIM\"},\"chain\":{\"hash\":\"sha256:c1c56671e75194c58573c5bffa6ad26c9dabc3b78969a25a5d56a4d1635bc07d\",\"prevHash\":null,\"seq\":0},\"governance\":{\"mode\":\"on\",\"sandboxed\":false,\"verdict\":\"EXECUTED\"},\"id\":\"r-1\",\"scope\":{\"chain\":\"chain-1\"},\"sig\":{\"alg\":\"ed25519\",\"kid\":\"k1\",\"value\":\"W7KYcYDA4cO/S5O76b2+z152PxNVqeTnIV34bGkI2AiVSYrIWWk3RPC2LxfkkEP8zd0nqpwOu2c4Bpg3wH8LCw==\"},\"spec\":\"noa.receipt/0.1\",\"ts\":\"2026-10-26T12:00:00Z\"}",
+   "expect_ok": false
+  },
+  {
+   "name": "G1_simulated_verdict",
+   "text": "{\"action\":{\"canonical\":\"wire.transfer\",\"id\":\"wire.transfer\",\"paramsHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"reversible\":true,\"riskClass\":\"HIGH\"},\"agent\":{\"id\":\"agent-1\",\"principal\":\"SERVICE\"},\"chain\":{\"hash\":\"sha256:d6a50e7acac7da9aaefc31c83441bd7b86b0af70d365c6d8cf587e076354e82b\",\"prevHash\":null,\"seq\":0},\"governance\":{\"mode\":\"on\",\"sandboxed\":false,\"verdict\":\"SIMULATED\"},\"id\":\"r-1\",\"scope\":{\"chain\":\"chain-1\"},\"sig\":{\"alg\":\"ed25519\",\"kid\":\"k1\",\"value\":\"rrLT1d/B/fbSAdfMpWto3N1Mv9KBeUayHdunt1eg0UOKm/KVSqW16XZHFhqju53TOFpgjOT2/t9t233ZQmXaAQ==\"},\"spec\":\"noa.receipt/0.1\",\"ts\":\"2026-10-26T12:00:00Z\"}",
+   "expect_ok": false
+  },
+  {
+   "name": "G2_rollback_without_reversible",
+   "text": "{\"action\":{\"canonical\":\"wire.transfer\",\"id\":\"wire.transfer\",\"paramsHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"reversible\":false,\"riskClass\":\"HIGH\",\"rollbackRef\":\"snap_1\"},\"agent\":{\"id\":\"agent-1\",\"principal\":\"SERVICE\"},\"chain\":{\"hash\":\"sha256:12cc65b687e5fd354f946cea530d6e3e0f3c308eb211466e5219429c2659cb71\",\"prevHash\":null,\"seq\":0},\"governance\":{\"mode\":\"on\",\"sandboxed\":false,\"verdict\":\"EXECUTED\"},\"id\":\"r-1\",\"scope\":{\"chain\":\"chain-1\"},\"sig\":{\"alg\":\"ed25519\",\"kid\":\"k1\",\"value\":\"j8n1XdlmDzo8vzCkJHdT6xmCZ5HAMGdqSylgV8NxW3vfhc52TLkyZ3UXaQfqOqUlY8yBkEvWRQid8qsFHmoOAg==\"},\"spec\":\"noa.receipt/0.1\",\"ts\":\"2026-10-26T12:00:00Z\"}",
+   "expect_ok": false
+  },
+  {
+   "name": "G2_rolled_back_not_reversible",
+   "text": "{\"action\":{\"canonical\":\"wire.transfer\",\"id\":\"wire.transfer\",\"paramsHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"reversible\":false,\"riskClass\":\"HIGH\"},\"agent\":{\"id\":\"agent-1\",\"principal\":\"SERVICE\"},\"chain\":{\"hash\":\"sha256:6395ec4ca2b07ea4af5a4cdcda8145c9acf0e3133b7960971ad879b5554bca27\",\"prevHash\":null,\"seq\":0},\"governance\":{\"mode\":\"on\",\"sandboxed\":false,\"verdict\":\"ROLLED_BACK\"},\"id\":\"r-1\",\"scope\":{\"chain\":\"chain-1\"},\"sig\":{\"alg\":\"ed25519\",\"kid\":\"k1\",\"value\":\"xIlvASAEWHUwp3P4hvDT/nXAhyo76eNrP+7HOFVYslrtUnDOwolUNhl/8O3TwtbXJw+oGky0fZNsn3qv0D7uAw==\"},\"spec\":\"noa.receipt/0.1\",\"ts\":\"2026-10-26T12:00:00Z\"}",
+   "expect_ok": false
+  },
+  {
+   "name": "G3_impossible_timestamp",
+   "text": "{\"action\":{\"canonical\":\"wire.transfer\",\"id\":\"wire.transfer\",\"paramsHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"reversible\":true,\"riskClass\":\"HIGH\"},\"agent\":{\"id\":\"agent-1\",\"principal\":\"SERVICE\"},\"chain\":{\"hash\":\"sha256:31d6dd4b0b460218755fed03eb70f240da76f79f206a4c94f94d1d946f7e9126\",\"prevHash\":null,\"seq\":0},\"governance\":{\"mode\":\"on\",\"sandboxed\":false,\"verdict\":\"EXECUTED\"},\"id\":\"r-1\",\"scope\":{\"chain\":\"chain-1\"},\"sig\":{\"alg\":\"ed25519\",\"kid\":\"k1\",\"value\":\"2RWPgTfuw59SnrQ3YJBuk+gDDROKom1eoBDuW8OfWvpCRGbarCQIBr7OJDG5O2dJU8XJydrBRQIrmddXj0ZOCg==\"},\"spec\":\"noa.receipt/0.1\",\"ts\":\"2026-13-45T99:99:99Z\"}",
+   "expect_ok": false
+  },
+  {
+   "name": "G_alg_not_literal",
+   "text": "{\"action\":{\"canonical\":\"wire.transfer\",\"id\":\"wire.transfer\",\"paramsHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"reversible\":true,\"riskClass\":\"HIGH\"},\"agent\":{\"id\":\"agent-1\",\"principal\":\"SERVICE\"},\"chain\":{\"prevHash\":null,\"seq\":0},\"governance\":{\"mode\":\"on\",\"sandboxed\":false,\"verdict\":\"EXECUTED\"},\"id\":\"r-1\",\"scope\":{\"chain\":\"chain-1\"},\"sig\":{\"alg\":\"EdDSA\",\"kid\":\"k1\"},\"spec\":\"noa.receipt/0.1\",\"ts\":\"2026-10-26T12:00:00Z\"}",
+   "expect_ok": false
+  },
+  {
+   "name": "hash_uppercase",
+   "text": "{\"action\":{\"canonical\":\"wire.transfer\",\"id\":\"wire.transfer\",\"paramsHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"reversible\":true,\"riskClass\":\"HIGH\"},\"agent\":{\"id\":\"agent-1\",\"principal\":\"SERVICE\"},\"chain\":{\"hash\":\"sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"prevHash\":null,\"seq\":0},\"governance\":{\"mode\":\"on\",\"sandboxed\":false,\"verdict\":\"EXECUTED\"},\"id\":\"r-1\",\"scope\":{\"chain\":\"chain-1\"},\"sig\":{\"alg\":\"ed25519\",\"kid\":\"k1\"},\"spec\":\"noa.receipt/0.1\",\"ts\":\"2026-10-26T12:00:00Z\"}",
+   "expect_ok": false
+  },
+  {
+   "name": "positive_rolled_back_reversible",
+   "text": "{\"action\":{\"canonical\":\"wire.transfer\",\"id\":\"wire.transfer\",\"paramsHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"reversible\":true,\"riskClass\":\"HIGH\",\"rollbackRef\":\"snap_9\"},\"agent\":{\"id\":\"agent-1\",\"principal\":\"SERVICE\"},\"chain\":{\"hash\":\"sha256:bafe5c68c9899f765e1717154cc91fa3adfd31369f2d1d78fbb08d56e79d6cab\",\"prevHash\":null,\"seq\":0},\"governance\":{\"mode\":\"on\",\"sandboxed\":false,\"verdict\":\"ROLLED_BACK\"},\"id\":\"r-1\",\"scope\":{\"chain\":\"chain-1\"},\"sig\":{\"alg\":\"ed25519\",\"kid\":\"k1\",\"value\":\"YCN5Tsgpw/ShSzxg+q/F6djdCL4K+t6PzBiTIoZZPDioNkJSkbNq1fbvyWCY78ihiU4J/7ReTNO7oyBA3EC9Bg==\"},\"spec\":\"noa.receipt/0.1\",\"ts\":\"2026-10-26T12:00:00Z\"}",
+   "expect_ok": true
+  }
+ ]
+}

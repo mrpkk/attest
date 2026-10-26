@@ -1480,6 +1480,12 @@ class AttestHandler(BaseHTTPRequestHandler):
                 "method": "POST",
                 "note": "This endpoint accepts JSON-RPC over POST. GET is a health probe.",
             })
+        elif path == "/verify-offline":
+            page_path = Path(__file__).with_name("web") / "offline.html"
+            if page_path.exists():
+                self._send_html(page_path.read_text(encoding="utf-8"))
+            else:
+                self._send_json(404, {"error": "offline page is not built"})
         elif path == "/privacy":
             self._send_html(_PRIVACY_HTML)
         elif path == "/catalogs":
