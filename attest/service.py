@@ -1413,7 +1413,17 @@ class AttestHandler(BaseHTTPRequestHandler):
                 "free_remaining": self.free_tier.remaining(client),
             })
         elif path == "/mcp":
-            self._send_json(405, {"error": "use POST /mcp"})
+            # Catalog health checks often probe GET /mcp. A 405 reads as
+            # "unreachable" to them, even when POST works. Answer the probe
+            # honestly; real MCP traffic is still JSON-RPC over POST.
+            # shortcut: GET /mcp is a health probe, not an SSE stream;
+            # upgrade if a client requires server-sent events.
+            self._send_json(200, {
+                "status": "ok",
+                "transport": "streamable-http",
+                "method": "POST",
+                "note": "This endpoint accepts JSON-RPC over POST. GET is a health probe.",
+            })
         elif path == "/privacy":
             self._send_html(_PRIVACY_HTML)
         elif path == "/catalogs":

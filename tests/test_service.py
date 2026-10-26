@@ -1256,3 +1256,18 @@ def test_review_page_is_free_human_review(server):
     for needle in ("Free human review", "maxim.pkk@gmail.com", "no “100% safe”"):
         assert needle in body
     assert "/start" in body
+
+
+def test_mcp_get_is_a_health_probe_not_405(server):
+    """BusinessMCP paused the listing because GET /mcp looked unreachable.
+
+    A catalog health check that gets 405 reports "unreachable", even when
+    POST /mcp works. GET is a probe; real MCP traffic is POST.
+    """
+    import json as _json
+    import urllib.request as _u
+    with _u.urlopen(f"{server}/mcp", timeout=10) as r:
+        assert r.status == 200
+        body = _json.loads(r.read().decode())
+    assert body["status"] == "ok"
+    assert body["method"] == "POST"

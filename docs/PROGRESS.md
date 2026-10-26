@@ -579,3 +579,15 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
   (pin + runtime diff), `radim11` (tools hash первым, package hash рядом).
 - `LeastAd2616` результатов пока не выложил; не дёргаю.
 - Учёт всех веток: `/media/Sruti/iamthat/work/sales/PROGRESS/THREADS-LEDGER.md`.
+
+## 26.10.2026 — BusinessMCP paused attest, GET /mcp fixed
+
+- **Письмо:** BusinessMCP paused the listing: «unreachable: attest could not be reached».
+- **Причина:** каталог проверяет `GET /mcp`, а сервер отдавал **405** «use POST /mcp».
+  POST `/mcp` и `/health` при этом работали. Для health-check 405 = недоступен.
+- **Исправлено:** `GET /mcp` → 200 JSON-проба (`status: ok`, `method: POST`).
+  Реальный MCP — по-прежнему JSON-RPC POST; GET не притворяется SSE.
+- **Проверено:** `GET /mcp` 200, `POST initialize` 200, `GET /health` 200;
+  полный прогон **587 passed, 4 skipped**.
+- **Осталось:** войти в BusinessMCP developer portal и resubmit; без входа
+  (Google) сделать нельзя. Письмо в поддержку — с просьбой перепроверить.
