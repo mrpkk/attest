@@ -19,7 +19,12 @@ from __future__ import annotations
 import json
 from typing import Any, Callable, Mapping
 
-PROTOCOL_VERSION = "2025-06-18"
+# 2026-07-28 — stateless ядро: без initialize и без Mcp-Session-Id, каждый
+# запрос несёт всё нужное сам. Старую версию продолжаем понимать: клиенты
+# обновляются не в один день, а листинг в каталоге не должен ломаться.
+PROTOCOL_VERSION = "2026-07-28"
+LEGACY_PROTOCOL_VERSION = "2025-06-18"
+SUPPORTED_PROTOCOLS = (PROTOCOL_VERSION, LEGACY_PROTOCOL_VERSION)
 SERVER_NAME = "attest"
 SERVER_VERSION = "0.1.0"
 
@@ -196,6 +201,8 @@ def handle_request(
     message: Mapping[str, Any],
     verify: Callable[..., Any],
     bridge: Callable[..., Any] | None = None,
+    *,
+    protocol_version: str | None = None,
 ) -> dict[str, Any]:
     """Обработать одно JSON-RPC сообщение.
 
@@ -217,8 +224,14 @@ def handle_request(
 
     try:
         if method == "initialize":
+            # Клиент со старым протоколом получает свою версию обратно:
+            # ответ «я новее» он читает как отказ.
+            requested = str(params.get("protocolVersion") or "")
+            negotiated = requested if requested in SUPPORTED_PROTOCOLS else PROTOCOL_VERSION
+            if protocol_version in SUPPORTED_PROTOCOLS:
+                negotiated = protocol_version
             return _result(request_id, {
-                "protocolVersion": PROTOCOL_VERSION,
+                "protocolVersion": negotiated,
                 "capabilities": {"tools": {"listChanged": False}},
                 "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
             })
@@ -444,6 +457,8 @@ def respond(
     raw: bytes,
     verify: Callable[..., Any],
     bridge: Callable[..., Any] | None = None,
+    *,
+    protocol_version: str | None = None,
 ) -> tuple[int, bytes] | None:
     """Полный цикл: тело → ответ. `None` означает «ответ не требуется»."""
     try:
@@ -453,10 +468,11 @@ def respond(
     if isinstance(message, list):
         if not message:
             return 200, json.dumps(_error(None, RpcError(JSONRPC_INVALID_REQUEST, "пустой пакет"))).encode()
-        replies = [handle_request(item, verify, bridge) for item in message]
+        replies = [handle_request(item, verify, bridge, protocol_version=protocol_version)
+                   for item in message]
         replies = [item for item in replies if "id" in item or item.get("id") is not None]
         return 200, json.dumps(replies).encode()
-    reply = handle_request(message, verify, bridge)
+    reply = handle_request(message, verify, bridge, protocol_version=protocol_version)
     if message.get("id") is None:
         return None
     return 200, json.dumps(reply).encode()

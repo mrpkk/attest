@@ -1934,14 +1934,19 @@ class AttestHandler(BaseHTTPRequestHandler):
         def verify(artifact, schema, source):
             return attest(artifact, schema, source=source)
 
-        answer = mcp_module.respond(raw, verify)
+        # 2026-07-28: версия приходит заголовком, сессии нет. Заголовок
+        # передаём в разбор и возвращаем тем же значением: клиент должен
+        # видеть, с какой версией он говорил.
+        requested_version = self.headers.get("MCP-Protocol-Version")
+        answer = mcp_module.respond(raw, verify, protocol_version=requested_version)
         if answer is None:
             self.send_response(202)
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
         status, body = answer
-        self._send(status, body, "application/json; charset=utf-8")
+        self._send(status, body, "application/json; charset=utf-8",
+                   extra_headers={"MCP-Protocol-Version": requested_version or mcp_module.PROTOCOL_VERSION})
 
     def _feedback_append(self, verdict: str, comment: str, page: str) -> None:
         """Записать отзыв. IP не храним — только короткий хеш (антиспам)."""
