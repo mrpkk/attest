@@ -619,3 +619,9 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
   обычный GET без SSE → 200 health-probe.
 - Проверено: plain GET 200, SSE GET 405, POST initialize 200; в портале attest
   снова **Live**. Полный прогон **723 passed, 4 skipped**.
+
+## 27.10.2026 — jacobdevhq: ответ в r/mcp
+
+- Ответил на «a description diff looks harmless in a PR but it's basically a
+  prompt change»: hash должен быть в approval record, иначе review не держится.
+- Без ссылки на продукт: разговор о механике, не продажа.
