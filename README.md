@@ -18,7 +18,7 @@ artifact:
 - is not a base64 wrapper around such an instruction,
 - has not changed since it was checked.
 
-`attest` closes that gap. No dependencies, 588 tests green.  
+`attest` closes that gap. No dependencies, 723 tests green.  
 **Free human review of one artifact:** https://attest.rta.lat/review  
 **BusinessMCP Marketplace:** https://businessmcp.com/mcp-servers/attest
 

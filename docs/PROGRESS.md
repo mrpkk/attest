@@ -609,3 +609,13 @@ MetaMask владельца (`0xe14264bb…Cd2`, 19.995 тестовых USDC) �
   Причина — каждый docs-commit запускал полный audit/test.
 - В `audit.yml` добавлен `paths-ignore: docs/**, **/*.md, llms.txt` для push/PR.
   Код по-прежнему проверяется; документация — нет.
+
+## 27.10.2026 — BusinessMCP: SSE-handshake починен, attest снова Live
+
+- BusinessMCP пометил attest **Suspended**: «did not complete an MCP handshake over
+  either streamable HTTP or SSE». Причина: `GET /mcp` отвечал 200 JSON на
+  `Accept: text/event-stream`; SSE-клиент ждал поток и не откатывался на POST.
+- Исправлено: `GET /mcp` с `Accept: text/event-stream` → **405** (откат на POST);
+  обычный GET без SSE → 200 health-probe.
+- Проверено: plain GET 200, SSE GET 405, POST initialize 200; в портале attest
+  снова **Live**. Полный прогон **723 passed, 4 skipped**.

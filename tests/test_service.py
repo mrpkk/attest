@@ -1285,3 +1285,16 @@ def test_mcp_head_is_ok_for_health_checks(server):
     with _u.urlopen(request, timeout=10) as response:
         assert response.status == 200
         assert response.headers.get("Content-Type", "").startswith("application/json")
+
+
+def test_mcp_get_with_sse_accept_is_405(server):
+    """An SSE client must be told to fall back to POST, not handed JSON."""
+    import urllib.error as _e
+    import urllib.request as _u
+    req = _u.Request(f"{server}/mcp", headers={"Accept": "text/event-stream"})
+    try:
+        with _u.urlopen(req, timeout=10) as r:
+            code = r.status
+    except _e.HTTPError as exc:
+        code = exc.code
+    assert code == 405

@@ -1469,17 +1469,21 @@ class AttestHandler(BaseHTTPRequestHandler):
                 "free_remaining": self.free_tier.remaining(client),
             })
         elif path == "/mcp":
-            # Catalog health checks often probe GET /mcp. A 405 reads as
-            # "unreachable" to them, even when POST works. Answer the probe
-            # honestly; real MCP traffic is still JSON-RPC over POST.
-            # shortcut: GET /mcp is a health probe, not an SSE stream;
-            # upgrade if a client requires server-sent events.
-            self._send_json(200, {
-                "status": "ok",
-                "transport": "streamable-http",
-                "method": "POST",
-                "note": "This endpoint accepts JSON-RPC over POST. GET is a health probe.",
-            })
+            # A plain GET is a catalog health probe: answer 200. A client that
+            # asks for text/event-stream is trying the legacy SSE transport;
+            # 405 tells it to fall back to POST, which is our real transport.
+            accept = self.headers.get("Accept") or ""
+            if "text/event-stream" in accept:
+                self._send_json(405, {
+                    "error": "SSE is not supported; use POST /mcp for JSON-RPC",
+                })
+            else:
+                self._send_json(200, {
+                    "status": "ok",
+                    "transport": "streamable-http",
+                    "method": "POST",
+                    "note": "This endpoint accepts JSON-RPC over POST. GET is a health probe.",
+                })
         elif path == "/docs":
             from .docs_page import DOCS_HTML
             self._send_html(DOCS_HTML)
