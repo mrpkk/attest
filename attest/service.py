@@ -1487,6 +1487,9 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/receipts":
             from .receipts_page import RECEIPTS_HTML
             self._send_html(RECEIPTS_HTML)
+        elif path == "/checkpoints":
+            from .checkpoints_page import CHECKPOINTS_HTML
+            self._send_html(CHECKPOINTS_HTML)
         elif path == "/scitt":
             from .scitt_page import SCITT_HTML
             self._send_html(SCITT_HTML)
