@@ -24,7 +24,17 @@ from typing import Any, Callable, Mapping
 # обновляются не в один день, а листинг в каталоге не должен ломаться.
 PROTOCOL_VERSION = "2026-07-28"
 LEGACY_PROTOCOL_VERSION = "2025-06-18"
-SUPPORTED_PROTOCOLS = (PROTOCOL_VERSION, LEGACY_PROTOCOL_VERSION)
+OLDEST_PROTOCOL_VERSION = "2025-03-26"
+SUPPORTED_PROTOCOLS = (PROTOCOL_VERSION, LEGACY_PROTOCOL_VERSION, OLDEST_PROTOCOL_VERSION)
+
+# Что отвечать клиенту, который назвал незнакомую нам версию.
+#
+# Здесь была ошибка, стоившая канала: на неизвестную версию сервер отвечал
+# самой новой, 2026-07-28. Glama эту версию ещё не поддерживает и объявила
+# коннектор нерабочим — листинг ушёл вниз справочника. Правильный ответ на
+# незнакомого клиента — самый осторожный, а не самый свежий: пусть обновится
+# тот, кто готов, а не тот, кто просто постучался.
+DEFAULT_FOR_UNKNOWN = LEGACY_PROTOCOL_VERSION
 SERVER_NAME = "attest"
 SERVER_VERSION = "0.1.0"
 
@@ -227,7 +237,7 @@ def handle_request(
             # Клиент со старым протоколом получает свою версию обратно:
             # ответ «я новее» он читает как отказ.
             requested = str(params.get("protocolVersion") or "")
-            negotiated = requested if requested in SUPPORTED_PROTOCOLS else PROTOCOL_VERSION
+            negotiated = requested if requested in SUPPORTED_PROTOCOLS else DEFAULT_FOR_UNKNOWN
             if protocol_version in SUPPORTED_PROTOCOLS:
                 negotiated = protocol_version
             return _result(request_id, {

@@ -43,9 +43,26 @@ def test_header_version_wins_over_body():
     assert reply["result"]["protocolVersion"] == "2026-07-28"
 
 
-def test_unknown_version_falls_back_to_current():
+def test_unknown_client_gets_the_conservative_version():
+    """Регрессия на реальную потерю канала.
+
+    Glama не поддерживает 2026-07-28. Когда сервер отвечал на незнакомую версию
+    самой новой, каталог объявлял коннектор нерабочим и опускал его в выдаче.
+    Незнакомому клиенту отвечаем самым осторожным, а не самым свежим.
+    """
     reply = mcp.handle_request(rpc("initialize", {"protocolVersion": "1999-01-01"}), verify)
-    assert reply["result"]["protocolVersion"] == mcp.PROTOCOL_VERSION
+    assert reply["result"]["protocolVersion"] == mcp.LEGACY_PROTOCOL_VERSION
+    assert reply["result"]["protocolVersion"] != mcp.PROTOCOL_VERSION
+
+
+def test_empty_version_also_gets_the_conservative_one():
+    reply = mcp.handle_request(rpc("initialize", {}), verify)
+    assert reply["result"]["protocolVersion"] == mcp.LEGACY_PROTOCOL_VERSION
+
+
+def test_oldest_supported_version_is_accepted():
+    reply = mcp.handle_request(rpc("initialize", {"protocolVersion": "2025-03-26"}), verify)
+    assert reply["result"]["protocolVersion"] == "2025-03-26"
 
 
 def test_respond_passes_the_version_through():
