@@ -1484,6 +1484,9 @@ class AttestHandler(BaseHTTPRequestHandler):
                     "method": "POST",
                     "note": "This endpoint accepts JSON-RPC over POST. GET is a health probe.",
                 })
+        elif path == "/receipts":
+            from .receipts_page import RECEIPTS_HTML
+            self._send_html(RECEIPTS_HTML)
         elif path == "/docs":
             from .docs_page import DOCS_HTML
             self._send_html(DOCS_HTML)

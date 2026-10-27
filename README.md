@@ -3,11 +3,20 @@
 [![M8ven Score](https://m8ven.ai/badge/mcp/mrpkk-attest-70kdum?v=33841343e7786aeebf405effce42c591)](https://m8ven.ai/mcp/mrpkk-attest-70kdum?s=readme)
 [![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/mrpkk/attest)
 
-Live: **<https://attest.rta.lat/demo>** · Code: <https://github.com/mrpkk/attest>
+**Agent action receipts, verified offline.** A receipt says what an agent was recorded as doing at the
+boundary that governed it. Verifying one is not a signature check: the bytes must be canonical, the chain
+rules must be applied as a set, and a checkpoint signed by a stranger must never become an accusation
+against someone else's history. **[What a verifier must reject →](https://attest.rta.lat/receipts)**
 
-Pricing: 20 checks/day free, then $0.005 per call (x402, USDC on Base). 30-day unlimited
-access: $9. **Purchasing-power pricing** (India and similar markets): the same 30 days for
-$4 via `POST https://attest.rta.lat/subscribe?plan=ppp` — same endpoint, same terms.
+Live: **<https://attest.rta.lat/demo>** · Receipts: **<https://attest.rta.lat/receipts>** ·
+Offline verifier: **<https://attest.rta.lat/verify-offline>** · Docs: **<https://attest.rta.lat/docs>**
+
+Conformance corpus, CC0: [`conformance/receipt-vectors.json`](conformance/receipt-vectors.json) — 12 vectors
+including five that must be rejected. A Python and a browser implementation agree on all twelve.
+
+Pricing: the verifier is free, forever. An **audit of what your agents spent** is $1,250 for the first
+three, then $2,500 — ten working days, one line of evidence per finding. Developer access for pipelines:
+$0.005 per call over x402 (USDC on Base), or $9 for 30 days ($4 at India purchasing-power parity).
 
 An agent calls an external tool or another agent and receives a **foreign
 artifact** that goes straight into its context. Nothing checks that the
