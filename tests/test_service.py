@@ -376,10 +376,11 @@ class TestSubscriptionPricing:
             challenge = json.loads(_b64.b64decode(header))
             return int(challenge["accepts"][0]["amount"])
 
-    def test_standard_plan_charges_9_usdc(self, server, monkeypatch):
+    def test_standard_plan_charges_99_usdc(self, server, monkeypatch):
+        """Цена поднята до $99/мес решением владельца 28.10.2026 (стратегия монетизации)."""
         monkeypatch.setattr(AttestHandler, "x402_pay_to", "0x" + "aa" * 20)
         try:
-            assert self._challenge_amount(server) == 9_000_000
+            assert self._challenge_amount(server) == 99_000_000
         finally:
             monkeypatch.setattr(AttestHandler, "x402_pay_to", None)
 
@@ -424,7 +425,7 @@ class TestSubscriptionPricing:
             post(f"{server}/subscribe?plan=ppp", {}, headers={"PAYMENT-SIGNATURE": "dummy"})
         finally:
             monkeypatch.setattr(AttestHandler, "x402_pay_to", None)
-        assert seen == [9_000_000, 3_000_000], seen
+        assert seen == [99_000_000, 3_000_000], seen
 
 
 class TestFeedback:
@@ -1159,12 +1160,12 @@ def test_plans_page_is_human_readable(server):
         html = r.read().decode("utf-8")
     assert r.status == 200
     assert "text/html" in r.headers.get("Content-Type", "")
-    for needle in ("9 USDC", "4 USDC", "India (PPP)", 'href="/start"'):
+    for needle in ("99 USDC", "49 USDC", "India (PPP)", 'href="/start"'):
         assert needle in html, f"на странице цен нет {needle}"
-    # машинный прайс остался на месте
+    # машинный прайс остался на месте и совпадает со страницей
     with urllib.request.urlopen(f"{server}/pricing", timeout=10) as r2:
         data = json.loads(r2.read().decode("utf-8"))
-    assert data["pricing"]["subscription"]["price"] == "9.0"
+    assert data["pricing"]["subscription"]["price"] == "99.0"
 
 
 def test_server_card_is_served(server):

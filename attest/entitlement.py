@@ -30,7 +30,7 @@ from .signing import sign, verify
 
 HEADER = "X-ATTEST-ENTITLEMENT"
 PLAN = "unlimited-30d"
-PRICE_USD = 9.0
+PRICE_USD = 99.0
 DEFAULT_DAYS = 30
 
 
@@ -40,7 +40,7 @@ class Entitlement:
     plan: str
     issued_at: int
     valid_until: int
-    # Лимит вызовов. None — без ограничения (обычная подписка за $9).
+    # Лимит вызовов. None — без ограничения (обычная подписка за $99/мес).
     # 100 — ранний доступ по заявке: пакет проверок без оплаты.
     max_calls: int | None = None
 

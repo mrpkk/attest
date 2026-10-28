@@ -85,7 +85,7 @@ PRICING = {
         "network": "base",
         "what": "check beyond the free tier, paid per call over x402",
     },
-    # Раньше здесь стояло «9 USDC в месяц» без кода приёма: тариф был виден
+    # Раньше здесь стояло «99 USDC в месяц» без кода приёма: тариф был виден
     # в прайсе и не выдавался. Объявленная цена, которую нельзя оплатить,
     # хуже отсутствующей — покупатель уходит и запоминает.
     "subscription": entitlement_describe(),
@@ -438,7 +438,7 @@ def _send_key_email(to: str, token: str, valid_until: int) -> str:
 _PLANS_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>attest — pricing</title>
-<meta name="description" content="attest pricing: a free verifier, an agent spend audit at $1,250 for the first three, a $1,500/mo retainer, and developer access at $0.005 per call or $9 for 30 days.">
+<meta name="description" content="attest pricing: a free verifier, an agent spend audit at $500, a $1,500/mo retainer, and developer access at $0.005 per call or $99 for 30 days.">
 <link rel="canonical" href="https://attest.rta.lat/plans">
 <style>
  body{background:#0b0d12;color:#e8ecf4;font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:0 auto;padding:44px 22px 80px}
@@ -459,7 +459,7 @@ report a human signs and the log that keeps running when nobody watches.</p>
 
 <h2>Start here</h2>
 <div class="tiers">
- <div class="t"><b>Audit</b><p class="p">$1,250</p><span class="hint">First three audits, then $2,500. Ten working days: what your agents actually spent, what they actually got, and one line of evidence per finding. <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">A public sample report</a>.</span></div>
+ <div class="t"><b>Audit</b><p class="p">$1,250</p><span class="hint">$500 flat. Ten working days: what your agents actually spent, what they actually got, and one line of evidence per finding. <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">A public sample report</a>.</span></div>
  <div class="t"><b>Retainer</b><p class="p">$1,500/mo</p><span class="hint">After an audit: monthly re-check, new rules, and an alert when the same class of spend comes back.</span></div>
  <div class="t"><b>Enterprise</b><p class="p">On request</p><span class="hint">Private reserve confirmation, white-label receipts, the whole engine behind your brand.</span></div>
 </div>
@@ -473,11 +473,11 @@ This rail exists for pipelines, not for buyers — it is priced at cost.</p>
 <div class="tiers">
  <div class="t"><b>Free</b><p class="p">0 USDC</p><span class="hint">20 checks a day, forever. Full check: schema, emptiness, provenance, authority.</span></div>
  <div class="t"><b>Per call</b><p class="p">0.005 USDC</p><span class="hint">Beyond the free tier, paid over x402 on Base. Three steps: ask, sign, retry.</span></div>
- <div class="t"><b>30 days</b><p class="p">9 USDC</p><span class="hint">No daily cap while the token is valid. One-time prepayment, no auto-renewal.</span></div>
- <div class="t"><b>India (PPP)</b><p class="p">4 USDC</p><span class="hint">Same 30 days, purchasing-power price. <a href="/pay?plan=ppp">Pay</a>.</span></div>
+ <div class="t"><b>30 days</b><p class="p">99 USDC</p><span class="hint">No daily cap while the token is valid. One-time prepayment, no auto-renewal.</span></div>
+ <div class="t"><b>India (PPP)</b><p class="p">49 USDC</p><span class="hint">Same 30 days, purchasing-power price. <a href="/pay?plan=ppp">Pay</a>.</span></div>
 </div>
 <a class="cta" href="/start">100 free checks for 30 days</a>
-<p class="hint">Or buy 30 days of unlimited checks: 9 USDC (4 for India), paid from any wallet — <a href="/pay">pay with USDC</a>. The transfer is verified on-chain and the token is issued in the same step.</p>
+<p class="hint">Or buy 30 days of unlimited checks: 99 USDC (49 for India), paid from any wallet — <a href="/pay">pay with USDC</a>. The transfer is verified on-chain and the token is issued in the same step.</p>
 <h2>Why a subscription if a call costs $0.005</h2>
 <ul>
  <li>A per-call price is paid every call, and a payment rail takes its share of a small amount. At $0.005 the fee eats most of the value.</li>
@@ -486,7 +486,7 @@ This rail exists for pipelines, not for buyers — it is priced at cost.</p>
 </ul>
 <h2>Why India has its own price</h2>
 <p>A price is a share of a buyer's income. At Western levels most Indian teams cannot
-justify a $9 line item for a verification step, and a product nobody can afford is not
+justify a $99 line item for a verification step, and a product nobody can afford is not
 a product. The $4 tier is the same 30 days — same four checks, same signed verdict —
 at purchasing-power parity.</p>
 <h2>What you actually buy</h2>
@@ -542,8 +542,8 @@ in this window. With an email you get 100 checks and the key by mail.</p>
 <p>• 100 checks through <code>POST /verify</code> or the <code>verify_artifact</code> MCP tool<br>
 • four layers per check: schema contract, emptiness, generation provenance, mandate authority<br>
 • an Ed25519-signed verdict you can verify offline, without trusting this service</p>
-<p class="muted">After 30 days the key simply stops working. If it is useful, $9/30 days
-keeps it running — or $4/30 days for India pricing. If you run agents with wallets, the
+<p class="muted">After 30 days the key simply stops working. If it is useful, $99/30 days
+keeps it running — or $49/30 days for India pricing. If you run agents with wallets, the
 paid product is different: an <strong>audit at $1,250</strong> (first three, then $2,500),
 ten working days, one line of evidence per finding — <a href="/plans">pricing</a> ·
 <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">sample report</a> ·
@@ -745,8 +745,8 @@ an exhausted quota is reported as an error, never as accepted.</p>
 <div class="tiers">
  <div class="t"><b>Trial</b>0 USDC<br><span class="hint">__FREE_LIMIT__ checks per day, full check, no limit on artifact size</span></div>
  <div class="t"><b>Per call</b>0.005 USDC<br><span class="hint">beyond the free tier, paid over x402 on Base</span></div>
- <div class="t"><b>Subscription</b>9 USDC<br><span class="hint">removes the limit, suitable for CI pipelines</span></div>
- <div class="t"><b>India (PPP)</b>4 USDC<br><span class="hint">same 30 days, purchasing-power price. <a href="/pay?plan=ppp">Pay</a></span></div>
+ <div class="t"><b>Subscription</b>99 USDC<br><span class="hint">removes the limit, suitable for CI pipelines</span></div>
+ <div class="t"><b>India (PPP)</b>49 USDC<br><span class="hint">same 30 days, purchasing-power price. <a href="/pay?plan=ppp">Pay</a></span></div>
 </div>
 
 <h2 style="font-size:17px;margin:26px 0 6px">What 790 ₽ / 30 days includes</h2>
@@ -761,7 +761,7 @@ an exhausted quota is reported as an error, never as accepted.</p>
 no blocking, no human review. It is one more check before you ship — not a replacement for review.</p>
 
 <h2 style="font-size:17px;margin:26px 0 6px">Buying a 30-day token</h2>
-<p class="hint"><b>Pay from any wallet, no account:</b> send 9 USDC on Base (4 for India)
+<p class="hint"><b>Pay from any wallet, no account:</b> send 99 USDC on Base (49 for India)
 to the project address, paste the transaction hash — the transfer is verified on-chain and a
 30-day token is issued in the same response. <a href="/pay">Pay with USDC →</a></p>
 <p class="hint">x402 is a three-step flow: ask, sign, retry. No account, no card, no dashboard.</p>
@@ -850,11 +850,11 @@ _HI_REPLACEMENTS: tuple[tuple[str, str], ...] = (
      '<div class="t"><b>नि:शुल्क</b>0 USDC<br><span class="hint">__FREE_LIMIT__ जाँच प्रतिदिन, पूरी जाँच, आर्टिफैक्ट के आकार की सीमा नहीं</span></div>'),
     ('<div class="t"><b>Per call</b>0.005 USDC<br><span class="hint">beyond the free tier, paid over x402 on Base</span></div>',
      '<div class="t"><b>प्रति कॉल</b>0.005 USDC<br><span class="hint">मुफ़्त सीमा के बाद, Base पर x402 से भुगतान</span></div>'),
-    ('<div class="t"><b>Subscription</b>9 USDC<br><span class="hint">removes the limit, suitable for CI pipelines</span></div>',
-     '<div class="t"><b>सदस्यता (30 दिन)</b>9 USDC<br><span class="hint">सीमा हटाती है, CI पाइपलाइन के लिए उपयुक्त</span></div>'),
+    ('<div class="t"><b>Subscription</b>99 USDC<br><span class="hint">removes the limit, suitable for CI pipelines</span></div>',
+     '<div class="t"><b>सदस्यता (30 दिन)</b>99 USDC<br><span class="hint">सीमा हटाती है, CI पाइपलाइन के लिए उपयुक्त</span></div>'),
     ('<div class="warn"><b>What this does not do.</b> A valid form is not meaningful content, and a\nsigned artifact is not a permitted action. Absence of signals means the coarse checks did not fire —\nit does not prove the artifact is sound. The signature is Ed25519: the public key travels with\nthe attestation, so you can verify it yourself without trusting this service.</div>',
      '<div class="warn"><b>यह क्या नहीं करता।</b> सही रूप का अर्थ वास्तविक सामग्री नहीं है, और हस्ताक्षरित आर्टिफैक्ट का अर्थ अनुमत क्रिया नहीं है। संकेतों का न होना केवल यह दिखाता है कि स्थूल जाँचें नहीं चलीं — यह सिद्ध नहीं करता कि आर्टिफैक्ट ठीक है। हस्ताक्षर Ed25519 है: सार्वजनिक कुंजी सत्यापन के साथ चलती है, इसलिए आप इस सेवा पर भरोसा किए बिना स्वयं जाँच सकते हैं।</div>'),
-    (' <div class="t"><b>India (PPP)</b>4 USDC<br><span class="hint">same 30 days, purchasing-power price. <a href="/pay?plan=ppp">Pay</a></span></div>',
+    (' <div class="t"><b>India (PPP)</b>49 USDC<br><span class="hint">same 30 days, purchasing-power price. <a href="/pay?plan=ppp">Pay</a></span></div>',
      ' <div class="t"><b>भारत (PPP)</b>4 USDC<br><span class="hint">वही 30 दिन, खरीद-क्षमता के अनुसार मूल्य। <a href="/pay?plan=ppp">भुगतान</a></span></div>'),
     ("""<h2 style="font-size:17px;margin:26px 0 6px">What 790 ₽ / 30 days includes</h2>
 <ul class="hint" style="margin:6px 0 0 18px;padding:0">
@@ -880,8 +880,8 @@ no blocking, no human review. It is one more check before you ship — not a rep
 कुछ ब्लॉक नहीं होता, मानवीय समीक्षा नहीं। यह रिलीज़ से पहले एक और जाँच है — समीक्षा का विकल्प नहीं।</p>
 
 <h2 style="font-size:17px;margin:26px 0 6px">30 दिन का टोकन कैसे खरीदें</h2>"""),
-    ('<p class="hint"><b>Pay from any wallet, no account:</b> send 9 USDC on Base (4 for India)\nto the project address, paste the transaction hash — the transfer is verified on-chain and a\n30-day token is issued in the same response. <a href="/pay">Pay with USDC →</a></p>',
-     '<p class="hint"><b>किसी भी वॉलेट से भुगतान करें, कोई खाता नहीं:</b> Base पर 9 USDC (भारत के लिए 4)\nभेजें, ट्रांज़ैक्शन हैश चिपकाएँ — ब्लॉकचेन पर जाँच के बाद उसी उत्तर में 30 दिन का टोकन मिलता है।\n<a href="/pay">USDC से भुगतान करें →</a></p>'),
+    ('<p class="hint"><b>Pay from any wallet, no account:</b> send 99 USDC on Base (49 for India)\nto the project address, paste the transaction hash — the transfer is verified on-chain and a\n30-day token is issued in the same response. <a href="/pay">Pay with USDC →</a></p>',
+     '<p class="hint"><b>किसी भी वॉलेट से भुगतान करें, कोई खाता नहीं:</b> Base पर 99 USDC (भारत के लिए 4)\nभेजें, ट्रांज़ैक्शन हैश चिपकाएँ — ब्लॉकचेन पर जाँच के बाद उसी उत्तर में 30 दिन का टोकन मिलता है।\n<a href="/pay">USDC से भुगतान करें →</a></p>'),
     ('<p class="hint">x402 is a three-step flow: ask, sign, retry. No account, no card, no dashboard.</p>',
      '<p class="hint">x402 तीन कदमों का प्रवाह है: अनुरोध, हस्ताक्षर, पुनः प्रयास। कोई खाता नहीं, कोई कार्ड नहीं, कोई डैशबोर्ड नहीं।</p>'),
     ('# 402 + challenge: price, asset, network, payTo', '# 402 + चुनौती: कीमत, संपत्ति, नेटवर्क, payTo'),
@@ -1358,7 +1358,7 @@ class AttestHandler(BaseHTTPRequestHandler):
     # Цена 30-дневной подписки для покупателей с низкой покупательной способностью
     # (Индия — обязательное направление, правило 20.10.2026). Поштучная цена
     # не снижается: ниже $0.002 рельс съедает больше половины выручки.
-    ppp_price_usd: float = _env_float("ATTEST_PPP_PRICE_USD", 4.0)
+    ppp_price_usd: float = _env_float("ATTEST_PPP_PRICE_USD", 49.0)
     # Отзывы пользователей: append-only JSONL рядом с метриками.
     feedback_path: Path = STATE_PATH.with_name("feedback.jsonl")
     # Заявки на пакет раннего доступа. Append-only, как отзывы: IP не
@@ -2273,7 +2273,7 @@ document.getElementById('go').onclick = async () => {{
                 resource=f"{self._base_url()}/subscribe")
             desc = entitlement_describe()
             # Цена в теле обязана совпадать с ценой в заголовке: иначе
-            # покупатель из Индии видит 9 USDC там, где с него просят 4.
+            # покупатель из Индии видит 99 USDC там, где с него просят 4.
             desc["price"] = f"{price_usd:g}"
             if self._plan_is_ppp(self.path):
                 desc["plan"] = "ppp-30d"
@@ -2291,11 +2291,11 @@ document.getElementById('go').onclick = async () => {{
         try:
             # Сверка идёт с ценой ЭТОГО плана, а не с ценой вызова. Баг до
             # 20.10.2026: _verify_payment всегда строил чек на 5000 атомов,
-            # и платёж подписки (9 USDC) отвергался как «сумма не равна».
+            # и платёж подписки (99 USDC) отвергался как «сумма не равна».
             payment = self._verify_payment(head, amount_atoms=amount_atoms)
         except PaymentError as exc:
             return self._send_json(exc.status, {"error": exc.reason})
-        # Подписка — тоже деньги: без этой записи 9 USDC не попадали в
+        # Подписка — тоже деньги: без этой записи 99 USDC не попадали в
         # revenue_atoms, а первый платёж клиента — в repeat_usage_7d.
         METRICS.payment(
             channel_of(self.path, self.headers.get("Referer")),
