@@ -1496,6 +1496,19 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/docs":
             from .docs_page import DOCS_HTML
             self._send_html(DOCS_HTML)
+        elif path == "/deny":
+            from urllib.parse import parse_qs
+            from .deny import query as deny_query
+            qs = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
+            since = (qs.get("since") or [""])[0]
+            try:
+                limit = int((qs.get("limit") or ["100"])[0])
+            except ValueError:
+                limit = 100
+            self._send_json(200, deny_query(since=since, limit=limit))
+        elif path == "/deny-evidence":
+            from .deny_page import DENY_HTML
+            self._send_html(DENY_HTML)
         elif path == "/verify-offline":
             page_path = Path(__file__).with_name("web") / "offline.html"
             if page_path.exists():
@@ -1672,6 +1685,27 @@ class AttestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = route_path(self.path)
+        if path == "/deny":
+            payload = self._read_json()
+            if payload is None:
+                return
+            from .deny import append, make_event, verify_record
+            try:
+                event = make_event(
+                    reason=str(payload.get("reason") or ""),
+                    policy_id=str(payload.get("policy_id") or ""),
+                    task_id=str(payload.get("task_id") or ""),
+                    artifact_hash=str(payload.get("artifact_hash") or ""),
+                    actor=str(payload.get("actor") or ""),
+                    meta=payload.get("meta") if isinstance(payload.get("meta"), dict) else {},
+                )
+            except ValueError as exc:
+                self._send_json(400, {"error": str(exc)})
+                return
+            record = append(event)
+            ok, why = verify_record(record, record.get("prev", ""))
+            self._send_json(201, {"record": record, "verified": ok, "reason": why})
+            return
         if path == "/log/register":
             payload = self._read_json()
             if payload is None:
