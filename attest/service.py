@@ -1534,7 +1534,40 @@ class AttestHandler(BaseHTTPRequestHandler):
             except oidc.OIDCError as exc:
                 self._send_json(exc.status, {"error": exc.message})
                 return
-            self._send_json(200, data)
+            session = oidc.issue_session(
+                {"email": data.get("email"), "sub": data.get("subject"),
+                 "iss": data.get("issuer")},
+                data.get("entitlement") or {},
+            )
+            body = json.dumps({"email": data.get("email"),
+                               "issuer": data.get("issuer"),
+                               "entitlement": data.get("entitlement"),
+                               "session": "issued"}, ensure_ascii=False).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Set-Cookie",
+                             f"{oidc.SESSION_COOKIE}={session}; HttpOnly; Secure; "
+                             f"SameSite=Lax; Path=/; Max-Age={oidc.SESSION_TTL}")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        elif path == "/auth/oidc/session":
+            from . import oidc
+            raw = self.headers.get("Cookie", "")
+            token = ""
+            for part in raw.split(";"):
+                name, _, value = part.strip().partition("=")
+                if name == oidc.SESSION_COOKIE:
+                    token = value
+                    break
+            data = oidc.verify_session(token)
+            if not data:
+                self._send_json(200, {"authenticated": False})
+                return
+            self._send_json(200, {"authenticated": True, "email": data.get("email"),
+                                  "expires_at": data.get("exp"),
+                                  "entitlement": data.get("entitlement")})
         elif path == "/verify-offline":
             page_path = Path(__file__).with_name("web") / "offline.html"
             if page_path.exists():

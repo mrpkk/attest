@@ -389,3 +389,12 @@ agenticskills (не подано), businessmcp (карточки были paused
 - Тесты: **6/6** (конфиг, state reuse, audience mismatch, домен, валидный токен).
 - **Нужно от владельца/enterprise:** client_id + client_secret от IdP (Google Workspace
   или Okta) и домен-allowlist — тогда включается без правок кода.
+
+## SSO-сессия и продающая страница Deny (29.10.2026, продолжение)
+
+- Callback выдаёт подписанную HttpOnly-сессию (`attest_session`, Ed25519, 30 дней);
+  `GET /auth/oidc/session` возвращает `{authenticated, email, entitlement}`; подмена cookie
+  отклоняется (тесты 8/8).
+- `/deny-evidence` переписана как продающая: заголовок «1,509 rows, zero denials», цитата
+  наблюдения с r/mcp, пример записи, API в двух вызовах, границы честности, цена **$29/мес**,
+  кнопка «Start — pay $29 in USDC» и ссылка на API-документацию.

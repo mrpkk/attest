@@ -75,3 +75,23 @@ def test_state_is_single_use(provider):
     state = url.split("state=")[1].split("&")[0]
     assert oidc._consume_state(state) is True
     assert oidc._consume_state(state) is False
+
+
+def _entitlement():
+    return {"token": "ent_demo", "expires_at": 9999999999}
+
+
+def test_session_roundtrip(provider):
+    token = oidc.issue_session({"email": "ada@company.com", "sub": "u1",
+                                "iss": "https://idp.example.com"}, _entitlement())
+    data = oidc.verify_session(token)
+    assert data and data["email"] == "ada@company.com"
+    assert data["entitlement"]["token"] == "ent_demo"
+
+
+def test_session_tamper_rejected(provider):
+    token = oidc.issue_session({"email": "ada@company.com", "sub": "u1",
+                                "iss": "https://idp.example.com"}, _entitlement())
+    payload, sig = token.split(".", 1)
+    tampered = payload[:-2] + ("AA" if payload[-2:] != "AA" else "BB") + "." + sig
+    assert oidc.verify_session(tampered) is None

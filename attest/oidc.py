@@ -33,6 +33,8 @@ ALLOWED_DOMAINS = {
     d.strip().lower() for d in os.environ.get("ATTEST_OIDC_ALLOWED_DOMAINS", "").split(",") if d.strip()
 }
 STATE_TTL = 600
+SESSION_COOKIE = "attest_session"
+SESSION_TTL = 30 * 86400
 _states: dict[str, float] = {}
 _cache: dict[str, Any] = {}
 
@@ -167,3 +169,48 @@ def callback(code: str, state: str) -> dict[str, Any]:
     entitlement = issue(subject=email, days=30)
     return {"email": email, "subject": claims.get("sub"),
             "issuer": claims.get("iss"), "entitlement": entitlement}
+
+
+# ── Сессия после входа ───────────────────────────────────────────────────────
+
+
+def _b64u(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode().rstrip("=")
+
+
+def _unb64u(text: str) -> bytes:
+    pad = "=" * (-len(text) % 4)
+    return base64.urlsafe_b64decode(text + pad)
+
+
+def issue_session(claims: dict[str, Any], entitlement: dict[str, Any]) -> str:
+    """Подписанная сессия: email, sub, exp и entitlement. HttpOnly-cookie."""
+    from . import signing
+    body = {
+        "email": claims.get("email"),
+        "sub": claims.get("sub"),
+        "iss": claims.get("iss"),
+        "exp": int(time.time()) + SESSION_TTL,
+        "entitlement": entitlement,
+    }
+    payload = json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    sig = signing.sign(payload)
+    return _b64u(payload) + "." + _b64u(base64.b64decode(sig.signature))
+
+
+def verify_session(token: str) -> Optional[dict[str, Any]]:
+    if not token or "." not in token:
+        return None
+    try:
+        payload_b64, sig_b64 = token.split(".", 1)
+        payload = _unb64u(payload_b64)
+        signature = base64.b64encode(_unb64u(sig_b64)).decode()
+        from . import signing
+        if not signing.verify(payload, signature, signing.public_key_b64()):
+            return None
+        body = json.loads(payload)
+    except Exception:  # noqa: BLE001 — битая cookie = нет сессии
+        return None
+    if int(body.get("exp", 0)) < time.time():
+        return None
+    return body
