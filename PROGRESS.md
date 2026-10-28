@@ -377,3 +377,15 @@ agenticskills (не подано), businessmcp (карточки были paused
 - Страница `/deny-evidence`: пример записи, API, офлайн-проверка, границы честности, цена **$29/мес**.
 - Тесты: **5/5** (цепочка, подпись встроенным ключом, обнаружение подмены с индексом, фильтр since,
   запрет события без правила/причины). Живая проверка: POST 201, GET 200, страница 200.
+
+## SSO (OIDC) — каркас, 29.10.2026
+
+- `attest/oidc.py`: discovery, authorization URL, обмен кода, проверка ID-токена (RS256/ES256,
+  iss/aud/exp, JWKS по kid), allowlist домена, одноразовый state (TTL 10 мин), выдача
+  entitlement на 30 дней после входа.
+- Маршруты: `GET /auth/oidc/status` (публичный, честный `configured:false` без ключей),
+  `GET /auth/oidc/start` (302 к IdP; без настройки — 503 с объяснением),
+  `GET /auth/oidc/callback` (обмен кода, проверка, токен).
+- Тесты: **6/6** (конфиг, state reuse, audience mismatch, домен, валидный токен).
+- **Нужно от владельца/enterprise:** client_id + client_secret от IdP (Google Workspace
+  или Okta) и домен-allowlist — тогда включается без правок кода.

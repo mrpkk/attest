@@ -1509,6 +1509,32 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/deny-evidence":
             from .deny_page import DENY_HTML
             self._send_html(DENY_HTML)
+        elif path == "/auth/oidc/status":
+            from . import oidc
+            self._send_json(200, oidc.status())
+        elif path == "/auth/oidc/start":
+            from . import oidc
+            try:
+                target = oidc.start_url()
+            except oidc.OIDCError as exc:
+                self._send_json(exc.status, {"error": exc.message})
+                return
+            self.send_response(302)
+            self.send_header("Location", target)
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+        elif path == "/auth/oidc/callback":
+            from urllib.parse import parse_qs
+            from . import oidc
+            qs = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
+            code = (qs.get("code") or [""])[0]
+            state = (qs.get("state") or [""])[0]
+            try:
+                data = oidc.callback(code, state)
+            except oidc.OIDCError as exc:
+                self._send_json(exc.status, {"error": exc.message})
+                return
+            self._send_json(200, data)
         elif path == "/verify-offline":
             page_path = Path(__file__).with_name("web") / "offline.html"
             if page_path.exists():
