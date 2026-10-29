@@ -423,3 +423,16 @@ agenticskills (не подано), businessmcp (карточки были paused
   `GET /auth/oidc/session` возвращает `{authenticated, email, expires_at, entitlement}`.
 - **Блокер только один:** аккаунт maxim.pkk в профиле разлогинен, Google требует пароль.
   Один ручной вход — и сессия выдаётся автоматически; код готов.
+
+## Выдача ключа после оплаты (29.10.2026)
+
+- `POST /pay/claim` проверяет перевод по Base RPC (свой узел, без внешних сервисов) и выдаёт
+  **API-ключ** `dn_<48hex>` вместе с entitlement: план по фактической сумме — ≥99 USDC
+  `attest-30d`, ≥29 `deny-30d`, ≥0.01 `trial-7d` (100 записей/7 дней).
+- `POST /deny` принимает ключ в `X-API-Key` (или `Authorization: Bearer`); без ключа — 20
+  записей/день на IP, сверх лимита 402 со ссылкой на `/pay`. Неверный/истёкший ключ — 401.
+- `/thanks?key=…` — страница после оплаты: ключ, первый curl-вызов, чтение отказов, офлайн-проверка,
+  ссылки на `/deny-evidence`, `/docs`, EU AI Act.
+- Dry-run: `POST /pay/claim {"tx":"dry-run"}` при `ATTEST_DRY_RUN=1` выдаёт trial-ключ без платежа
+  (enabled через systemd-drop-in). Проверено: claim 200 → ключ `dn_28a899b…` → POST /deny 201;
+  неверный ключ 401; `/thanks` 200.

@@ -1333,6 +1333,42 @@ def _sitemap() -> str:
             f"{urls}</urlset>")
 
 
+def _thanks_page(key: str) -> str:
+    """Страница после оплаты: ключ, первый вызов, доки (29.10.2026)."""
+    import html as _html
+    shown = _html.escape(key) if key else "paste the key from the payment response"
+    key_block = (f'<code id="key">{shown}</code>'
+                 if key else '<code id="key">dn_… (from the payment response)</code>')
+    example = _html.escape(key or "dn_your_key")
+    return f"""<!doctype html><html lang=en><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>Thanks — your deny API key</title>
+<style>body{{font:16px/1.6 system-ui,sans-serif;max-width:740px;margin:40px auto;padding:0 18px;color:#111}}
+code{{background:#f3f3f3;padding:2px 6px;border-radius:5px}}pre{{background:#f7f7f7;border:1px solid #ddd;
+padding:10px;overflow:auto;font-size:13px}}h2{{margin-top:28px}}.ok{{color:#1a7f37;font-weight:600}}</style>
+<h1 class=ok>Payment received — your key is ready</h1>
+<p>Keep this key private. It is shown once on this page; the server stores only its hash.</p>
+<h2>1. Your API key</h2>
+<p>{key_block}</p>
+<h2>2. First call</h2>
+<pre>curl -X POST https://attest.rta.lat/deny \
+  -H 'content-type: application/json' \
+  -H 'X-API-Key: {example}' \
+  -d '{{"reason":"payee not in allowlist","policy_id":"E03-allowlist",
+       "task_id":"task_1","artifact_hash":"sha256:9c1e","actor":"agent:demo"}}'</pre>
+<h2>3. Read your refusals</h2>
+<pre>curl 'https://attest.rta.lat/deny?limit=100'</pre>
+<p>Reading is public; writing requires the key. Each key is bound to its plan:
+trial — 100 records / 7 days; deny-30d — unlimited / 30 days.</p>
+<h2>4. Verify offline</h2>
+<pre>from attest.deny import read, verify_log
+print(verify_log(read()))</pre>
+<h2>Docs</h2>
+<p><a href="/deny-evidence">deny-evidence</a> · <a href="/docs">API docs</a> ·
+<a href="/eu-ai-act-evidence">EU AI Act evidence pack</a></p>
+</html>"""
+
+
 def route_path(raw: str) -> str:
     """Снять префикс и хвостовой слеш — дальше сравнение идёт как раньше."""
     path = urlparse(raw).path
@@ -1451,6 +1487,11 @@ class AttestHandler(BaseHTTPRequestHandler):
             METRICS.save()
         if path == "/pay":
             self._send(200, self._pay_page().encode(), "text/html; charset=utf-8")
+        elif path == "/thanks":
+            from urllib.parse import parse_qs
+            qs = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
+            key = (qs.get("key") or [""])[0]
+            self._send(200, _thanks_page(key).encode(), "text/html; charset=utf-8")
         elif path == "/":
             page = _with_schema(LANDING).replace("__FREE_LIMIT__", str(self.free_tier.daily_limit))
             self._send(200, page.encode(), "text/html; charset=utf-8")
@@ -1755,6 +1796,23 @@ class AttestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         path = route_path(self.path)
         if path == "/deny":
+            from .apikeys import consume as consume_key
+            raw_key = (self.headers.get("X-API-Key")
+                       or (self.headers.get("Authorization") or "").removeprefix("Bearer ").strip())
+            key_record = consume_key(raw_key) if raw_key else None
+            if raw_key and not key_record:
+                return self._send_json(401, {
+                    "error": "invalid or expired API key",
+                    "buy": f"{self._base_url()}/pay",
+                })
+            if not key_record:
+                client = "deny:" + self.client_id()
+                if self.free_tier.used(client) >= self.free_tier.daily_limit:
+                    return self._send_json(402, {
+                        "error": "free limit reached: 20 records per day",
+                        "buy": f"{self._base_url()}/pay",
+                        "note": "paid keys have no daily limit",
+                    })
             payload = self._read_json()
             if payload is None:
                 return
@@ -1772,6 +1830,8 @@ class AttestHandler(BaseHTTPRequestHandler):
                 self._send_json(400, {"error": str(exc)})
                 return
             record = append(event)
+            if not key_record:
+                self.free_tier.spend("deny:" + self.client_id())
             ok, why = verify_record(record, record.get("prev", ""))
             self._send_json(201, {"record": record, "verified": ok, "reason": why})
             return
@@ -2172,13 +2232,14 @@ class AttestHandler(BaseHTTPRequestHandler):
 code{{background:#f2f2f2;padding:2px 6px;border-radius:5px}}input{{width:100%;padding:10px;font:15px ui-monospace,monospace;border:1px solid #ccc;border-radius:8px}}
 button{{margin-top:10px;padding:10px 16px;border-radius:8px;border:1px solid #111;background:#111;color:#fff;font:inherit;cursor:pointer}}
 #out{{margin-top:16px;padding:12px;border-radius:8px;background:#f7f7f7;white-space:pre-wrap;font:14px ui-monospace,monospace}}</style>
-<h1>Pay {price:g} USDC for 30 days</h1>
+<h1>Pay from 0.01 USDC — get an API key</h1>
 <p>{note}. Send USDC on <b>Base</b> to this address, then paste the transaction hash below.
 No account, no card, no signup. Buying from India? <a href="/pay?plan=ppp">This page at the
 purchasing-power price</a>.</p>
 <p><code>{pay_to}</code></p>
 <p>Any wallet works: MetaMask, Rabby, Coinbase Wallet, an exchange withdrawal to Base.
-Send at least {price:g} USDC; a smaller amount is rejected rather than silently accepted.</p>
+Send the full price ({price:g} USDC) for 30 days, or any amount from 0.01 USDC for a
+trial key (100 records / 7 days). The plan is chosen by the amount actually received.</p>
 <input id=tx placeholder="0x… transaction hash">
 <button id=go>Check payment</button>
 <div id=out>Nothing checked yet.</div>
@@ -2189,8 +2250,10 @@ document.getElementById('go').onclick = async () => {{
   const r = await fetch('/pay/claim', {{method:'POST', headers:{{'Content-Type':'application/json'}},
     body: JSON.stringify({{tx: document.getElementById('tx').value.trim()}})}});
   const j = await r.json();
-  out.textContent = j.token
-    ? 'Paid. Send this token in the ' + j.header + ' header:\n\n' + j.token
+  out.textContent = j.api_key
+    ? 'Paid. Your API key (X-API-Key):\n\n' + j.api_key
+      + '\n\nplan: ' + (j.plan || j.api_key_plan) + '\nthanks: ' + j.thanks_url
+      + '\n\n' + (j.usage || '')
     : 'Not accepted: ' + (j.error || 'unknown reason');
 }};
 </script></html>"""
@@ -2203,6 +2266,18 @@ document.getElementById('go').onclick = async () => {{
         except ValueError:
             return self._send_json(400, {"error": "body must be JSON with a tx field"})
         tx = str((payload or {}).get("tx") or "").strip()
+        # Dry-run: если средств нет, тестовый хеш выдаёт trial-ключ. Включается
+        # только переменной ATTEST_DRY_RUN=1 и никогда не считается оплатой.
+        if tx == "dry-run" and os.environ.get("ATTEST_DRY_RUN") in ("1", "true", "yes"):
+            from .apikeys import issue as issue_key
+            key_info = issue_key(plan="trial-7d", subject="dry-run", tx="dry-run",
+                                 days=7, calls_limit=100)
+            return self._send_json(200, {
+                "paid": False, "dry_run": True, "plan": "trial-7d",
+                "api_key": key_info["key"],
+                "thanks_url": f"{self._base_url()}/thanks?key={key_info['key']}",
+                "note": "dry-run key: no payment was made; 100 records / 7 days",
+            })
         if not self.x402_pay_to:
             return self._send_json(503, {"error": "payment is not configured: no wallet set"})
         orders = self._onchain_orders_path()
@@ -2210,7 +2285,8 @@ document.getElementById('go').onclick = async () => {{
         if tx.lower() in used:
             return self._send_json(409, {"error": "this transaction was already used"})
         price = self._subscription_price_usd()
-        atoms = int(round(price * 1_000_000))
+        # Минимум 0.01 USDC: тестовый платёж должен выдавать ключ, а не отказ.
+        atoms = 10_000
         try:
             transfer = onchain.confirm_transfer(
                 tx, pay_to=self.x402_pay_to, min_atoms=atoms,
@@ -2223,16 +2299,34 @@ document.getElementById('go').onclick = async () => {{
             return self._send_json(402, {"error": str(exc), "required_usdc": price})
         except Exception as exc:  # noqa: BLE001 — сеть важна как причина
             return self._send_json(503, {"error": f"could not check the chain: {type(exc).__name__}"})
+        amount = transfer.amount_atoms / 1_000_000
+        if amount >= price:
+            plan, days, calls = "attest-30d", 30, None
+        elif amount >= 29:
+            plan, days, calls = "deny-30d", 30, None
+        else:
+            plan, days, calls = "trial-7d", 7, 100
         grant = entitlement.issue(subject=transfer.payer or transfer.tx_hash,
-                                  days=30, max_calls=None)
+                                  days=days, max_calls=None)
+        from .apikeys import issue as issue_key
+        key_info = issue_key(plan=plan, subject=transfer.payer or transfer.tx_hash,
+                             tx=transfer.tx_hash, days=days, calls_limit=calls)
         orders.parent.mkdir(parents=True, exist_ok=True)
         onchain.record(orders, transfer, plan=grant["plan"], subject=transfer.payer)
         METRICS.payment("onchain", transfer.amount_atoms, payer=transfer.payer)
         self._send_json(200, {
-            "paid": True, "amount_usdc": transfer.amount_atoms / 1_000_000,
+            "paid": True, "amount_usdc": amount, "plan": plan,
             "payer": transfer.payer, "block": transfer.block,
             "valid_until": grant["valid_until"], "header": grant["header"],
             "token": grant["token"],
+            "api_key": key_info["key"],
+            "api_key_plan": plan,
+            "api_key_expires_at": key_info["expires_at"],
+            "deny_post": f"{self._base_url()}/deny",
+            "deny_get": f"{self._base_url()}/deny?limit=100",
+            "thanks_url": f"{self._base_url()}/thanks?key={key_info['key']}",
+            "usage": ("Send the key as X-API-Key. Trial: 100 records / 7 days; "
+                      "deny-30d/attest-30d: unlimited records for 30 days."),
         })
 
     def _enot_orders_path(self) -> Path:
