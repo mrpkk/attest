@@ -408,3 +408,18 @@ agenticskills (не подано), businessmcp (карточки были paused
   реальная deny-запись с офлайн-проверкой, цены и границы. Отдаётся по
   `/eu-ai-act-evidence/sample.pdf`.
 - Живая проверка: страница 200, PDF 200 `application/pdf`, 4 страницы.
+
+## SSO: Google подключён (29.10.2026)
+
+- Ключи читаются из `~/.env.agents` (`GOOGLE_OAUTH_CLIENT_ID/SECRET`), файл `~/.env` не трогаем:
+  он перезаписывается другими сессиями. Явные env-переменные остаются главнее файла.
+- `/auth/oidc/status` → **configured: true**, issuer `https://accounts.google.com`,
+  redirect `https://attest.rta.lat/auth/oidc/callback`.
+- `/auth/oidc/start` → **302** на Google с корректными client_id, scope (openid email profile),
+  redirect_uri и одноразовым state.
+- Callback: ошибки IdP больше не роняют сервис — `invalid_grant` отдаётся как 400 с текстом.
+- Сессия: cookie **`attest_session`** (HttpOnly, Secure, SameSite=Lax, 30 дней) =
+  `base64url(payload).base64url(Ed25519-подпись)`; payload `{email, sub, iss, exp, entitlement}`.
+  `GET /auth/oidc/session` возвращает `{authenticated, email, expires_at, entitlement}`.
+- **Блокер только один:** аккаунт maxim.pkk в профиле разлогинен, Google требует пароль.
+  Один ручной вход — и сессия выдаётся автоматически; код готов.

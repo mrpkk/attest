@@ -19,14 +19,39 @@ import secrets
 import time
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, Optional
 
 import jwt
 
-ISSUER = os.environ.get("ATTEST_OIDC_ISSUER", "").rstrip("/")
-CLIENT_ID = os.environ.get("ATTEST_OIDC_CLIENT_ID", "")
-CLIENT_SECRET = os.environ.get("ATTEST_OIDC_CLIENT_SECRET", "")
+def _agents_env() -> dict[str, str]:
+    """Ключи агентских интеграций живут в ~/.env.agents, а не в ~/.env.
+
+    ~/.env перезаписывается другими сессиями; OAuth-клиент там терялся бы.
+    ~/.env.agents — отдельный файл с правами 600. Явные переменные окружения
+    всё равно главнее файла: прод можно переопределить без правки диска.
+    """
+    path = Path(os.environ.get("ATTEST_AGENTS_ENV",
+                               str(Path.home() / ".env.agents"))).expanduser()
+    out: dict[str, str] = {}
+    if not path.exists():
+        return out
+    for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        out[key.strip()] = value.strip().strip('"').strip("'")
+    return out
+
+
+_AGENTS = _agents_env()
+CLIENT_ID = os.environ.get("ATTEST_OIDC_CLIENT_ID") or _AGENTS.get("GOOGLE_OAUTH_CLIENT_ID", "")
+CLIENT_SECRET = (os.environ.get("ATTEST_OIDC_CLIENT_SECRET")
+                 or _AGENTS.get("GOOGLE_OAUTH_CLIENT_SECRET", ""))
+ISSUER = (os.environ.get("ATTEST_OIDC_ISSUER")
+          or ("https://accounts.google.com" if CLIENT_ID else "")).rstrip("/")
 REDIRECT_URI = os.environ.get("ATTEST_OIDC_REDIRECT",
                               "https://attest.rta.lat/auth/oidc/callback")
 ALLOWED_DOMAINS = {
@@ -153,7 +178,19 @@ def callback(code: str, state: str) -> dict[str, Any]:
         raise OIDCError("SSO is not configured", 503)
     if not code or not _consume_state(state):
         raise OIDCError("invalid or expired state", 400)
-    tokens = _exchange(code)
+    try:
+        tokens = _exchange(code)
+    except urllib.error.HTTPError as exc:
+        # Google отверг код (истёк, повторно использован, неверный redirect).
+        # Это ошибка входа, а не падение сервиса: отвечаем 400 с текстом.
+        detail = ""
+        try:
+            detail = exc.read(300).decode("utf-8", "ignore")
+        except Exception:
+            pass
+        raise OIDCError(f"provider rejected the authorization code: {detail[:160]}", 400) from exc
+    except Exception as exc:  # noqa: BLE001 — сеть до IdP
+        raise OIDCError(f"cannot reach the identity provider: {exc}", 502) from exc
     id_token = tokens.get("id_token")
     if not id_token:
         raise OIDCError("provider did not return id_token", 400)
