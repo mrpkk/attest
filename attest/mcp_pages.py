@@ -40,8 +40,8 @@ def _shell(title: str, description: str, canonical: str, body: str) -> str:
 MCP_PASS_BODY = """
 <h1>MCP Security Pass</h1>
 <p class="lead">A reviewer will ask what your MCP server can do, who can call it, and what happens
-when a call is refused. We produce the evidence for those three questions — for one server,
-in five business days.</p>
+when a call is refused. We produce the evidence for those three questions — for one server.
+Two speeds: <strong>five business days</strong> at $500, or <strong>48 hours</strong> at $1,500.</p>
 
 <h2>What the pass covers</h2>
 <table>
@@ -57,8 +57,10 @@ in five business days.</p>
 <div class="grid">
 <div class="card"><b>$500</b>Standard pass · 5 business days
 <p class="meta">One server, one revision round, written report with severity and fix order.</p></div>
-<div class="card"><b>$1,500</b>Pass + deny evidence + re-test
-<p class="meta">Everything in Standard, plus a signed deny log wired to <code>POST /deny</code>, offline verification, and one re-test after fixes (72 hours).</p></div>
+<div class="card"><b>$1,500</b>Express pass · 48 hours
+<p class="meta">The same pass, delivered inside 48 hours of intake, plus a signed deny log wired to
+<code>POST /deny</code>, offline verification, and one re-test after fixes. For a launch, a
+procurement deadline, or a review that is already booked.</p></div>
 </div>
 
 <div class="pay">
@@ -217,7 +219,7 @@ def seo_page(slug: str) -> str:
 def mcp_pass_page(pay_to: str) -> str:
     return _shell(
         "MCP Security Pass — auth, scopes, deny log, report",
-        "Security review for one MCP server: authentication, scopes, tool descriptions, deny mode, logs and a report. $500, express $1,500.",
+        "Security review for one MCP server: authentication, scopes, tool descriptions, deny mode, logs and a report. $500 in 5 business days, or $1,500 in 48 hours.",
         "/mcp-security-pass",
         MCP_PASS_BODY.replace("__PAY_TO__", pay_to),
     )
