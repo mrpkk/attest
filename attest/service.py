@@ -1509,6 +1509,16 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/deny-evidence":
             from .deny_page import DENY_HTML
             self._send_html(DENY_HTML)
+        elif path == "/eu-ai-act-evidence":
+            from .eu_ai_act_page import EU_HTML
+            pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
+            self._send_html(EU_HTML.replace("__PAY_TO__", pay_to))
+        elif path == "/eu-ai-act-evidence/sample.pdf":
+            pdf = Path(__file__).with_name("eu_ai_act_sample.pdf")
+            if not pdf.is_file():
+                self._send_json(404, {"error": "sample is being generated"})
+                return
+            self._send(200, pdf.read_bytes(), "application/pdf")
         elif path == "/auth/oidc/status":
             from . import oidc
             self._send_json(200, oidc.status())

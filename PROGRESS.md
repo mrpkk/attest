@@ -398,3 +398,13 @@ agenticskills (не подано), businessmcp (карточки были paused
 - `/deny-evidence` переписана как продающая: заголовок «1,509 rows, zero denials», цитата
   наблюдения с r/mcp, пример записи, API в двух вызовах, границы честности, цена **$29/мес**,
   кнопка «Start — pay $29 in USDC» и ссылка на API-документацию.
+
+## EU AI Act evidence pack (29.10.2026)
+
+- Страница `/eu-ai-act-evidence`: шесть артефактов (audit log, deny log с подписью, human oversight,
+  model card, risk assessment, data flow), маппинг на Art. 9/12/14/50, цены **$1,500 base / $3,000 express 72ч**,
+  USDC-адрес и инструкция, ссылка на `/deny-evidence` как пример. Не юридическая консультация.
+- PDF-образец на **4 страницы** (`attest/eu_ai_act_sample.pdf`, 108 КБ): обложка, карта контролей и маппинг,
+  реальная deny-запись с офлайн-проверкой, цены и границы. Отдаётся по
+  `/eu-ai-act-evidence/sample.pdf`.
+- Живая проверка: страница 200, PDF 200 `application/pdf`, 4 страницы.
