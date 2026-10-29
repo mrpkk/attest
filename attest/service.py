@@ -1326,7 +1326,11 @@ def _sitemap() -> str:
     urls = "".join(
         f"<url><loc>{base}{page}</loc></url>"
         for page in ("", "/hi", "/demo", "/plans", "/article", "/catalogs",
-                     "/start", "/privacy", "/health")
+                     "/start", "/privacy", "/health", "/deny-evidence",
+                     "/eu-ai-act-evidence", "/mcp-security-pass",
+                     "/mcp/mcp-security-audit", "/mcp/mcp-server-authentication",
+                     "/mcp/mcp-tool-descriptions-security", "/mcp/mcp-deny-log",
+                     "/mcp/mcp-server-monetization")
     )
     return ('<?xml version="1.0" encoding="UTF-8"?>'
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
@@ -1554,6 +1558,17 @@ class AttestHandler(BaseHTTPRequestHandler):
             from .eu_ai_act_page import EU_HTML
             pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
             self._send_html(EU_HTML.replace("__PAY_TO__", pay_to))
+        elif path == "/mcp-security-pass":
+            from .mcp_pages import mcp_pass_page
+            pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
+            self._send_html(mcp_pass_page(pay_to))
+        elif path.startswith("/mcp/"):
+            from .mcp_pages import SEO_PAGES, seo_page
+            slug = path[len("/mcp/"):]
+            if slug in SEO_PAGES:
+                self._send_html(seo_page(slug))
+            else:
+                self._send_json(404, {"error": "unknown page"})
         elif path == "/eu-ai-act-evidence/sample.pdf":
             pdf = Path(__file__).with_name("eu_ai_act_sample.pdf")
             if not pdf.is_file():

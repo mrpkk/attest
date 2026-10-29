@@ -436,3 +436,12 @@ agenticskills (не подано), businessmcp (карточки были paused
 - Dry-run: `POST /pay/claim {"tx":"dry-run"}` при `ATTEST_DRY_RUN=1` выдаёт trial-ключ без платежа
   (enabled через systemd-drop-in). Проверено: claim 200 → ключ `dn_28a899b…` → POST /deny 201;
   неверный ключ 401; `/thanks` 200.
+
+## MCP Security Pass + 5 SEO-страниц (29.10.2026)
+
+- `/mcp-security-pass`: $500 standard (5 дней) / $1,500 с deny-evidence и ретестом (72 ч);
+  области — auth, scopes, tool descriptions, deny mode, logs, report; USDC-блок и ссылка
+  на `/deny-evidence`. Статус 200 публично.
+- 5 SEO-страниц: `/mcp/mcp-security-audit`, `/mcp/mcp-server-authentication`,
+  `/mcp/mcp-tool-descriptions-security`, `/mcp/mcp-deny-log`, `/mcp/mcp-server-monetization`;
+  добавлены в sitemap. Все 200.
