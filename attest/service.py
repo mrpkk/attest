@@ -31,6 +31,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 import uuid as _uuid
+from datetime import datetime, timezone
 from urllib.parse import parse_qs, urlparse
 
 from . import __version__
@@ -1328,6 +1329,7 @@ def _sitemap() -> str:
         for page in ("", "/hi", "/demo", "/plans", "/article", "/catalogs",
                      "/start", "/privacy", "/health", "/deny-evidence",
                      "/eu-ai-act-evidence", "/mcp-security-pass",
+                     "/eu-ai-act", "/mcp-security",
                      "/mcp/mcp-security-audit", "/mcp/mcp-server-authentication",
                      "/mcp/mcp-tool-descriptions-security", "/mcp/mcp-deny-log",
                      "/mcp/mcp-server-monetization")
@@ -1554,6 +1556,14 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/deny-evidence":
             from .deny_page import DENY_HTML
             self._send_html(DENY_HTML)
+        elif path == "/eu-ai-act":
+            from .product_pages import eu_ai_act_page
+            pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
+            self._send_html(eu_ai_act_page(pay_to))
+        elif path == "/mcp-security":
+            from .product_pages import mcp_security_page
+            pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
+            self._send_html(mcp_security_page(pay_to))
         elif path == "/eu-ai-act-evidence":
             from .eu_ai_act_page import EU_HTML
             pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
@@ -1810,6 +1820,12 @@ class AttestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = route_path(self.path)
+        if path in ("/api/eu-ai-act/order", "/api/mcp-security/order"):
+            return self._handle_pack_order(
+                product="eu_ai_act" if path.startswith("/api/eu-ai-act") else "mcp_security",
+                tiers={"eu_ai_act": {"base": 1_500, "extended": 3_000},
+                       "mcp_security": {"audit": 500, "with_fixes": 1_500}}[
+                    "eu_ai_act" if path.startswith("/api/eu-ai-act") else "mcp_security"])
         if path == "/deny":
             from .apikeys import consume as consume_key
             raw_key = (self.headers.get("X-API-Key")
@@ -2272,6 +2288,80 @@ document.getElementById('go').onclick = async () => {{
     : 'Not accepted: ' + (j.error || 'unknown reason');
 }};
 </script></html>"""
+
+    def _handle_pack_order(self, *, product: str, tiers: dict[str, int]) -> None:
+        """Оплата пакетов $500–$3,000: перевод проверяется до выдачи результата.
+
+        Правило простое: без проверенного перевода на наш адрес заказ не создаётся
+        и 402 возвращается всегда — при пустом теле, при неизвестном хеше, при
+        недоплате. Иначе страница с ценой $1,500 обслуживала бы бесплатно, что и
+        случилось с четырьмя продуктами AILegal (аудит G6, 31.10.2026).
+        """
+        payload = self._read_json()
+        if payload is None:
+            return
+        tx = str((payload or {}).get("tx") or "").strip()
+        email = str((payload or {}).get("email") or "").strip()[:120]
+        server_url = str((payload or {}).get("server_url") or "").strip()[:200]
+        base_tier = "base" if product == "eu_ai_act" else "audit"
+        min_usd = tiers[base_tier]
+
+        if not tx:
+            return self._send_json(402, {
+                "error": "payment required: send USDC on Base and paste the transaction hash",
+                "pay_to": self.x402_pay_to or "address on request: maxim.pkk@gmail.com",
+                "prices_usd": tiers,
+            })
+        if not self.x402_pay_to:
+            return self._send_json(503, {"error": "payment is not configured: no wallet set"})
+
+        orders = self._onchain_orders_path()
+        used = onchain.load_used(orders)
+        if tx.lower() in used:
+            return self._send_json(409, {"error": "this transaction was already used"})
+
+        try:
+            transfer = onchain.confirm_transfer(
+                tx, pay_to=self.x402_pay_to, min_atoms=min_usd * 1_000_000,
+                asset=self.x402_asset or USDC_BY_NETWORK.get(self.x402_network, USDC_BASE),
+                rpc_url=os.environ.get("ATTEST_RPC_URL", onchain.DEFAULT_RPC),
+                confirmations=int(os.environ.get("ATTEST_RPC_CONFIRMATIONS", "2")))
+        except onchain.TransferRejected as exc:
+            return self._send_json(402, {"error": str(exc), "prices_usd": tiers})
+        except Exception as exc:  # noqa: BLE001 — сеть — причина, а не «не оплачено»
+            return self._send_json(503, {"error": f"could not check the chain: {type(exc).__name__}"})
+
+        amount_usd = transfer.amount_atoms / 1_000_000
+        tier = base_tier
+        for name, price in sorted(tiers.items(), key=lambda kv: kv[1], reverse=True):
+            if amount_usd >= price:
+                tier = name
+                break
+
+        order_id = "ord_" + hashlib.sha256(
+            f"{product}:{transfer.tx_hash}".encode()).hexdigest()[:12]
+        record = {
+            "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "kind": "pack_order", "order_id": order_id, "product": product, "tier": tier,
+            "amount_usd": amount_usd, "tx": transfer.tx_hash, "payer": transfer.payer,
+            "block": transfer.block, "email": email, "server_url": server_url,
+        }
+        orders.parent.mkdir(parents=True, exist_ok=True)
+        with orders.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+        next_step = (
+            "Intake form goes to your email within one business day. Reply to "
+            "maxim.pkk@gmail.com with subject 'EU AI Act evidence pack' and the order id."
+            if product == "eu_ai_act" else
+            "Send the server URL or repository to maxim.pkk@gmail.com with the order id; "
+            "the audit starts the same day."
+        )
+        self._send_json(200, {
+            "paid": True, "order_id": order_id, "product": product, "tier": tier,
+            "amount_usd": amount_usd, "tx": transfer.tx_hash, "payer": transfer.payer,
+            "block": transfer.block, "next": next_step,
+        })
 
     def _handle_onchain_claim(self) -> None:
         """Принять оплату, проверенную в блокчейне, и выдать токен на 30 дней."""
