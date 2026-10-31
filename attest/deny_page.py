@@ -33,8 +33,9 @@ The auditor asked the only question that matters: <strong>show me a refusal.</st
 Deny evidence is the opposite artifact: every refusal, signed, chained, and readable by someone who
 does not trust your dashboard.</p>
 
-<blockquote class="quote">“1,509 lines, all allowed, not a single denial — and that is exactly what they ask for.”<br>
-<span class="meta">— the report from an agent team running an approval log, October 2026</span></blockquote>
+<blockquote class="quote">Illustration, not a customer case: a log where all 1,509 rows say <em>allowed</em>,
+with no refusals, is the shape auditors distrust.<br>
+<span class="meta">— constructed example, October 2026</span></blockquote>
 
 <h2>What a deny record contains</h2>
 <pre><code>{
@@ -75,11 +76,12 @@ curl 'https://attest.rta.lat/deny?since=2026-10-29T00:00:00Z&limit=100'</code></
 </table>
 
 <div class="price">
-<b>$29</b> / month · unlimited deny records · signed export · 30-day retention
+<b>$29</b> trial · 100 deny records · 7 days · signed export<br>
+<b>$99</b> / month · unlimited records · 30-day retention
 <p class="meta">Start with USDC on Base — no card, no account. Receipt is the transaction.</p>
-<a class="btn" href="/pay">Start — pay $29 in USDC</a>
+<a class="btn" href="/pay">Start — $29 trial or $99/month</a>
 <p class="meta">After payment the page issues an API key (X-API-Key) and a
-<a href="/thanks">/thanks</a> page with the first call. Trial from 0.01 USDC.</p>
+<a href="/thanks">/thanks</a> page with the first call.</p>
 <p class="meta">Included in the $99 attest plan. Free evaluation: 20 records/day.
 Questions: <a href="mailto:maxim.pkk@gmail.com?subject=Deny%20evidence">maxim.pkk@gmail.com</a></p>
 </div>
