@@ -464,9 +464,10 @@ report a human signs and the log that keeps running when nobody watches.</p>
  <div class="t"><b>Trust Desk</b><p class="p">$1,500 pilot</p><span class="hint">Ten business days, three artifacts, one revision round; then $299/mo if you keep it running. <a href="/trust-desk">Pay and start intake</a>.</span></div>
  <div class="t"><b>Enterprise</b><p class="p">On request</p><span class="hint">Private reserve confirmation, white-label receipts, the whole engine behind your brand.</span></div>
 </div>
-<p class="hint">Why an audit and not a subscription: a subscription asks to be trusted every month;
-a report can be read once and checked. If there is nothing to find, the report says so and there is
-no fee for finding nothing.</p>
+<p class="hint">Why start with an audit and not a subscription: a subscription asks to be trusted every month;
+a report can be read once and checked. The monthly re-check makes sense only after an audit found
+something worth watching. If there is nothing to find, the report says so and there is no fee for
+finding nothing.</p>
 <p class="hint"><b>How to order the audit:</b> email
 <a href="mailto:maxim.pkk@gmail.com?subject=agent%20spend%20audit">maxim.pkk@gmail.com</a> — the reply
 carries the scope line and a USDC address on Base (an invoice instead, if you need one). The audit is
