@@ -2,6 +2,7 @@
 
 [![M8ven Score](https://m8ven.ai/badge/mcp/mrpkk-attest-70kdum?v=33841343e7786aeebf405effce42c591)](https://m8ven.ai/mcp/mrpkk-attest-70kdum?s=readme)
 [![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/mrpkk/attest)
+[![mrpkk/attest MCP server](https://glama.ai/mcp/servers/mrpkk/attest/badges/score.svg)](https://glama.ai/mcp/servers/mrpkk/attest)
 
 **Agent action receipts, verified offline.** A receipt says what an agent was recorded as doing at the
 boundary that governed it. Verifying one is not a signature check: the bytes must be canonical, the chain
@@ -9,7 +10,8 @@ rules must be applied as a set, and a checkpoint signed by a stranger must never
 against someone else's history. **[What a verifier must reject →](https://attest.rta.lat/receipts)**
 
 Live: **<https://attest.rta.lat/demo>** · Receipts: **<https://attest.rta.lat/receipts>** ·
-Offline verifier: **<https://attest.rta.lat/verify-offline>** · Docs: **<https://attest.rta.lat/docs>**
+Offline verifier: **<https://attest.rta.lat/verify-offline>** · Docs: **<https://attest.rta.lat/docs>** ·
+Refusal evidence for agents ($99 / 30 days): **<https://attest.rta.lat/deny-evidence>**
 
 Conformance corpus, CC0: [`conformance/receipt-vectors.json`](conformance/receipt-vectors.json) — 12 vectors
 including five that must be rejected. A Python and a browser implementation agree on all twelve.
@@ -27,7 +29,7 @@ artifact:
 - is not a base64 wrapper around such an instruction,
 - has not changed since it was checked.
 
-`attest` closes that gap. No dependencies, 723 tests green.  
+`attest` closes that gap. No dependencies, 748 tests (744 pass, 4 skip).  
 **Free human review of one artifact:** https://attest.rta.lat/review  
 **BusinessMCP Marketplace:** https://businessmcp.com/mcp-servers/attest
 
