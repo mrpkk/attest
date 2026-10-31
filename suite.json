@@ -1,0 +1,37 @@
+{
+  "$comment": "Suite manifest: one file to install the trust layer. Every URL and tool name here was checked live on 2026-11-01; nothing is aspirational.",
+  "version": "2026-11-01",
+  "vendor": "rta.lat",
+  "contact": "maxim.pkk@gmail.com",
+  "mcpServers": {
+    "attest": {
+      "url": "https://attest.rta.lat/mcp",
+      "transport": "streamable-http",
+      "purpose": "Verify an artifact before accepting or paying for it: schema, emptiness, provenance, authority.",
+      "tools": ["verify_artifact", "verify_artifact_batch", "bridge_check"],
+      "auth": "none",
+      "free_tier": "5 checks per day per address; then 0.005 USDC per call over x402"
+    },
+    "mitracore": {
+      "url": "https://rta.lat/mitracore/mcp",
+      "transport": "streamable-http",
+      "purpose": "Mandates and limits (drift layer), cost quote, and a single trust report over the layers.",
+      "tools": ["verify_work", "check_skill", "quote_cost", "trust_report", "suite_status"],
+      "auth": "none",
+      "free_tier": "20 checks per day per address; then 0.005 USDC per call over x402"
+    }
+  },
+  "httpApis": {
+    "deny": {
+      "url": "https://attest.rta.lat/deny",
+      "transport": "http",
+      "purpose": "Signed, append-only journal of refusals: who asked, which policy fired, why.",
+      "note": "There is no MCP endpoint for the deny journal today. It is an HTTP API with Ed25519-signed records; claiming an MCP tool here would be false.",
+      "auth": "X-API-Key for paid volume; 20 records per day free per address"
+    }
+  },
+  "verification": {
+    "suite_status": "https://rta.lat/mitracore/health",
+    "attest_health": "https://attest.rta.lat/health"
+  }
+}

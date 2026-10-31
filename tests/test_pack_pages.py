@@ -17,13 +17,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from attest.product_pages import eu_ai_act_page, mcp_security_page  # noqa: E402
+from attest.product_pages import (  # noqa: E402
+    eu_ai_act_page, mcp_security_page, trust_desk_page,
+)
 
 PAY_TO = "0xefCD6886f73064ea9EcbaA4741Ef1309A0885C59"
 
 PAGES = {
     "eu-ai-act": (eu_ai_act_page(PAY_TO), ["$1,500", "$3,000"], "/api/eu-ai-act/order"),
     "mcp-security": (mcp_security_page(PAY_TO), ["$500", "$1,500"], "/api/mcp-security/order"),
+    "trust-desk": (trust_desk_page(PAY_TO), ["$1,500", "$299"], "/api/trust-desk/order"),
 }
 
 BANNED = ("revolutionary", "ai-powered", "best in the world", "trusted by leaders",
@@ -80,6 +83,27 @@ def test_eu_covers_named_articles():
     html, _p, _e = PAGES["eu-ai-act"]
     for article in ("6", "9", "10", "11", "12", "13", "14", "15", "43", "72"):
         assert re.search(rf"\b{article}\b", html), f"нет статьи {article}"
+
+
+def test_trust_desk_names_three_artifacts():
+    html, _p, _e = PAGES["trust-desk"]
+    for artifact in ("Artifact verdict", "Mandate and limits", "Deny journal"):
+        assert artifact in html, f"нет артефакта {artifact}"
+    assert "What this is not" in html and "$1,500" in html
+
+
+def test_suite_manifest_is_valid_and_honest():
+    """Один манифест на три слоя: URL и инструменты — только проверенные."""
+    import json
+
+    manifest = json.loads((ROOT / "suite.json").read_text(encoding="utf-8"))
+    servers = manifest["mcpServers"]
+    assert set(servers) == {"attest", "mitracore"}
+    assert servers["attest"]["tools"] == ["verify_artifact", "verify_artifact_batch", "bridge_check"]
+    # deny — HTTP API, а не MCP: выдумывать ему MCP-инструмент нельзя
+    deny = manifest["httpApis"]["deny"]
+    assert deny["transport"] == "http" and "no mcp endpoint" in deny["note"].lower()
+    assert all(v["url"].startswith("https://") for v in servers.values())
 
 
 def test_mcp_names_owasp_and_honest_sample():

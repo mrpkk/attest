@@ -439,7 +439,7 @@ def _send_key_email(to: str, token: str, valid_until: int) -> str:
 _PLANS_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>attest — pricing</title>
-<meta name="description" content="attest pricing: a free verifier, an agent spend audit at $500, a $1,500/mo retainer, and developer access at $0.005 per call or $99 for 30 days.">
+<meta name="description" content="attest pricing: a free verifier, an agent spend audit at $500, an Agent Trust Desk pilot at $1,500 then $299/month, and developer access at $0.005 per call or $99 for 30 days.">
 <link rel="canonical" href="https://attest.rta.lat/plans">
 <style>
  body{background:#0b0d12;color:#e8ecf4;font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:0 auto;padding:44px 22px 80px}
@@ -461,12 +461,16 @@ report a human signs and the log that keeps running when nobody watches.</p>
 <h2>Start here</h2>
 <div class="tiers">
  <div class="t"><b>Audit</b><p class="p">$500</p><span class="hint">Flat, ten working days: what your agents actually spent, what they actually got, and one line of evidence per finding. <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">A public sample report</a>.</span></div>
- <div class="t"><b>Retainer</b><p class="p">$1,500/mo</p><span class="hint">After an audit: monthly re-check, new rules, and an alert when the same class of spend comes back.</span></div>
+ <div class="t"><b>Trust Desk</b><p class="p">$1,500 pilot</p><span class="hint">Ten business days, three artifacts, one revision round; then $299/mo if you keep it running. <a href="/trust-desk">Pay and start intake</a>.</span></div>
  <div class="t"><b>Enterprise</b><p class="p">On request</p><span class="hint">Private reserve confirmation, white-label receipts, the whole engine behind your brand.</span></div>
 </div>
 <p class="hint">Why an audit and not a subscription: a subscription asks to be trusted every month;
 a report can be read once and checked. If there is nothing to find, the report says so and there is
 no fee for finding nothing.</p>
+<p class="hint"><b>How to order the audit:</b> email
+<a href="mailto:maxim.pkk@gmail.com?subject=agent%20spend%20audit">maxim.pkk@gmail.com</a> — the reply
+carries the scope line and a USDC address on Base (an invoice instead, if you need one). The audit is
+paid before the ten working days start; undelivered work is refunded in USDC to the paying address.</p>
 
 <h2>Developer access</h2>
 <p class="s">A check is one artifact verified against one schema. No account, no card, no SDK.
@@ -759,7 +763,8 @@ an exhausted quota is reported as an error, never as accepted.</p>
 <li>No auto-renewal: the key simply stops working after 30 days.</li>
 </ul>
 <p class="hint" style="margin-top:10px"><b>Not included:</b> no guarantee that an artifact is safe,
-no blocking, no human review. It is one more check before you ship — not a replacement for review.</p>
+no blocking. It is one more check before you ship. The paid token contains no human review — a free
+review of one artifact is a separate offer, at <a href="/review">/review</a>.</p>
 
 <h2 style="font-size:17px;margin:26px 0 6px">Buying a 30-day token</h2>
 <p class="hint"><b>Pay from any wallet, no account:</b> send 99 USDC on Base (49 for India)
@@ -866,7 +871,8 @@ _HI_REPLACEMENTS: tuple[tuple[str, str], ...] = (
 <li>No auto-renewal: the key simply stops working after 30 days.</li>
 </ul>
 <p class="hint" style="margin-top:10px"><b>Not included:</b> no guarantee that an artifact is safe,
-no blocking, no human review. It is one more check before you ship — not a replacement for review.</p>
+no blocking. It is one more check before you ship. The paid token contains no human review — a free
+review of one artifact is a separate offer, at <a href="/review">/review</a>.</p>
 
 <h2 style="font-size:17px;margin:26px 0 6px">Buying a 30-day token</h2>""",
      """<h2 style="font-size:17px;margin:26px 0 6px">99 USDC / 30 दिन में क्या शामिल है</h2>
@@ -878,7 +884,8 @@ no blocking, no human review. It is one more check before you ship — not a rep
 <li>कोई ऑटो-नवीनीकरण नहीं: 30 दिन बाद कुंजी बस काम करना बंद कर देती है।</li>
 </ul>
 <p class="hint" style="margin-top:10px"><b>शामिल नहीं:</b> आर्टिफैक्ट सुरक्षित होने की गारंटी नहीं,
-कुछ ब्लॉक नहीं होता, मानवीय समीक्षा नहीं। यह रिलीज़ से पहले एक और जाँच है — समीक्षा का विकल्प नहीं।</p>
+कुछ ब्लॉक नहीं होता। यह रिलीज़ से पहले एक और जाँच है। सशुल्क टोकन में मानवीय समीक्षा नहीं है —
+एक आर्टिफैक्ट की मुफ़्त समीक्षा अलग प्रस्ताव है, <a href="/review">/review</a> पर।</p>
 
 <h2 style="font-size:17px;margin:26px 0 6px">30 दिन का टोकन कैसे खरीदें</h2>"""),
     ('<p class="hint"><b>Pay from any wallet, no account:</b> send 99 USDC on Base (49 for India)\nto the project address, paste the transaction hash — the transfer is verified on-chain and a\n30-day token is issued in the same response. <a href="/pay">Pay with USDC →</a></p>',
@@ -1329,7 +1336,7 @@ def _sitemap() -> str:
         for page in ("", "/hi", "/demo", "/plans", "/article", "/catalogs",
                      "/start", "/privacy", "/health", "/deny-evidence",
                      "/eu-ai-act-evidence", "/mcp-security-pass",
-                     "/eu-ai-act", "/mcp-security",
+                     "/eu-ai-act", "/mcp-security", "/trust-desk", "/suite.json",
                      "/mcp/mcp-security-audit", "/mcp/mcp-server-authentication",
                      "/mcp/mcp-tool-descriptions-security", "/mcp/mcp-deny-log",
                      "/mcp/mcp-server-monetization")
@@ -1556,6 +1563,16 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/deny-evidence":
             from .deny_page import DENY_HTML
             self._send_html(DENY_HTML)
+        elif path == "/suite.json":
+            suite = Path(__file__).resolve().parents[1] / "suite.json"
+            if suite.is_file():
+                self._send(200, suite.read_bytes(), "application/json")
+            else:
+                self._send_json(404, {"error": "suite manifest is missing"})
+        elif path == "/trust-desk":
+            from .product_pages import trust_desk_page
+            pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
+            self._send_html(trust_desk_page(pay_to))
         elif path == "/eu-ai-act":
             from .product_pages import eu_ai_act_page
             pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
@@ -1820,6 +1837,9 @@ class AttestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = route_path(self.path)
+        if path == "/api/trust-desk/order":
+            return self._handle_pack_order(product="trust_desk",
+                                           tiers={"pilot": 1_500, "desk_month": 299})
         if path in ("/api/eu-ai-act/order", "/api/mcp-security/order"):
             return self._handle_pack_order(
                 product="eu_ai_act" if path.startswith("/api/eu-ai-act") else "mcp_security",
@@ -2303,7 +2323,7 @@ document.getElementById('go').onclick = async () => {{
         tx = str((payload or {}).get("tx") or "").strip()
         email = str((payload or {}).get("email") or "").strip()[:120]
         server_url = str((payload or {}).get("server_url") or "").strip()[:200]
-        base_tier = "base" if product == "eu_ai_act" else "audit"
+        base_tier = {"eu_ai_act": "base", "trust_desk": "pilot"}.get(product, "audit")
         min_usd = tiers[base_tier]
 
         if not tx:
@@ -2354,6 +2374,9 @@ document.getElementById('go').onclick = async () => {{
             "Intake form goes to your email within one business day. Reply to "
             "maxim.pkk@gmail.com with subject 'EU AI Act evidence pack' and the order id."
             if product == "eu_ai_act" else
+            "Intake form goes to your email within one business day. Reply to "
+            "maxim.pkk@gmail.com with subject 'Agent Trust Desk' and the order id."
+            if product == "trust_desk" else
             "Send the server URL or repository to maxim.pkk@gmail.com with the order id; "
             "the audit starts the same day."
         )

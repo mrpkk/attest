@@ -203,6 +203,56 @@ and you get a redacted report for one of our own servers. We do not publish a fa
 """
 
 
+TRUST_DESK_BODY = """
+<h1>Prove what your agent did, refused and was allowed to spend</h1>
+<p class="lead">One pilot, three artifacts: an artifact verdict, a mandate with limits, and a deny journal.
+A buyer's security team can check all three without trusting your dashboard.</p>
+
+<div class="grid">
+ <div class="card"><b>$1,500</b>Pilot · 10 business days
+  <p class="meta">One agent workflow, three artifacts, one revision round. Then $299/month if you keep it running.</p></div>
+ <div class="card"><b>$299/mo</b>After the pilot
+  <p class="meta">Same three artifacts on live traffic, no long-term commitment, no auto-renewal.</p></div>
+</div>
+<ul class="trust">
+ <li>No account needed</li>
+ <li>Payment checked on-chain before intake</li>
+ <li>Each artifact verifies offline with the key we publish</li>
+</ul>
+__PAY__
+
+<h2>What the pilot contains</h2>
+<table>
+<tr><th>Artifact</th><th>What it answers</th></tr>
+<tr><td><strong>Artifact verdict</strong></td><td>Four layers on a real artifact from your pipeline: schema, emptiness, provenance, authority. Verdict and reasons, not a score.</td></tr>
+<tr><td><strong>Mandate and limits</strong></td><td>What the agent may do, to whom, up to what amount, until when — as a signed record that a refusal can be checked against.</td></tr>
+<tr><td><strong>Deny journal</strong></td><td>Every refusal: who asked, which policy fired, why, with a hash chain and an offline verification command.</td></tr>
+</table>
+<p class="meta">Delivered as files (JSON + a one-page verdict) plus the verification commands.
+Acceptance is not our word: you run them.</p>
+
+<h2>What this is not</h2>
+<ul>
+<li>Not a penetration test of your infrastructure and not a certification.</li>
+<li>Not legal advice; if a regulator asks for a legal position, a lawyer signs it.</li>
+<li>It does not prove that no other log exists — only that the log you show was not altered after issue.</li>
+<li>If your logs cannot support a claim, the artifact says so. We do not fill gaps with wording.</li>
+</ul>
+
+<h2>Questions</h2>
+<details><summary>How do we start?</summary>
+ <p>Pay in USDC on Base, paste the transaction hash here. You get the intake form the same day:
+ one agent workflow, current logs, and the system prompt or policy you want covered.</p></details>
+<details><summary>What do we need from you?</summary>
+ <p>Read access to a sample of artifacts and logs from one workflow, and the policy that decides allow/deny.
+ No production access and no customer data are required for the pilot.</p></details>
+<details><summary>What if the artifacts are not delivered?</summary>
+ <p>Undelivered work is refunded in USDC to the paying address. Delivered work is not refunded; one revision
+ round exists so the format, not the facts, can be corrected.</p></details>
+__TRAILER__
+"""
+
+
 def eu_ai_act_page(pay_to: str) -> str:
     pay = _pay_block("$1,500 base / $3,000 extended", "/api/eu-ai-act/order", pay_to,
                      extra_fields=('<input id="email" type="email" data-field="email" '
@@ -212,6 +262,21 @@ def eu_ai_act_page(pay_to: str) -> str:
                   "documentation template, logging template, conformity checklist. $1,500 base, "
                   "$3,000 extended. USDC on Base, no account.",
                   "/eu-ai-act", EU_AI_ACT_BODY.replace("__PAY__", pay))
+
+
+def trust_desk_page(pay_to: str) -> str:
+    pay = _pay_block("$1,500 pilot / $299 per month after", "/api/trust-desk/order", pay_to,
+                     extra_fields=('<input id="email" type="email" data-field="email" '
+                                   'placeholder="email for the intake form (optional)">'))
+    body = TRUST_DESK_BODY.replace("__PAY__", pay).replace(
+        "__TRAILER__",
+        '<p class="meta"><a href="/">attest</a> · <a href="/deny-evidence">deny evidence</a> · '
+        '<a href="/mcp-security">MCP Security Pass</a> · <a href="/eu-ai-act">EU AI Act evidence pack</a> · '
+        '<a href="mailto:maxim.pkk@gmail.com?subject=Agent%20Trust%20Desk">maxim.pkk@gmail.com</a></p>')
+    return _shell("Agent Trust Desk — an agent you can put in front of a buyer",
+                  "Pilot $1,500: artifact verification, mandate with limits, deny journal. Three artifacts "
+                  "a buyer's security team can verify offline. $299/month after the pilot. USDC on Base.",
+                  "/trust-desk", body)
 
 
 def mcp_security_page(pay_to: str) -> str:
