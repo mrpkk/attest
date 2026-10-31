@@ -26,9 +26,10 @@ EU_HTML = """<!DOCTYPE html>
  .meta{color:#8b97a4;font-size:13.5px}
 </style></head><body><main>
 <h1>EU AI Act evidence pack</h1>
-<p class="lead">Obligations become fully applicable on <strong>2 August 2026</strong>. When a buyer's
-security team asks what your agent did, "we have a dashboard" is not an answer. This pack is the answer:
-logs, refusals, oversight and data flow — in artifacts a third party verifies without trusting you.</p>
+<p class="lead">Obligations became fully applicable on <strong>2 August 2026</strong> — that date has passed.
+When a buyer's security team asks what your agent did, "we have a dashboard" is not an answer. This pack
+is the answer: logs, refusals, oversight and data flow — in artifacts a third party verifies without
+trusting you.</p>
 
 <h2>What the pack contains</h2>
 <table>
