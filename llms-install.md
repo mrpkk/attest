@@ -66,9 +66,9 @@ curl -s -X POST https://attest.rta.lat/mcp \
 
 ## Оплата
 
-20 проверок в сутки — бесплатно и без регистрации. Дальше $0.005 за вызов
-(x402, USDC в сети Base) или $9 за 30 дней без ограничений
-(`POST https://attest.rta.lat/subscribe`). Для Индии — те же 30 дней за $3
+5 проверок в сутки — бесплатно и без регистрации. Дальше $0.005 за вызов
+(x402, USDC в сети Base) или $99 за 30 дней без ограничений
+(`POST https://attest.rta.lat/subscribe`). Для Индии — те же 30 дней за $49
 (`POST https://attest.rta.lat/subscribe?plan=ppp`).
 
 Подписку кладут в заголовок `X-ATTEST-ENTITLEMENT`, оплату вызова — в

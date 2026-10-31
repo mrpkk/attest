@@ -131,4 +131,4 @@ signatures, and injection scanning, with a machine-readable verdict.
 
 - API: `https://attest.rta.lat`
 - MCP: `https://attest.rta.lat/mcp`
-- Paid per call over x402, or 9 USDC / 30 days unlimited
+- Paid per call over x402, or 99 USDC / 30 days unlimited

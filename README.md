@@ -16,9 +16,9 @@ Refusal evidence for agents ($99 / 30 days): **<https://attest.rta.lat/deny-evid
 Conformance corpus, CC0: [`conformance/receipt-vectors.json`](conformance/receipt-vectors.json) — 12 vectors
 including five that must be rejected. A Python and a browser implementation agree on all twelve.
 
-Pricing: the verifier is free, forever. An **audit of what your agents spent** is $1,250 for the first
-three, then $2,500 — ten working days, one line of evidence per finding. Developer access for pipelines:
-$0.005 per call over x402 (USDC on Base), or $9 for 30 days ($4 at India purchasing-power parity).
+Pricing: the verifier is free, forever. An **audit of what your agents spent** is $500 flat —
+ten working days, one line of evidence per finding. Developer access for pipelines:
+$0.005 per call over x402 (USDC on Base), or $99 for 30 days ($49 at India purchasing-power parity).
 
 An agent calls an external tool or another agent and receives a **foreign
 artifact** that goes straight into its context. Nothing checks that the
@@ -225,12 +225,12 @@ Response: `{"verdicts":[...],"summary":{"accepted":1,"rejected":1,"total":2}}`.
 
 ### When the free tier runs out
 
-The free tier is **20 checks per day per client**. On the 21st call the server answers
+The free tier is **5 checks per day per client**. On the 6th call the server answers
 **HTTP 402** with a body naming the limit, and a `Payment-Required` header carrying the
 x402 terms:
 
 ```json
-{"error":"free limit reached (20/20 per day)","free_remaining":0,"resets_at":"00:00 UTC",
+{"error":"free limit reached (5/5 per day)","free_remaining":0,"resets_at":"00:00 UTC",
  "x402":{"enabled":true,"network":"eip155:8453","asset":"0x8335...2913",
          "price_atoms":5000,"pay_to":"0x..."}}
 ```
@@ -285,5 +285,5 @@ error or an exhausted free quota is reported as an error — never as "accepted"
 That block is not a doc snippet — it is how our own agents call this server
 (the same public URL, no key, no signup).
 
-Tools: `verify_artifact`, `verify_artifact_batch`. 20 free checks per day, then
-$0.005 per call over x402 (USDC, Base) or $9/30 days. India pricing: $4/30 days.
+Tools: `verify_artifact`, `verify_artifact_batch`. 5 free checks per day, then
+$0.005 per call over x402 (USDC, Base) or $99/30 days. India pricing: $49/30 days.

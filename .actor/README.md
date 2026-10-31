@@ -41,7 +41,7 @@ fired, and an Ed25519 attestation of the result.
 
 ## Pricing
 
-- Free tier: 20 checks/day per client.
+- Free tier: 5 checks/day per client.
 - Above the free tier the hosted service settles on Base mainnet via x402 (USDC,
   no signup, ETH not required — the facilitator pays gas). Pricing and details:
   <https://attest.rta.lat/pricing>.

@@ -34,7 +34,7 @@ not have to trust this service - only the math.
 MCP: https://attest.rta.lat/mcp
 HTTP: POST https://attest.rta.lat/verify
 
-20 checks a day, no signup, no card. Purchasing-power pricing for India:
+5 checks a day, no signup, no card. Purchasing-power pricing for India:
 $3 for 30 days.
 
 If your pipeline produces artifacts that an agent (or a payment) will act

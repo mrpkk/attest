@@ -959,7 +959,7 @@ class TestArticleCta:
     def test_article_has_next_steps_and_prices(self, server):
         with urllib.request.urlopen(f"{server}/article", timeout=10) as r:
             html = r.read().decode("utf-8")
-        for marker in ("/demo", "/pricing", "/subscribe", "20 checks a day",
+        for marker in ("/demo", "/pricing", "/subscribe", "5 checks a day",
                        "$0.005", "mcpServers", "India pricing"):
             assert marker in html, f"в статье нет {marker}"
 

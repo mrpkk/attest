@@ -78,7 +78,7 @@ PRICING = {
     "free": {
         "price": "0",
         "unit": "checks per day",
-        "what": "full check, no limit on artifact size",
+        "what": "full check, artifacts up to 512 KB per request",
     },
     "per_call": {
         "price": "0.005",
@@ -130,7 +130,7 @@ def _schema_block() -> str:
     "offers": {
         "@type": "AggregateOffer",
         "lowPrice": "0",
-        "highPrice": "9",
+        "highPrice": "99",
         "priceCurrency": "USDC"
     }
 }
@@ -460,7 +460,7 @@ report a human signs and the log that keeps running when nobody watches.</p>
 
 <h2>Start here</h2>
 <div class="tiers">
- <div class="t"><b>Audit</b><p class="p">$1,250</p><span class="hint">$500 flat. Ten working days: what your agents actually spent, what they actually got, and one line of evidence per finding. <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">A public sample report</a>.</span></div>
+ <div class="t"><b>Audit</b><p class="p">$500</p><span class="hint">Flat, ten working days: what your agents actually spent, what they actually got, and one line of evidence per finding. <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">A public sample report</a>.</span></div>
  <div class="t"><b>Retainer</b><p class="p">$1,500/mo</p><span class="hint">After an audit: monthly re-check, new rules, and an alert when the same class of spend comes back.</span></div>
  <div class="t"><b>Enterprise</b><p class="p">On request</p><span class="hint">Private reserve confirmation, white-label receipts, the whole engine behind your brand.</span></div>
 </div>
@@ -472,7 +472,7 @@ no fee for finding nothing.</p>
 <p class="s">A check is one artifact verified against one schema. No account, no card, no SDK.
 This rail exists for pipelines, not for buyers — it is priced at cost.</p>
 <div class="tiers">
- <div class="t"><b>Free</b><p class="p">0 USDC</p><span class="hint">20 checks a day, forever. Full check: schema, emptiness, provenance, authority.</span></div>
+ <div class="t"><b>Free</b><p class="p">0 USDC</p><span class="hint">__FREE_LIMIT__ checks a day, forever. Full check — schema, emptiness, provenance, authority — for artifacts up to 512 KB per request.</span></div>
  <div class="t"><b>Per call</b><p class="p">0.005 USDC</p><span class="hint">Beyond the free tier, paid over x402 on Base. Three steps: ask, sign, retry.</span></div>
  <div class="t"><b>30 days</b><p class="p">99 USDC</p><span class="hint">No daily cap while the token is valid. One-time prepayment, no auto-renewal.</span></div>
  <div class="t"><b>India (PPP)</b><p class="p">49 USDC</p><span class="hint">Same 30 days, purchasing-power price. <a href="/pay?plan=ppp">Pay</a>.</span></div>
@@ -488,7 +488,7 @@ This rail exists for pipelines, not for buyers — it is priced at cost.</p>
 <h2>Why India has its own price</h2>
 <p>A price is a share of a buyer's income. At Western levels most Indian teams cannot
 justify a $99 line item for a verification step, and a product nobody can afford is not
-a product. The $4 tier is the same 30 days — same four checks, same signed verdict —
+a product. The $49 tier is the same 30 days — same four checks, same signed verdict —
 at purchasing-power parity.</p>
 <h2>What you actually buy</h2>
 <p>A verdict you can check without trusting us. Every answer is Ed25519-signed; the
@@ -545,7 +545,7 @@ in this window. With an email you get 100 checks and the key by mail.</p>
 • an Ed25519-signed verdict you can verify offline, without trusting this service</p>
 <p class="muted">After 30 days the key simply stops working. If it is useful, $99/30 days
 keeps it running — or $49/30 days for India pricing. If you run agents with wallets, the
-paid product is different: an <strong>audit at $1,250</strong> (first three, then $2,500),
+paid product is different: an <strong>audit at $500</strong>,
 ten working days, one line of evidence per finding — <a href="/plans">pricing</a> ·
 <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">sample report</a> ·
 <a href="/demo">demo</a> · <a href="/article">why positional scanning</a></p>
@@ -653,7 +653,7 @@ LANDING = """<!DOCTYPE html>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="attest">
 <meta property="og:title" content="attest — artifact verification for agents">
-<meta property="og:description" content="Four-layer verification for AI agent artifacts: schema, emptiness, generation provenance, mandate authority. Ed25519-signed, verifiable offline. 20 free checks/day.">
+<meta property="og:description" content="Four-layer verification for AI agent artifacts: schema, emptiness, generation provenance, mandate authority. Ed25519-signed, verifiable offline. __FREE_LIMIT__ free checks/day.">
 <meta property="og:url" content="https://attest.rta.lat/">
 <meta property="og:image" content="https://attest.rta.lat/og.png">
 <meta property="og:image:width" content="1200">
@@ -744,15 +744,15 @@ an exhausted quota is reported as an error, never as accepted.</p>
 <h2 style="font-size:17px;margin:26px 0 6px">Pricing</h2>
 <p class="hint">__FREE_LIMIT__ free checks per day.</p>
 <div class="tiers">
- <div class="t"><b>Trial</b>0 USDC<br><span class="hint">__FREE_LIMIT__ checks per day, full check, no limit on artifact size</span></div>
+ <div class="t"><b>Trial</b>0 USDC<br><span class="hint">__FREE_LIMIT__ checks per day, full check, artifacts up to 512 KB per request</span></div>
  <div class="t"><b>Per call</b>0.005 USDC<br><span class="hint">beyond the free tier, paid over x402 on Base</span></div>
  <div class="t"><b>Subscription</b>99 USDC<br><span class="hint">removes the limit, suitable for CI pipelines</span></div>
  <div class="t"><b>India (PPP)</b>49 USDC<br><span class="hint">same 30 days, purchasing-power price. <a href="/pay?plan=ppp">Pay</a></span></div>
 </div>
 
-<h2 style="font-size:17px;margin:26px 0 6px">What 790 ₽ / 30 days includes</h2>
+<h2 style="font-size:17px;margin:26px 0 6px">What 99 USDC / 30 days includes</h2>
 <ul class="hint" style="margin:6px 0 0 18px;padding:0">
-<li>100 checks — five times the free daily tier.</li>
+<li>No daily cap while the token is valid.</li>
 <li>Field-level verdict: which field is critical, which is data, and why.</li>
 <li>Same MCP endpoint and the same <code>POST /verify</code> — nothing to reinstall.</li>
 <li>Ed25519-signed verdict you can verify without trusting us.</li>
@@ -847,8 +847,8 @@ _HI_REPLACEMENTS: tuple[tuple[str, str], ...] = (
     ('<h2 style="font-size:17px;margin:26px 0 6px">Pricing</h2>',
      '<h2 style="font-size:17px;margin:26px 0 6px">मूल्य</h2>'),
     ('__FREE_LIMIT__ free checks per day.', '__FREE_LIMIT__ मुफ़्त जाँच प्रतिदिन।'),
-    ('<div class="t"><b>Trial</b>0 USDC<br><span class="hint">__FREE_LIMIT__ checks per day, full check, no limit on artifact size</span></div>',
-     '<div class="t"><b>नि:शुल्क</b>0 USDC<br><span class="hint">__FREE_LIMIT__ जाँच प्रतिदिन, पूरी जाँच, आर्टिफैक्ट के आकार की सीमा नहीं</span></div>'),
+    ('<div class="t"><b>Trial</b>0 USDC<br><span class="hint">__FREE_LIMIT__ checks per day, full check, artifacts up to 512 KB per request</span></div>',
+     '<div class="t"><b>नि:शुल्क</b>0 USDC<br><span class="hint">__FREE_LIMIT__ जाँच प्रतिदिन, पूरी जाँच, प्रति अनुरोध 512 KB तक आर्टिफैक्ट</span></div>'),
     ('<div class="t"><b>Per call</b>0.005 USDC<br><span class="hint">beyond the free tier, paid over x402 on Base</span></div>',
      '<div class="t"><b>प्रति कॉल</b>0.005 USDC<br><span class="hint">मुफ़्त सीमा के बाद, Base पर x402 से भुगतान</span></div>'),
     ('<div class="t"><b>Subscription</b>99 USDC<br><span class="hint">removes the limit, suitable for CI pipelines</span></div>',
@@ -856,10 +856,10 @@ _HI_REPLACEMENTS: tuple[tuple[str, str], ...] = (
     ('<div class="warn"><b>What this does not do.</b> A valid form is not meaningful content, and a\nsigned artifact is not a permitted action. Absence of signals means the coarse checks did not fire —\nit does not prove the artifact is sound. The signature is Ed25519: the public key travels with\nthe attestation, so you can verify it yourself without trusting this service.</div>',
      '<div class="warn"><b>यह क्या नहीं करता।</b> सही रूप का अर्थ वास्तविक सामग्री नहीं है, और हस्ताक्षरित आर्टिफैक्ट का अर्थ अनुमत क्रिया नहीं है। संकेतों का न होना केवल यह दिखाता है कि स्थूल जाँचें नहीं चलीं — यह सिद्ध नहीं करता कि आर्टिफैक्ट ठीक है। हस्ताक्षर Ed25519 है: सार्वजनिक कुंजी सत्यापन के साथ चलती है, इसलिए आप इस सेवा पर भरोसा किए बिना स्वयं जाँच सकते हैं।</div>'),
     (' <div class="t"><b>India (PPP)</b>49 USDC<br><span class="hint">same 30 days, purchasing-power price. <a href="/pay?plan=ppp">Pay</a></span></div>',
-     ' <div class="t"><b>भारत (PPP)</b>4 USDC<br><span class="hint">वही 30 दिन, खरीद-क्षमता के अनुसार मूल्य। <a href="/pay?plan=ppp">भुगतान</a></span></div>'),
-    ("""<h2 style="font-size:17px;margin:26px 0 6px">What 790 ₽ / 30 days includes</h2>
+     ' <div class="t"><b>भारत (PPP)</b>49 USDC<br><span class="hint">वही 30 दिन, खरीद-क्षमता के अनुसार मूल्य। <a href="/pay?plan=ppp">भुगतान</a></span></div>'),
+    ("""<h2 style="font-size:17px;margin:26px 0 6px">What 99 USDC / 30 days includes</h2>
 <ul class="hint" style="margin:6px 0 0 18px;padding:0">
-<li>100 checks — five times the free daily tier.</li>
+<li>No daily cap while the token is valid.</li>
 <li>Field-level verdict: which field is critical, which is data, and why.</li>
 <li>Same MCP endpoint and the same <code>POST /verify</code> — nothing to reinstall.</li>
 <li>Ed25519-signed verdict you can verify without trusting us.</li>
@@ -869,9 +869,9 @@ _HI_REPLACEMENTS: tuple[tuple[str, str], ...] = (
 no blocking, no human review. It is one more check before you ship — not a replacement for review.</p>
 
 <h2 style="font-size:17px;margin:26px 0 6px">Buying a 30-day token</h2>""",
-     """<h2 style="font-size:17px;margin:26px 0 6px">790 ₽ / 30 दिन में क्या शामिल है</h2>
+     """<h2 style="font-size:17px;margin:26px 0 6px">99 USDC / 30 दिन में क्या शामिल है</h2>
 <ul class="hint" style="margin:6px 0 0 18px;padding:0">
-<li>100 जाँचें — मुफ़्त दैनिक सीमा से पाँच गुना।</li>
+<li>टोकन वैध रहने तक कोई दैनिक सीमा नहीं।</li>
 <li>हर फ़ील्ड पर निर्णय: कौन-सा फ़ील्ड गंभीर है, कौन-सा केवल डेटा है, और क्यों।</li>
 <li>वही MCP एंडपॉइंट और वही <code>POST /verify</code> — कुछ दोबारा इंस्टॉल नहीं करना।</li>
 <li>Ed25519 हस्ताक्षरित निर्णय — हम पर भरोसा किए बिना जाँच सकते हैं।</li>
@@ -882,7 +882,7 @@ no blocking, no human review. It is one more check before you ship — not a rep
 
 <h2 style="font-size:17px;margin:26px 0 6px">30 दिन का टोकन कैसे खरीदें</h2>"""),
     ('<p class="hint"><b>Pay from any wallet, no account:</b> send 99 USDC on Base (49 for India)\nto the project address, paste the transaction hash — the transfer is verified on-chain and a\n30-day token is issued in the same response. <a href="/pay">Pay with USDC →</a></p>',
-     '<p class="hint"><b>किसी भी वॉलेट से भुगतान करें, कोई खाता नहीं:</b> Base पर 99 USDC (भारत के लिए 4)\nभेजें, ट्रांज़ैक्शन हैश चिपकाएँ — ब्लॉकचेन पर जाँच के बाद उसी उत्तर में 30 दिन का टोकन मिलता है।\n<a href="/pay">USDC से भुगतान करें →</a></p>'),
+     '<p class="hint"><b>किसी भी वॉलेट से भुगतान करें, कोई खाता नहीं:</b> Base पर 99 USDC (भारत के लिए 49)\nभेजें, ट्रांज़ैक्शन हैश चिपकाएँ — ब्लॉकचेन पर जाँच के बाद उसी उत्तर में 30 दिन का टोकन मिलता है।\n<a href="/pay">USDC से भुगतान करें →</a></p>'),
     ('<p class="hint">x402 is a three-step flow: ask, sign, retry. No account, no card, no dashboard.</p>',
      '<p class="hint">x402 तीन कदमों का प्रवाह है: अनुरोध, हस्ताक्षर, पुनः प्रयास। कोई खाता नहीं, कोई कार्ड नहीं, कोई डैशबोर्ड नहीं।</p>'),
     ('# 402 + challenge: price, asset, network, payTo', '# 402 + चुनौती: कीमत, संपत्ति, नेटवर्क, payTo'),
@@ -1656,7 +1656,7 @@ class AttestHandler(BaseHTTPRequestHandler):
             from .catalogs import CATALOGS_HTML
             self._send_html(CATALOGS_HTML)
         elif path == "/plans":
-            self._send_html(_PLANS_HTML)
+            self._send_html(_PLANS_HTML.replace("__FREE_LIMIT__", str(self.free_tier.daily_limit)))
         elif path == "/.well-known/mcp/server-card.json":
             # Статическая карточка сервера: каталоги (Smithery и другие)
             # берут из неё список инструментов, если скан живого /mcp не
@@ -1707,7 +1707,7 @@ class AttestHandler(BaseHTTPRequestHandler):
             # Мы не authorization server: OAuth не требуется, оплата по x402.
             self._send_json(404, {
                 "error": "not an authorization server",
-                "note": "attest needs no OAuth token: 20 free checks per day, "
+                "note": f"attest needs no OAuth token: {self.free_tier.daily_limit} free checks per day, "
                         "then $0.005 per call over x402 (USDC, Base)",
                 "payment": f"{self._base_url()}/.well-known/x402",
             })
@@ -1840,7 +1840,7 @@ class AttestHandler(BaseHTTPRequestHandler):
                 client = "deny:" + self.client_id()
                 if self.free_tier.used(client) >= self.free_tier.daily_limit:
                     return self._send_json(402, {
-                        "error": "free limit reached: 20 records per day",
+                        "error": f"free limit reached: {self.free_tier.daily_limit} records per day",
                         "buy": f"{self._base_url()}/pay",
                         "note": "paid keys have no daily limit",
                     })

@@ -84,7 +84,7 @@ PAGE = """<!DOCTYPE html>
 <article>
 {body}
 <h2>Try it on your own artifact</h2>
-<p>Twenty checks a day, no signup, no key. This is the same endpoint the MCP tool calls.</p>
+<p>Five checks a day, no signup, no key. This is the same endpoint the MCP tool calls.</p>
 <div class="try">
 <textarea id="art" rows="4">{{"findings": [{{"id": "f1", "title": "checked the schema"}}]}}</textarea>
 <button onclick="tryCheck()">Check this artifact</button>
@@ -107,12 +107,12 @@ PAGE = """<!DOCTYPE html>
 <div class="cta">
 <b>attest</b> — deterministic verifier for agent artifacts: schema, emptiness,
 provenance and mandate authority, one Ed25519-signed verdict.<br>
-Free: 20 checks a day, no signup. Then $0.005 per call over x402, or 9 USDC / 30 days.
-India pricing: 4 USDC / 30 days.<br>
+Free: 5 checks a day, no signup. Then $0.005 per call over x402, or 99 USDC / 30 days.
+India pricing: 49 USDC / 30 days.<br>
 API <code>https://attest.rta.lat</code> · MCP <code>https://attest.rta.lat/mcp</code> ·
 <a href="/demo">demo</a> · <a href="/pricing">pricing</a> · <a href="/subscribe">subscribe</a> ·
 <a href="/start">100 free checks for 30 days</a> ·
-<a href="/pay">pay 9 USDC from any wallet</a>
+<a href="/pay">pay 99 USDC from any wallet</a>
 </div>
 </article>
 <script>

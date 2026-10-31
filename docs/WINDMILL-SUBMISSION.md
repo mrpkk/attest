@@ -70,7 +70,7 @@ independent layers:
 No dependencies. Returns the full response including the Ed25519 signature,
 which can be verified independently of this service.
 
-20 free checks per day, then 0.005 USDC per call over x402 on Base mainnet.
+5 free checks per day, then 0.005 USDC per call over x402 on Base mainnet.
 Service: https://attest.rta.lat
 Source: https://github.com/mrpkk/attest
 ```

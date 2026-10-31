@@ -107,7 +107,7 @@ This pattern is not a subscription, and pretending otherwise would be the same l
 
 ## The numbers, because they set the shape
 
-- $0.005 per call, 20 free checks per day on the free tier.
+- $0.005 per call, 5 free checks per day on the free tier.
 - Measured settlement cost on Base: about **$0.00146** per transfer (≈90k gas at ETH $2,702 at the time we measured). At $0.005 that is a ~29% rail — our code refuses to configure a price below 2× cost.
 - 9 USDC for 30 days: at the per-call price that is 1,800 calls. If you make fewer, pay per call; if you make more, the token is the cheaper path. No "contact sales".
 

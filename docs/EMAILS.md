@@ -18,7 +18,7 @@
 инъекции. На выходе вердикт с причиной по каждому полю, а не одно число.
 
 Что даёт подписка на 30 дней:
-— 100 проверок (вместо 20 в день);
+— 100 проверок (вместо 5 в день);
 — полный отчёт по полям;
 — тот же MCP-эндпоинт, ничего перенастраивать не нужно.
 
@@ -32,7 +32,7 @@
 — AILegal / attest
 ```
 
-**Тема (EN):** `Card payments are live — 30 days for $9`
+**Тема (EN):** `Card payments are live — 30 days for $99`
 
 ```
 Hi,
@@ -43,7 +43,7 @@ What it is: contract-shaped checks for AI-agent artifacts — form, fields, inje
 with a verdict and a reason per field instead of one opaque score.
 
 30-day plan: 100 checks, field-level report, same MCP endpoint.
-Price: $9 for 30 days, card or SBP. Payment link: <insert link>
+Price: $99 for 30 days, card or SBP. Payment link: <insert link>
 
 What it does not do: it guarantees nothing and blocks nothing. One more check before you ship.
 Reply "stop" and I will not write again.
