@@ -29,7 +29,7 @@ artifact:
 - is not a base64 wrapper around such an instruction,
 - has not changed since it was checked.
 
-`attest` closes that gap. No dependencies, 748 tests (744 pass, 4 skip).  
+`attest` closes that gap. No dependencies, 750 tests (746 pass, 4 skip).  
 **Free human review of one artifact:** https://attest.rta.lat/review  
 **BusinessMCP Marketplace:** https://businessmcp.com/mcp-servers/attest
 
