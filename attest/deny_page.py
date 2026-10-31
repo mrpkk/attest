@@ -4,7 +4,7 @@ DENY_HTML = """<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>1,509 rows, zero denials — Deny evidence for AI agents</title>
-<meta name="description" content="A log where every row says allowed proves nothing. Deny evidence: a signed, append-only record of refusals — who asked, which policy, why. Ed25519, verifiable offline. $29 trial (7 days, 100 records) or $99 for 30 days.">
+<meta name="description" content="A log where every row says allowed proves nothing. Deny evidence: a signed, append-only record of refusals — who asked, which policy, why. Ed25519, verifiable offline. Trial from 0.01 USDC (100 records, 7 days) or $99 for 30 days.">
 <link rel="canonical" href="https://attest.rta.lat/deny-evidence">
 <style>
  body{margin:0;background:#0b0d10;color:#e6e6e6;font:16px/1.65 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
