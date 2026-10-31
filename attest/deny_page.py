@@ -4,7 +4,7 @@ DENY_HTML = """<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>1,509 rows, zero denials — Deny evidence for AI agents</title>
-<meta name="description" content="A log where every row says allowed proves nothing. Deny evidence: a signed, append-only record of refusals — who asked, which policy, why. Ed25519, verifiable offline. $29/month.">
+<meta name="description" content="A log where every row says allowed proves nothing. Deny evidence: a signed, append-only record of refusals — who asked, which policy, why. Ed25519, verifiable offline. $29 trial (7 days, 100 records) or $99 for 30 days.">
 <link rel="canonical" href="https://attest.rta.lat/deny-evidence">
 <style>
  body{margin:0;background:#0b0d10;color:#e6e6e6;font:16px/1.65 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -77,9 +77,9 @@ curl 'https://attest.rta.lat/deny?since=2026-10-29T00:00:00Z&limit=100'</code></
 
 <div class="price">
 <b>$29</b> trial · 100 deny records · 7 days · signed export<br>
-<b>$99</b> / month · unlimited records · 30-day retention
+<b>$99</b> / 30 days · unlimited records · one-time payment, no auto-renewal
 <p class="meta">Start with USDC on Base — no card, no account. Receipt is the transaction.</p>
-<a class="btn" href="/pay">Start — $29 trial or $99/month</a>
+<a class="btn" href="/pay">Start — $29 trial or $99 for 30 days</a>
 <p class="meta">After payment the page issues an API key (X-API-Key) and a
 <a href="/thanks">/thanks</a> page with the first call.</p>
 <p class="meta">Included in the $99 attest plan. Free evaluation: 20 records/day.
