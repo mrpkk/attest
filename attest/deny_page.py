@@ -76,13 +76,14 @@ curl 'https://attest.rta.lat/deny?since=2026-10-29T00:00:00Z&limit=100'</code></
 </table>
 
 <div class="price">
-<b>$29</b> trial · 100 deny records · 7 days · signed export<br>
-<b>$99</b> / 30 days · unlimited records · one-time payment, no auto-renewal
+<b>$99</b> / 30 days · unlimited deny records · one-time payment, no auto-renewal
 <p class="meta">Start with USDC on Base — no card, no account. Receipt is the transaction.</p>
-<a class="btn" href="/pay">Start — $29 trial or $99 for 30 days</a>
+<a class="btn" href="/pay">Start — pay 99 USDC</a>
 <p class="meta">After payment the page issues an API key (X-API-Key) and a
 <a href="/thanks">/thanks</a> page with the first call.</p>
-<p class="meta">Included in the $99 attest plan. Free evaluation: 20 records/day.
+<p class="meta">Smaller trial (100 records, 7 days) — write to
+<a href="mailto:maxim.pkk@gmail.com?subject=Deny%20trial">maxim.pkk@gmail.com</a>,
+issued after a transfer. Free evaluation: 20 records/day.
 Questions: <a href="mailto:maxim.pkk@gmail.com?subject=Deny%20evidence">maxim.pkk@gmail.com</a></p>
 </div>
 
