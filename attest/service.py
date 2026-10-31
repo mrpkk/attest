@@ -62,7 +62,7 @@ from . import enot
 from . import onchain
 from .x402 import atomic_to_usd, agent_card, discovery_document
 
-DEFAULT_FREE_DAILY = 20
+DEFAULT_FREE_DAILY = 5
 # Проверка адреса для заявки: нам не нужен RFC-строгий разбор, нужно
 # понять, что адрес похож на почту, и не потерять заявку из-за опечатки.
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s.]+\.[A-Za-z]{2,}$")
