@@ -16,7 +16,9 @@ import time
 import urllib.request
 from pathlib import Path
 
-BASE = "https://attest.rta.lat"
+# Локально: прямой HTTPS с этой машины обрывается (SSL UNEXPECTED_EOF, 31.10.2026),
+# а /metrics локально отдаёт тот же JSON. Публичный путь снаружи проверяет uptime-check.
+BASE = "http://127.0.0.1:8185"
 OUT = Path.home() / ".local/share/attest/funnel"
 UA = "Mozilla/5.0 (X11; Linux x86_64) attest-funnel-snapshot"
 
