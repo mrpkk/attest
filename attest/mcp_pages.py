@@ -41,7 +41,8 @@ MCP_PASS_BODY = """
 <h1>MCP Security Pass</h1>
 <p class="lead">A reviewer will ask what your MCP server can do, who can call it, and what happens
 when a call is refused. We produce the evidence for those three questions — for one server.
-Two speeds: <strong>five business days</strong> at $500, or <strong>48 hours</strong> at $1,500.</p>
+<strong>$500</strong> is the audit in five business days; <strong>$1,500</strong> is the same audit with
+the patches applied by us and the same checks re-run, delivered in 48 hours.</p>
 
 <h2>What the pass covers</h2>
 <table>
@@ -57,10 +58,10 @@ Two speeds: <strong>five business days</strong> at $500, or <strong>48 hours</st
 <div class="grid">
 <div class="card"><b>$500</b>Standard pass · 5 business days
 <p class="meta">One server, one revision round, written report with severity and fix order.</p></div>
-<div class="card"><b>$1,500</b>Express pass · 48 hours
-<p class="meta">The same pass, delivered inside 48 hours of intake, plus a signed deny log wired to
-<code>POST /deny</code>, offline verification, and one re-test after fixes. For a launch, a
-procurement deadline, or a review that is already booked.</p></div>
+<div class="card"><b>$1,500</b>Audit with fixes · 48 hours
+<p class="meta">The same scope plus the patches applied by us, then the same checks re-run — before
+and after reports a reviewer can compare. Delivered inside 48 hours of intake. This is the
+<code>with_fixes</code> tier the cashier charges; it is not a faster version of the $500 audit.</p></div>
 </div>
 
 <div class="pay">
@@ -80,7 +81,8 @@ The deny log example is public: <a href="/deny-evidence">attest.rta.lat/deny-evi
 <li>No guarantee that a directory or a buyer will accept the report.</li>
 <li>If a control is missing, the report says so with the reproduction step.</li>
 </ul>
-<p class="meta"><a href="/deny-evidence">Deny evidence</a> ·
+<p class="meta"><a href="/mcp-security">Same pass with on-chain intake</a> ·
+<a href="/deny-evidence">Deny evidence</a> ·
 <a href="/eu-ai-act-evidence">EU AI Act pack</a> · <a href="/docs">docs</a></p>
 """
 
@@ -219,7 +221,7 @@ def seo_page(slug: str) -> str:
 def mcp_pass_page(pay_to: str) -> str:
     return _shell(
         "MCP Security Pass — auth, scopes, deny log, report",
-        "Security review for one MCP server: authentication, scopes, tool descriptions, deny mode, logs and a report. $500 in 5 business days, or $1,500 in 48 hours.",
+        "Security review for one MCP server: authentication, scopes, tool descriptions, deny mode, logs and a report. $500 audit in 5 business days; $1,500 with the patches applied and re-checked in 48 hours.",
         "/mcp-security-pass",
         MCP_PASS_BODY.replace("__PAY_TO__", pay_to),
     )
