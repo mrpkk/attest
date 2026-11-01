@@ -92,6 +92,19 @@ PRICING = {
     "subscription": entitlement_describe(),
 }
 
+#: Цены пакетов — единственный источник для кассы (`_handle_pack_order`) и для
+#: проверки страниц: страница обязана называть ровно эти числа, не свои.
+PACK_TIERS = {
+    "trust_desk": {"pilot": 1_500, "desk_month": 299},
+    "eu_ai_act": {"base": 1_500, "extended": 3_000},
+    "mcp_security": {"audit": 500, "with_fixes": 1_500},
+}
+
+#: Бесплатные/дешёвые опции, которые касса тоже выставляет: триал и PPP.
+TRIAL_MIN_USD = 0.01
+#: Журнал отказов: от этой суммы /pay/claim выдаёт план deny-30d.
+DENY_PRICE_USD = 29.0
+
 
 def _env_float(name: str, default: float) -> float:
     raw = os.environ.get(name)
@@ -1839,14 +1852,11 @@ class AttestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         path = route_path(self.path)
         if path == "/api/trust-desk/order":
-            return self._handle_pack_order(product="trust_desk",
-                                           tiers={"pilot": 1_500, "desk_month": 299})
-        if path in ("/api/eu-ai-act/order", "/api/mcp-security/order"):
-            return self._handle_pack_order(
-                product="eu_ai_act" if path.startswith("/api/eu-ai-act") else "mcp_security",
-                tiers={"eu_ai_act": {"base": 1_500, "extended": 3_000},
-                       "mcp_security": {"audit": 500, "with_fixes": 1_500}}[
-                    "eu_ai_act" if path.startswith("/api/eu-ai-act") else "mcp_security"])
+            return self._handle_pack_order(product="trust_desk", tiers=PACK_TIERS["trust_desk"])
+        if path == "/api/eu-ai-act/order":
+            return self._handle_pack_order(product="eu_ai_act", tiers=PACK_TIERS["eu_ai_act"])
+        if path == "/api/mcp-security/order":
+            return self._handle_pack_order(product="mcp_security", tiers=PACK_TIERS["mcp_security"])
         if path == "/deny":
             from .apikeys import consume as consume_key
             raw_key = (self.headers.get("X-API-Key")
@@ -2284,13 +2294,13 @@ class AttestHandler(BaseHTTPRequestHandler):
 code{{background:#f2f2f2;padding:2px 6px;border-radius:5px}}input{{width:100%;padding:10px;font:15px ui-monospace,monospace;border:1px solid #ccc;border-radius:8px}}
 button{{margin-top:10px;padding:10px 16px;border-radius:8px;border:1px solid #111;background:#111;color:#fff;font:inherit;cursor:pointer}}
 #out{{margin-top:16px;padding:12px;border-radius:8px;background:#f7f7f7;white-space:pre-wrap;font:14px ui-monospace,monospace}}</style>
-<h1>Pay from 0.01 USDC — get an API key</h1>
+<h1>Pay from {TRIAL_MIN_USD:g} USDC — get an API key</h1>
 <p>{note}. Send USDC on <b>Base</b> to this address, then paste the transaction hash below.
 No account, no card, no signup. Buying from India? <a href="/pay?plan=ppp">This page at the
 purchasing-power price</a>.</p>
 <p><code>{pay_to}</code></p>
 <p>Any wallet works: MetaMask, Rabby, Coinbase Wallet, an exchange withdrawal to Base.
-Send the full price ({price:g} USDC) for 30 days, or any amount from 0.01 USDC for a
+Send the full price ({price:g} USDC) for 30 days, or any amount from {TRIAL_MIN_USD:g} USDC for a
 trial key (100 records / 7 days). The plan is chosen by the amount actually received.</p>
 <input id=tx placeholder="0x… transaction hash">
 <button id=go>Check payment</button>
@@ -2415,7 +2425,7 @@ document.getElementById('go').onclick = async () => {{
             return self._send_json(409, {"error": "this transaction was already used"})
         price = self._subscription_price_usd()
         # Минимум 0.01 USDC: тестовый платёж должен выдавать ключ, а не отказ.
-        atoms = 10_000
+        atoms = int(TRIAL_MIN_USD * 1_000_000)
         try:
             transfer = onchain.confirm_transfer(
                 tx, pay_to=self.x402_pay_to, min_atoms=atoms,
@@ -2431,7 +2441,7 @@ document.getElementById('go').onclick = async () => {{
         amount = transfer.amount_atoms / 1_000_000
         if amount >= price:
             plan, days, calls = "attest-30d", 30, None
-        elif amount >= 29:
+        elif amount >= DENY_PRICE_USD:
             plan, days, calls = "deny-30d", 30, None
         else:
             plan, days, calls = "trial-7d", 7, 100
