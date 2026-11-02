@@ -110,3 +110,30 @@ def test_mcp_names_owasp_and_honest_sample():
     html, _p, _e = PAGES["mcp-security"]
     assert "OWASP MCP Top 10" in html
     assert "Example on request" in html  # реального артефакта нет — не выдумываем
+
+
+def test_proof_of_place_page_and_cash_register():
+    """$300 — это отчёт, а не пилот $1 500: касса должна знать оба тарифа."""
+    from attest.product_pages import proof_of_place_page
+    from attest.service import PACK_TIERS, choose_tier
+
+    html = proof_of_place_page(PAY_TO)
+    for price in ("$300", "$900–2,500", "$99/mo"):
+        assert price in html, f"нет цены {price}"
+    assert "GPS can be spoofed" in html.replace("**", "") or "GPS coordinates are forgeable" in html
+    assert "Not proof of ownership" in html
+    assert html.count("<details>") == 3
+
+    tiers = PACK_TIERS["proof_of_place"]
+    assert tiers == {"pop_report": 300, "pop_shoot": 900, "pop_stream": 99}
+    # ровно $300 → отчёт; 900 → съёмка; 99 → поток; 2500 → съёмка; 50 → ничего
+    assert choose_tier(tiers, 300) == "pop_report"
+    assert choose_tier(tiers, 899.99) == "pop_report"
+    assert choose_tier(tiers, 900) == "pop_shoot"
+    assert choose_tier(tiers, 2500) == "pop_shoot"
+    assert choose_tier(tiers, 99) == "pop_stream"
+    assert choose_tier(tiers, 50) == ""
+    # у Desk своя лестница: 1500 — пилот, 299…1499 — месяц; продукты разделены
+    # эндпоинтами, поэтому $300 за Proof of Place сюда не попадает вообще
+    assert choose_tier(PACK_TIERS["trust_desk"], 1500) == "pilot"
+    assert choose_tier(PACK_TIERS["trust_desk"], 299) == "desk_month"

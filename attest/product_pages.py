@@ -203,6 +203,58 @@ and you get a redacted report for one of our own servers. We do not publish a fa
 """
 
 
+PROOF_OF_PLACE_BODY = """
+<h1>Prove where the work actually happened, not where the report says</h1>
+<p class="lead">A photo, a place, a time. We check what can be checked, name what cannot, and hand you
+an artifact a buyer or an insurer can open without trusting the sender.</p>
+
+<div class="grid">
+ <div class="card"><b>$300</b>Report on your photos
+  <p class="meta">You send photos; we return an evidence report with the layers we could verify and the gaps we found.</p></div>
+ <div class="card"><b>$900–2,500</b>With independent capture
+  <p class="meta">A local operator captures the place, so the photos are not yours. Scope and travel set the price.</p></div>
+ <div class="card"><b>$99/mo</b>Stream
+  <p class="meta">Continuous checks on one site: new photos, new dates, new gaps. Cancel by not paying.</p></div>
+</div>
+<ul class="trust">
+ <li>No account needed</li>
+ <li>Payment checked on-chain before intake</li>
+ <li>Every layer in the report says how it was checked</li>
+</ul>
+__PAY__
+
+<h2>Proof layers, weakest to strongest</h2>
+<table>
+<tr><th>Layer</th><th>What we check</th><th>What it can still miss</th></tr>
+<tr><td><strong>File integrity</strong></td><td>Hash, edits and re-saves, embedded metadata consistency</td><td>A photo taken elsewhere and re-wrapped</td></tr>
+<tr><td><strong>Time</strong></td><td>Capture time against the claim, file timestamps, sequence of frames</td><td>Wrong device clock</td></tr>
+<tr><td><strong>Place, declared</strong></td><td>GPS and EXIF coordinates cross-checked against the described site</td><td><strong>GPS can be spoofed</strong> — this is not proof on its own</td></tr>
+<tr><td><strong>Place, visual</strong></td><td>Landmarks, skyline, signage, terrain, shadows and sun angle against the date</td><td>A convincing reconstruction; satellite imagery sees only the top</td></tr>
+<tr><td><strong>Independent capture</strong></td><td>A local operator we hire takes the photos</td><td>Only as good as the operator's honesty — the highest tier we sell</td></tr>
+</table>
+
+<h2>What this is not</h2>
+<ul>
+<li><strong>Not proof of ownership.</strong> We confirm that a place matches a description; who owns it is a registry question, not a photo question.</li>
+<li><strong>GPS coordinates are forgeable</strong> by design. We say so in every report and never sell metadata as proof.</li>
+<li><strong>Satellites look from above</strong>: a roof, a yard, an empty field. Interiors, basements and what happens under a canopy are outside their view.</li>
+<li>Not a legal opinion and not a valuator's appraisal. If a dispute reaches a court, the report is evidence to argue about, not a verdict.</li>
+<li>If the layers disagree, the report states the disagreement. We do not average it into a score.</li>
+</ul>
+
+<h2>Questions</h2>
+<details><summary>What do you need from me for the $300 report?</summary>
+ <p>The original files (not screenshots), the address or site as you describe it, the date you claim, and
+ what decision the report is for. Ten to thirty photos are enough for one site.</p></details>
+<details><summary>Why does independent capture cost more?</summary>
+ <p>Because a person travels to the site and takes the pictures. Price depends on location and number of
+ visits; the $900–2,500 range is the honest spread, not a discount ladder.</p></details>
+<details><summary>What if the photos do not support the claim?</summary>
+ <p>The report says so, with the reason per layer. That is the product: a report that can also come back
+ negative is the only one worth paying for.</p></details>
+__TRAILER__
+"""
+
 TRUST_DESK_BODY = """
 <h1>Prove what your agent did, refused and was allowed to spend</h1>
 <p class="lead">One pilot, three artifacts: an artifact verdict, a mandate with limits, and a deny journal.
@@ -262,6 +314,22 @@ def eu_ai_act_page(pay_to: str) -> str:
                   "documentation template, logging template, conformity checklist. $1,500 base, "
                   "$3,000 extended. USDC on Base, no account.",
                   "/eu-ai-act", EU_AI_ACT_BODY.replace("__PAY__", pay))
+
+
+def proof_of_place_page(pay_to: str) -> str:
+    pay = _pay_block("$300 report / $900–2,500 with capture / $99 per month", "/api/proof-of-place/order",
+                     pay_to,
+                     extra_fields=('<input id="email" type="email" data-field="email" '
+                                   'placeholder="email for the intake form (optional)">'))
+    body = PROOF_OF_PLACE_BODY.replace("__PAY__", pay).replace(
+        "__TRAILER__",
+        '<p class="meta"><a href="/">attest</a> · <a href="/trust-desk">Agent Trust Desk</a> · '
+        '<a href="/deny-evidence">deny evidence</a> · '
+        '<a href="mailto:maxim.pkk@gmail.com?subject=Proof%20of%20Place">maxim.pkk@gmail.com</a></p>')
+    return _shell("Proof of Place — where and when the work actually happened",
+                  "Photo evidence report: file integrity, time, declared place, visual place, independent "
+                  "capture. $300 report, $900–2,500 with capture, $99/month stream. USDC on Base.",
+                  "/proof-of-place", body)
 
 
 def trust_desk_page(pay_to: str) -> str:

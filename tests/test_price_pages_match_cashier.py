@@ -29,7 +29,7 @@ from attest.article import ARTICLE_HTML  # noqa: E402
 from attest.eu_ai_act_page import EU_HTML  # noqa: E402
 from attest.mcp_pages import SEO_PAGES, mcp_pass_page, seo_page  # noqa: E402
 from attest.product_pages import (  # noqa: E402
-    eu_ai_act_page, mcp_security_page, trust_desk_page,
+    eu_ai_act_page, mcp_security_page, proof_of_place_page, trust_desk_page,
 )
 from attest.service import (  # noqa: E402
     DENY_PRICE_USD, LANDING, PACK_TIERS, PRICING, TRIAL_MIN_USD, AttestHandler, _PLANS_HTML,
@@ -72,6 +72,7 @@ SELLING_PAGES = {
     "/eu-ai-act": eu_ai_act_page(PAY_TO),
     "/mcp-security": mcp_security_page(PAY_TO),
     "/trust-desk": trust_desk_page(PAY_TO),
+    "/proof-of-place": proof_of_place_page(PAY_TO),
     "/eu-ai-act-evidence": EU_HTML,
     "/mcp-security-pass": mcp_pass_page(PAY_TO),
     "/plans": _PLANS_HTML,
@@ -99,6 +100,21 @@ def test_legacy_page_names_the_same_tiers_as_the_new_one(page: str):
     tiers = tier_prices("eu_ai_act" if page == "/eu-ai-act-evidence" else "mcp_security")
     assert money(SELLING_PAGES[page]) == tiers, (
         f"{page}: {sorted(money(SELLING_PAGES[page]))} против {sorted(tiers)}")
+
+
+def test_proof_of_place_names_the_range_the_cashier_accepts():
+    """Съёмка — диапазон $900–2,500: касса принимает сумму внутри него как pop_shoot.
+
+    `money()` видит только `$900` (у 2,500 нет знака $), поэтому обычная сверка
+    «страница = тарифы» здесь недостаточна: верхняя граница проверяется отдельно.
+    """
+    from attest.service import choose_tier
+
+    page = SELLING_PAGES["/proof-of-place"]
+    assert money(page) == {"300", "900", "99"}
+    assert "$900–2,500" in page
+    assert choose_tier(PACK_TIERS["proof_of_place"], 900) == "pop_shoot"
+    assert choose_tier(PACK_TIERS["proof_of_place"], 2500) == "pop_shoot"
 
 
 @pytest.mark.parametrize("page", sorted(SELLING_PAGES))

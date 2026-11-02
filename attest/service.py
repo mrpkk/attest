@@ -94,10 +94,26 @@ PRICING = {
 
 #: Цены пакетов — единственный источник для кассы (`_handle_pack_order`) и для
 #: проверки страниц: страница обязана называть ровно эти числа, не свои.
+def choose_tier(tiers: dict[str, int], amount_usd: float) -> str:
+    """Какой тариф соответствует фактически полученной сумме.
+
+    Проверяется отдельно, потому что ошибка здесь — не косметика: перевод $300
+    за отчёт Proof of Place записывался бы как пилот $1,500, и клиент покупал бы
+    одно, а получал другое в журнале заказов.
+    """
+    for name, price in sorted(tiers.items(), key=lambda kv: kv[1], reverse=True):
+        if amount_usd >= price:
+            return name
+    return ""
+
+
 PACK_TIERS = {
     "trust_desk": {"pilot": 1_500, "desk_month": 299},
     "eu_ai_act": {"base": 1_500, "extended": 3_000},
     "mcp_security": {"audit": 500, "with_fixes": 1_500},
+    # Proof of Place: отчёт $300, съёмка от $900, поток $99/мес. Без этих строк
+    # перевод $300 попадал в базовый тариф и записывался как пилот $1,500.
+    "proof_of_place": {"pop_report": 300, "pop_shoot": 900, "pop_stream": 99},
 }
 
 #: Бесплатные/дешёвые опции, которые касса тоже выставляет: триал и PPP.
@@ -1350,7 +1366,7 @@ def _sitemap() -> str:
         for page in ("", "/hi", "/demo", "/plans", "/article", "/catalogs",
                      "/start", "/privacy", "/health", "/deny-evidence",
                      "/eu-ai-act-evidence", "/mcp-security-pass",
-                     "/eu-ai-act", "/mcp-security", "/trust-desk", "/suite.json",
+                     "/eu-ai-act", "/mcp-security", "/trust-desk", "/proof-of-place", "/suite.json",
                      "/mcp/mcp-security-audit", "/mcp/mcp-server-authentication",
                      "/mcp/mcp-tool-descriptions-security", "/mcp/mcp-deny-log",
                      "/mcp/mcp-server-monetization")
@@ -1583,6 +1599,10 @@ class AttestHandler(BaseHTTPRequestHandler):
                 self._send(200, suite.read_bytes(), "application/json")
             else:
                 self._send_json(404, {"error": "suite manifest is missing"})
+        elif path == "/proof-of-place":
+            from .product_pages import proof_of_place_page
+            pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
+            self._send_html(proof_of_place_page(pay_to))
         elif path == "/trust-desk":
             from .product_pages import trust_desk_page
             pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
@@ -1851,6 +1871,9 @@ class AttestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = route_path(self.path)
+        if path == "/api/proof-of-place/order":
+            return self._handle_pack_order(product="proof_of_place",
+                                           tiers=PACK_TIERS["proof_of_place"])
         if path == "/api/trust-desk/order":
             return self._handle_pack_order(product="trust_desk", tiers=PACK_TIERS["trust_desk"])
         if path == "/api/eu-ai-act/order":
@@ -2334,7 +2357,8 @@ document.getElementById('go').onclick = async () => {{
         tx = str((payload or {}).get("tx") or "").strip()
         email = str((payload or {}).get("email") or "").strip()[:120]
         server_url = str((payload or {}).get("server_url") or "").strip()[:200]
-        base_tier = {"eu_ai_act": "base", "trust_desk": "pilot"}.get(product, "audit")
+        base_tier = {"eu_ai_act": "base", "trust_desk": "pilot",
+                     "proof_of_place": "pop_stream"}.get(product, "audit")
         min_usd = tiers[base_tier]
 
         if not tx:
@@ -2363,11 +2387,7 @@ document.getElementById('go').onclick = async () => {{
             return self._send_json(503, {"error": f"could not check the chain: {type(exc).__name__}"})
 
         amount_usd = transfer.amount_atoms / 1_000_000
-        tier = base_tier
-        for name, price in sorted(tiers.items(), key=lambda kv: kv[1], reverse=True):
-            if amount_usd >= price:
-                tier = name
-                break
+        tier = choose_tier(tiers, amount_usd) or base_tier
 
         order_id = "ord_" + hashlib.sha256(
             f"{product}:{transfer.tx_hash}".encode()).hexdigest()[:12]
@@ -2388,6 +2408,9 @@ document.getElementById('go').onclick = async () => {{
             "Intake form goes to your email within one business day. Reply to "
             "maxim.pkk@gmail.com with subject 'Agent Trust Desk' and the order id."
             if product == "trust_desk" else
+            "Send the original photos, the site as you describe it and the claimed date to "
+            "maxim.pkk@gmail.com with the order id; intake starts the same day."
+            if product == "proof_of_place" else
             "Send the server URL or repository to maxim.pkk@gmail.com with the order id; "
             "the audit starts the same day."
         )
