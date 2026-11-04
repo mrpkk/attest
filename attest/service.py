@@ -2449,11 +2449,53 @@ document.getElementById('go').onclick = async () => {{
             return self._send_json(413, {
                 "error": f"the upload is larger than {pop_intake.MAX_ZIP_BYTES} bytes",
             })
+        # ── Оплата до сборки (05.11.2026) ────────────────────────────────────
+        # Отчёт стоит $300. Пока кошелёк не настроен (x402_pay_to пуст), сборка
+        # бесплатна — иначе тесты и локальный запуск были бы заблокированы.
+        # Когда кошелёк задан, без проверенного перевода отчёт не собирается.
+        from . import onchain
+
+        price_usd = 300
+        transfer = None
+        orders = self._onchain_orders_path()
+        if self.x402_pay_to:
+            tx = (self.headers.get("X-Payment-Tx") or "").strip()
+            if not tx:
+                self._drain(length)
+                return self._send_json(402, {
+                    "error": "payment required before the report is built",
+                    "price_usd": price_usd,
+                    "pay_to": self.x402_pay_to,
+                    "network": self.x402_network or "base",
+                    "how": "send USDC and retry with header X-Payment-Tx: <transaction hash>",
+                })
+            used = onchain.load_used(orders)
+            if tx.lower() in used:
+                self._drain(length)
+                return self._send_json(409, {"error": "this transaction was already used"})
+            try:
+                transfer = onchain.confirm_transfer(
+                    tx, pay_to=self.x402_pay_to, min_atoms=price_usd * 1_000_000,
+                    asset=self.x402_asset or USDC_BY_NETWORK.get(self.x402_network, USDC_BASE),
+                    rpc_url=os.environ.get("ATTEST_RPC_URL", onchain.DEFAULT_RPC),
+                    confirmations=int(os.environ.get("ATTEST_RPC_CONFIRMATIONS", "2")))
+            except onchain.TransferRejected as exc:
+                self._drain(length)
+                return self._send_json(402, {"error": str(exc), "price_usd": price_usd})
+            except Exception as exc:  # noqa: BLE001 — сеть, а не «не оплачено»
+                self._drain(length)
+                return self._send_json(503, {
+                    "error": f"could not check the chain: {type(exc).__name__}"})
+
         raw = self.rfile.read(length)
         try:
             result = pop_intake.intake(raw, self.headers.get("Content-Type") or "")
         except pop_intake.IntakeError as exc:
             return self._send_json(exc.status, {"error": exc.message})
+        if transfer is not None:
+            orders.parent.mkdir(parents=True, exist_ok=True)
+            onchain.record(orders, transfer, plan="pop_report",
+                           subject=str(result.get("report_id", "")))
         self._send_json(200, result)
 
     def _handle_pop_report(self, report_id: str) -> None:
