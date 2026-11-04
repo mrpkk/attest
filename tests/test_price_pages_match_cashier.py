@@ -102,17 +102,19 @@ def test_legacy_page_names_the_same_tiers_as_the_new_one(page: str):
         f"{page}: {sorted(money(SELLING_PAGES[page]))} против {sorted(tiers)}")
 
 
-def test_proof_of_place_names_the_range_the_cashier_accepts():
-    """Съёмка — диапазон $900–2,500: касса принимает сумму внутри него как pop_shoot.
+def test_proof_of_place_does_not_sell_capture_it_cannot_deliver():
+    """Страница не обещает съёмку, которой нет: только отчёт $300 и поток $99.
 
-    `money()` видит только `$900` (у 2,500 нет знака $), поэтому обычная сверка
-    «страница = тарифы» здесь недостаточна: верхняя граница проверяется отдельно.
+    04.11.2026: страница называла $900–2,500, касса принимала только 300/900/99,
+    а кода разбора фото не было ни строки. Продавать несуществующее нельзя.
     """
     from attest.service import choose_tier
 
     page = SELLING_PAGES["/proof-of-place"]
-    assert money(page) == {"300", "900", "99"}
-    assert "$900–2,500" in page
+    assert money(page) == {"300", "99"}
+    assert "$900–2,500" not in page
+    assert "Not yet" in page
+    # Касса знает все суммы — на день, когда операторская сеть появится.
     assert choose_tier(PACK_TIERS["proof_of_place"], 900) == "pop_shoot"
     assert choose_tier(PACK_TIERS["proof_of_place"], 2500) == "pop_shoot_travel"
 

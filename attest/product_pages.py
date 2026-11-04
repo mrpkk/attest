@@ -211,8 +211,9 @@ an artifact a buyer or an insurer can open without trusting the sender.</p>
 <div class="grid">
  <div class="card"><b>$300</b>Report on your photos
   <p class="meta">You send photos; we return an evidence report with the layers we could verify and the gaps we found.</p></div>
- <div class="card"><b>$900–2,500</b>With independent capture
-  <p class="meta">A local operator captures the place, so the photos are not yours. Scope and travel set the price.</p></div>
+ <div class="card"><b>Not yet</b>Independent capture
+  <p class="meta">We do not yet have a vetted operator network, so we do not sell this tier.
+  The report says plainly what your own photos can and cannot prove.</p></div>
  <div class="card"><b>$99/mo</b>Stream
   <p class="meta">Continuous checks on one site: new photos, new dates, new gaps. Cancel by not paying.</p></div>
 </div>
@@ -247,8 +248,8 @@ __PAY__
  <p>The original files (not screenshots), the address or site as you describe it, the date you claim, and
  what decision the report is for. Ten to thirty photos are enough for one site.</p></details>
 <details><summary>Why does independent capture cost more?</summary>
- <p>Because a person travels to the site and takes the pictures. Price depends on location and number of
- visits; the $900–2,500 range is the honest spread, not a discount ladder.</p></details>
+ <p>It is not available yet: we have not vetted an operator network, and selling a capture we cannot
+ deliver would be a promise without a product. When it opens, the price will be one number, not a range.</p></details>
 <details><summary>What if the photos do not support the claim?</summary>
  <p>The report says so, with the reason per layer. That is the product: a report that can also come back
  negative is the only one worth paying for.</p></details>
@@ -317,7 +318,7 @@ def eu_ai_act_page(pay_to: str) -> str:
 
 
 def proof_of_place_page(pay_to: str) -> str:
-    pay = _pay_block("$300 report / $900–2,500 with capture / $99 per month", "/api/proof-of-place/order",
+    pay = _pay_block("$300 report / independent capture not yet available / $99 per month", "/api/proof-of-place/order",
                      pay_to,
                      extra_fields=('<input id="email" type="email" data-field="email" '
                                    'placeholder="email for the intake form (optional)">'))
@@ -328,7 +329,7 @@ def proof_of_place_page(pay_to: str) -> str:
         '<a href="mailto:maxim.pkk@gmail.com?subject=Proof%20of%20Place">maxim.pkk@gmail.com</a></p>')
     return _shell("Proof of Place — where and when the work actually happened",
                   "Photo evidence report: file integrity, time, declared place, visual place, independent "
-                  "capture. $300 report, $900–2,500 with capture, $99/month stream. USDC on Base.",
+                  "capture. $300 report, independent capture not yet available, $99/month stream. USDC on Base.",
                   "/proof-of-place", body)
 
 

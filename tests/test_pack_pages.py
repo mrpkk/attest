@@ -118,7 +118,7 @@ def test_proof_of_place_page_and_cash_register():
     from attest.service import PACK_TIERS, choose_tier
 
     html = proof_of_place_page(PAY_TO)
-    for price in ("$300", "$900–2,500", "$99/mo"):
+    for price in ("$300", "Not yet", "$99/mo"):
         assert price in html, f"нет цены {price}"
     assert "GPS can be spoofed" in html.replace("**", "") or "GPS coordinates are forgeable" in html
     assert "Not proof of ownership" in html
@@ -127,7 +127,10 @@ def test_proof_of_place_page_and_cash_register():
     tiers = PACK_TIERS["proof_of_place"]
     assert tiers == {"pop_report": 300, "pop_shoot": 900, "pop_stream": 99,
                      "pop_recheck": 250, "pop_shoot_travel": 2500}
-    # ровно $300 → отчёт; 900 → съёмка; 99 → поток; 2500 → съёмка; 50 → ничего
+    # Страница больше не продаёт съёмку: операторской сети нет, тариф выключен.
+    # Касса при этом знает все пять сумм — на случай, когда сеть появится.
+    assert "Independent capture" in html and "$900–2,500" not in html
+    # ровно $300 → отчёт; 900 → съёмка; 99 → поток; 2500 → мультиисточник; 50 → ничего
     assert choose_tier(tiers, 300) == "pop_report"
     assert choose_tier(tiers, 899.99) == "pop_report"
     assert choose_tier(tiers, 900) == "pop_shoot"
