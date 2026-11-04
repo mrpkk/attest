@@ -32,7 +32,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 # cryptography — для Ed25519-подписи entitlement-токенов
 # (attest/signing.py). Обе импортируются лениво, но без них сервис
 # не стартует: fingerprint() вызывается при описании подписки.
-RUN pip install "eth-account>=0.9" "cryptography>=42"
+# Pillow читает EXIF фото клиента в `python -m attest.pop_build`.
+RUN pip install "eth-account>=0.9" "cryptography>=42" "Pillow>=10"
 
 
 # ── Время выполнения ──────────────────────────────────────────────────────

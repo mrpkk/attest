@@ -11,6 +11,9 @@ dependencies = [
   # Ed25519-подпись entitlement-токенов (attest/signing.py). На хосте пакет
   # был установлен случайно, и сборка образа вскрыла, что он не объявлен.
   "cryptography>=42",
+  # EXIF фото клиента читает `attest/pop_build.py`: GPS, DateTimeOriginal,
+  # камера. Свой парсер TIFF был бы сотней строк без выигрыша в доверии.
+  "Pillow>=10",
 ]
 
 license = { text = "Apache-2.0" }

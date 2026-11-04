@@ -29,7 +29,7 @@ artifact:
 - is not a base64 wrapper around such an instruction,
 - has not changed since it was checked.
 
-`attest` closes that gap. No dependencies, 750 tests (746 pass, 4 skip).  
+`attest` closes that gap. The receipt core has no dependencies; 813 tests (809 pass, 4 skip).  
 **Free human review of one artifact:** https://attest.rta.lat/review  
 **BusinessMCP Marketplace:** https://businessmcp.com/mcp-servers/attest
 
@@ -150,6 +150,57 @@ including the first), so removing a layer or editing one hash breaks the
 report. It does not recompute the files inside the client ZIP — their hashes
 are covered by the chain, but the bytes are not in the JSON. It does not prove
 GPS honesty or ownership; those limits travel in the report itself.
+
+### Building a report from client photos — `pop_build`
+
+```bash
+python -m attest.pop_build --photos photos/ --claim claim.json \
+    --key private.key --out report.json
+python -m attest.pop_verify report.json --key public_key.txt
+```
+
+`claim.json` is what the client asserts before we look at the files:
+
+```json
+{
+  "subject": {"type": "parcel", "ref": "client-ref-1"},
+  "claim": "40 ha, solar farm, operational",
+  "location": {"lat": "52.123456", "lon": "4.654321"},
+  "captured_at": "2026-11-02T11:20:00Z"
+}
+```
+
+`captured_at` and `subject.ref`/`subject.claim` are required; a broken
+coordinate (`"lat": "52,1"`) stops the build instead of turning into "not
+declared" — a typo must not be reported as a missing fact. Every file in
+`--photos` is hashed for the `content` layer. EXIF is read when present:
+`DateTimeOriginal` and GPS go to `position`, and the first photo that carries
+GPS is named in the layer.
+
+| Verdict | Rule |
+|---|---|
+| `contradicted` | coordinates differ by more than the tolerance, or the independent source says `mismatch` |
+| `insufficient` | nothing to compare: no GPS in the photos and no capture time |
+| `confirmed` | coordinates, time **and** all four layers agree, including an independent source |
+| `partial` | everything else: something matched, something could not be checked |
+
+**Tolerances.** 500 m for coordinates and 2 hours for capture time are
+constants in `attest/pop_build.py`. 500 m is not the precision of a GPS fix
+(5–20 m); it is the size of the thing being claimed. A 40-hectare parcel has a
+side of ~630 m, so a photographer standing at a corner while the claim names
+the centre honestly differs by hundreds of metres. Two different quarters, or
+two different fields, do not fall inside 500 m. For time, `DateTimeOriginal`
+carries no timezone and camera clocks drift by an hour or two; a different day
+is a different object, so a day-old photo must not pass as today's.
+
+**Ceiling without an independent source.** The builder has no satellite or
+partner capture, so `independent` is written as `not_available` — never
+invented. `pop/1` forbids `confirmed` next to an unavailable layer, so a
+photos-only report tops out at `partial`. Pass
+`--independent source.json` (`{"source": "sentinel-2", "result": "match",
+"asset_ref": "…"}`) when a real independent look exists; only then can
+`confirmed` be reached. `location.basis` says `exif_gps` or `claimed`, so a
+report never hides which one it stands on.
 
 ## A finding worth stating plainly
 
