@@ -1606,6 +1606,8 @@ class AttestHandler(BaseHTTPRequestHandler):
             from .product_pages import proof_of_place_page
             pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
             self._send_html(proof_of_place_page(pay_to))
+        elif path.startswith("/api/proof-of-place/report/"):
+            return self._handle_pop_report(path.rsplit("/", 1)[-1])
         elif path == "/trust-desk":
             from .product_pages import trust_desk_page
             pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
@@ -1874,6 +1876,8 @@ class AttestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = route_path(self.path)
+        if path == "/api/proof-of-place/build":
+            return self._handle_pop_build()
         if path == "/api/proof-of-place/order":
             return self._handle_pack_order(product="proof_of_place",
                                            tiers=PACK_TIERS["proof_of_place"])
@@ -2422,6 +2426,49 @@ document.getElementById('go').onclick = async () => {{
             "amount_usd": amount_usd, "tx": transfer.tx_hash, "payer": transfer.payer,
             "block": transfer.block, "next": next_step,
         })
+
+    def _handle_pop_build(self) -> None:
+        """ZIP с фото + заявка → подписанный отчёт `pop/1` (05.11.2026).
+
+        Это первый слайс: сборка отчёта из веб-формы. Оплата сюда не входит —
+        поэтому эндпоинт не выдаёт ни ключей, ни токенов, только отчёт и
+        ссылку на него, которая живёт сутки.
+        """
+        from . import pop_intake
+
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return self._send_json(400, {"error": "Content-Length is not a number"})
+        if length <= 0:
+            return self._send_json(400, {"error": "empty body"})
+        # Лимит относится к ZIP, а обёртка multipart добавляет поля заявки и
+        # границы — мегабайт запаса, но не больше.
+        if length > pop_intake.MAX_ZIP_BYTES + 1024 * 1024:
+            self._drain(length)
+            return self._send_json(413, {
+                "error": f"the upload is larger than {pop_intake.MAX_ZIP_BYTES} bytes",
+            })
+        raw = self.rfile.read(length)
+        try:
+            result = pop_intake.intake(raw, self.headers.get("Content-Type") or "")
+        except pop_intake.IntakeError as exc:
+            return self._send_json(exc.status, {"error": exc.message})
+        self._send_json(200, result)
+
+    def _handle_pop_report(self, report_id: str) -> None:
+        """Отдать собранный отчёт. Имя проверяется, а не подставляется в путь."""
+        from . import pop_intake
+
+        try:
+            path = pop_intake.report_path(report_id)
+        except pop_intake.IntakeError as exc:
+            return self._send_json(exc.status, {"error": exc.message})
+        self._send(200, path.read_bytes(), "application/json; charset=utf-8",
+                   extra_headers={
+                       "Content-Disposition": f'attachment; filename="{report_id}.json"',
+                       "Cache-Control": "no-store",
+                   })
 
     def _handle_onchain_claim(self) -> None:
         """Принять оплату, проверенную в блокчейне, и выдать токен на 30 дней."""

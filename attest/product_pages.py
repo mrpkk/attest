@@ -35,6 +35,9 @@ BASE_CSS = """
  .addr{font:13.5px/1.5 ui-monospace,Menlo,monospace;word-break:break-all;background:#0b0d10;border:1px solid #30363d;border-radius:8px;padding:10px}
  .meta{color:#8b97a4;font-size:13.5px}
  input[type=text],input[type=email]{width:100%;box-sizing:border-box;background:#0b0d10;border:1px solid #30363d;border-radius:8px;color:#e6e6e6;padding:11px;margin:6px 0;font-size:15px}
+ input[type=file]{width:100%;box-sizing:border-box;background:#0b0d10;border:1px solid #30363d;border-radius:8px;color:#e6e6e6;padding:9px;margin:6px 0;font-size:14px}
+ label{display:block;font-size:13.5px;color:#a9b4c0;margin-top:8px}
+ .row{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
  details{border:1px solid #232a33;border-radius:10px;padding:12px 14px;margin:0 0 10px;background:#10141a}
  summary{cursor:pointer;font-weight:600}
  .out{margin-top:10px;font-size:14px;white-space:pre-line}
@@ -80,6 +83,58 @@ document.getElementById('go').onclick = async () => {{
     out.textContent = 'Not accepted: ' + (j.error || ('HTTP ' + r.status));
   }}
 }};
+</script>"""
+
+
+POP_INTAKE_FORM = """
+<h2>Build the report from your photos</h2>
+<p>Upload one ZIP, describe the site and the date. The builder unpacks it, reads EXIF, compares the
+place and the time with your claim and signs the report. The report is kept for 24 hours, then deleted.</p>
+<form class="pay" id="pop-form">
+ <label for="zip">Photos — one ZIP, up to 25 MB, 200 files, JPEG/PNG/HEIC</label>
+ <input id="zip" type="file" accept=".zip,application/zip">
+ <label for="ref">Object — site, parcel or building</label>
+ <input id="ref" type="text" placeholder="Plot 14, Rotterdam port" autocomplete="off">
+ <label for="what">What should the report confirm?</label>
+ <input id="what" type="text" placeholder="40 ha solar farm, operational since May" autocomplete="off">
+ <div class="row">
+  <label for="lat">Latitude<input id="lat" type="text" placeholder="52.123456" autocomplete="off"></label>
+  <label for="lon">Longitude<input id="lon" type="text" placeholder="4.654321" autocomplete="off"></label>
+  <label for="when">Captured at, UTC<input id="when" type="text" placeholder="2026-11-02T11:20:00Z" autocomplete="off"></label>
+ </div>
+ <button class="btn" id="build" type="button">Build report</button>
+ <div class="out" id="pop-out"></div>
+ <p class="meta">The payment step is not connected yet, so this build is free while we finish it.
+Nothing is stored about you: the ZIP is unpacked in a temporary folder and removed after the report is built.</p>
+</form>
+<script>
+document.getElementById('build').onclick = async () => {
+  const out = document.getElementById('pop-out');
+  const file = document.getElementById('zip').files[0];
+  if (!file) { out.textContent = 'Choose a ZIP with the photos first.'; return; }
+  const claim = {
+    subject: {type: 'site', ref: document.getElementById('ref').value.trim()},
+    claim: document.getElementById('what').value.trim(),
+    captured_at: document.getElementById('when').value.trim(),
+  };
+  const lat = document.getElementById('lat').value.trim();
+  const lon = document.getElementById('lon').value.trim();
+  if (lat || lon) claim.location = {lat: lat, lon: lon};
+  const form = new FormData();
+  form.append('zip', file);
+  form.append('claim', JSON.stringify(claim));
+  out.textContent = 'Building the report — this can take a few seconds.';
+  const r = await fetch('/api/proof-of-place/build', {method: 'POST', body: form});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { out.textContent = 'Not built: ' + (j.error || ('HTTP ' + r.status)); return; }
+  out.textContent = 'Verdict: ' + j.verdict + ' · ' + j.files + ' file(s) · report ' + j.report_id;
+  const link = document.createElement('a');
+  link.href = j.download_url;
+  link.textContent = 'Download report.json';
+  const line = document.createElement('div');
+  line.append(link, ' — kept for ' + j.expires_in_hours + ' hours, then deleted.');
+  out.append(line);
+};
 </script>"""
 
 
@@ -223,6 +278,7 @@ an artifact a buyer or an insurer can open without trusting the sender.</p>
  <li>Every layer in the report says how it was checked</li>
 </ul>
 __PAY__
+__INTAKE__
 
 <h2>Proof layers, weakest to strongest</h2>
 <table>
@@ -323,6 +379,7 @@ def proof_of_place_page(pay_to: str) -> str:
                      extra_fields=('<input id="email" type="email" data-field="email" '
                                    'placeholder="email for the intake form (optional)">'))
     body = PROOF_OF_PLACE_BODY.replace("__PAY__", pay).replace(
+        "__INTAKE__", POP_INTAKE_FORM).replace(
         "__TRAILER__",
         '<p class="meta"><a href="/">attest</a> · <a href="/trust-desk">Agent Trust Desk</a> · '
         '<a href="/deny-evidence">deny evidence</a> · '

@@ -19,3 +19,6 @@ htmlcov/
 logs/
 
 attest/__pycache__/
+
+# Отчёты Proof of Place, собранные из веб-формы: живут 24 часа и не в git.
+data/
