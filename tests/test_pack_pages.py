@@ -125,12 +125,13 @@ def test_proof_of_place_page_and_cash_register():
     assert html.count("<details>") == 3
 
     tiers = PACK_TIERS["proof_of_place"]
-    assert tiers == {"pop_report": 300, "pop_shoot": 900, "pop_stream": 99}
+    assert tiers == {"pop_report": 300, "pop_shoot": 900, "pop_stream": 99,
+                     "pop_recheck": 250, "pop_shoot_travel": 2500}
     # ровно $300 → отчёт; 900 → съёмка; 99 → поток; 2500 → съёмка; 50 → ничего
     assert choose_tier(tiers, 300) == "pop_report"
     assert choose_tier(tiers, 899.99) == "pop_report"
     assert choose_tier(tiers, 900) == "pop_shoot"
-    assert choose_tier(tiers, 2500) == "pop_shoot"
+    assert choose_tier(tiers, 2500) == "pop_shoot_travel"
     assert choose_tier(tiers, 99) == "pop_stream"
     assert choose_tier(tiers, 50) == ""
     # у Desk своя лестница: 1500 — пилот, 299…1499 — месяц; продукты разделены

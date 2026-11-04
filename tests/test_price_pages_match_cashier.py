@@ -114,7 +114,7 @@ def test_proof_of_place_names_the_range_the_cashier_accepts():
     assert money(page) == {"300", "900", "99"}
     assert "$900–2,500" in page
     assert choose_tier(PACK_TIERS["proof_of_place"], 900) == "pop_shoot"
-    assert choose_tier(PACK_TIERS["proof_of_place"], 2500) == "pop_shoot"
+    assert choose_tier(PACK_TIERS["proof_of_place"], 2500) == "pop_shoot_travel"
 
 
 @pytest.mark.parametrize("page", sorted(SELLING_PAGES))
