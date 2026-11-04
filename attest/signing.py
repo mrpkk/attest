@@ -66,7 +66,9 @@ def generate_keypair(path: Path | None = None) -> dict[str, str]:
     p.write_bytes(raw_priv)
     p.chmod(0o600)
     # public_key() отдаёт сырые байта; в наружу — base64, как и подпись.
-    return {"public_key": _b64(public_key()), "key_path": str(p)}
+    # Путь передаётся явно: без него функция читала бы ключ по умолчанию,
+    # а не только что созданный (и падала бы, если ключа ещё нет).
+    return {"public_key": _b64(public_key(p)), "key_path": str(p)}
 
 
 def load_private_key(path: Path | None = None) -> bytes:

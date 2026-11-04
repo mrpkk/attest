@@ -110,6 +110,47 @@ divergence shows up immediately rather than as a client complaint.
 Absence of a mandate is a denial, never consent. A verifier who presents no
 permission has not demonstrated one.
 
+## Proof of Place — `pop/1`
+
+A signed report about one physical site: what matched, what did not, what we
+could not check. The JSON is canonicalized with RFC 8785 (JCS) and signed with
+Ed25519. The verifier needs no network, no account and no server of ours.
+
+```bash
+python -m attest.pop_verify report.json --key public_key.txt
+```
+
+It prints the verdict and the reason, and exits `0` only for `ok`.
+
+| Verdict | Meaning |
+|---|---|
+| `ok` | chain, signature, PDF hash and verdict rules all hold |
+| `tampered` | not the report that was signed: a layer, a hash or a limit changed |
+| `unsigned` | no signature, or no key to attribute it |
+| `wrong_key` | signed with a key other than the pinned one |
+| `expired` | a `mark` is older than its `valid_for_s` |
+
+**Verify offline in seven steps:**
+
+1. Get `report.json`, `report.pdf` and `public_key.txt` through two different
+   channels. The key is deliberately not inside the report.
+2. Save the key in a separate folder, so the report/key pair cannot be swapped
+   in one move.
+3. Run `python -m attest.pop_verify report.json --key public_key.txt`
+   (Python 3.11+ and `cryptography`; nothing else).
+4. Read `verdict: ok`. Any other verdict names the check that failed.
+5. Compare `sha256sum report.pdf` with `pdf_sha256`, or pass `--pdf report.pdf`
+   and let the verifier do it.
+6. Open `limits` and `not_checked`. If either is empty, the report violated our
+   own spec and must not be accepted.
+7. Match `issuer.key_id` against the key id we publish separately.
+
+`verify()` also checks the layer chain (`prev_hash` → `hash` for every layer,
+including the first), so removing a layer or editing one hash breaks the
+report. It does not recompute the files inside the client ZIP — their hashes
+are covered by the chain, but the bytes are not in the JSON. It does not prove
+GPS honesty or ownership; those limits travel in the report itself.
+
 ## A finding worth stating plainly
 
 While building layer 3, this was found in the existing code: with `ATTEST_SECRET`
