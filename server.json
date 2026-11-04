@@ -7,11 +7,12 @@
     "url": "https://github.com/mrpkk/attest",
     "source": "github"
   },
-  "version": "0.1.0",
+  "version": "0.1.1",
   "remotes": [
     {
       "type": "streamable-http",
       "url": "https://attest.rta.lat/mcp"
     }
-  ]
+  ],
+  "websiteUrl": "https://attest.rta.lat/pricing"
 }
