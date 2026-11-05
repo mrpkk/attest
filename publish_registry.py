@@ -55,6 +55,17 @@ SERVERS = {
         "repository": "https://github.com/mrpkk/drift",
         "version": "0.1.0",
     },
+    "ailegal-mcp": {
+        "name": "io.github.mrpkk/ailegal-mcp",
+        "title": "AILegal — verified legal provisions for agents",
+        "description": (
+            "Legal answers from official sources; refuses when no norm is verified."
+        ),
+        "url": "https://ailegal.legal/api/mcp/",
+        "websiteUrl": "https://ailegal.legal/",
+        "repository": "https://github.com/mrpkk/ailegal-mcp",
+        "version": "0.1.0",
+    },
 }
 
 
