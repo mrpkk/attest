@@ -1370,6 +1370,7 @@ def _sitemap() -> str:
                      "/start", "/privacy", "/health", "/deny-evidence",
                      "/eu-ai-act-evidence", "/mcp-security-pass",
                      "/eu-ai-act", "/mcp-security", "/trust-desk", "/proof-of-place", "/suite.json",
+                     "/verify-receipt",
                      "/mcp/mcp-security-audit", "/mcp/mcp-server-authentication",
                      "/mcp/mcp-tool-descriptions-security", "/mcp/mcp-deny-log",
                      "/mcp/mcp-server-monetization")
@@ -1574,6 +1575,9 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/receipts":
             from .receipts_page import RECEIPTS_HTML
             self._send_html(RECEIPTS_HTML)
+        elif path == "/verify-receipt":
+            from .receipt_verify_page import RECEIPT_VERIFY_HTML
+            self._send_html(RECEIPT_VERIFY_HTML)
         elif path == "/checkpoints":
             from .checkpoints_page import CHECKPOINTS_HTML
             self._send_html(CHECKPOINTS_HTML)
@@ -1876,6 +1880,10 @@ class AttestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = route_path(self.path)
+        if path == "/api/receipt/issue":
+            return self._handle_receipt_issue()
+        if path == "/api/receipt/verify":
+            return self._handle_receipt_verify()
         if path == "/api/proof-of-place/build":
             return self._handle_pop_build()
         if path == "/api/proof-of-place/order":
@@ -2497,6 +2505,59 @@ document.getElementById('go').onclick = async () => {{
             onchain.record(orders, transfer, plan="pop_report",
                            subject=str(result.get("report_id", "")))
         self._send_json(200, result)
+
+    def _handle_receipt_issue(self) -> None:
+        """Выпустить квитанцию платежа: факт из цепи + подпись Ed25519."""
+        from . import payment_receipt
+
+        payload = self._read_json()
+        if payload is None:
+            return
+        try:
+            receipt = payment_receipt.issue(
+                tx_hash=str(payload.get("tx_hash") or ""),
+                chain=str(payload.get("chain") or "base"),
+                subject=str(payload.get("subject") or ""),
+                issuer=self._base_url(),
+                to=payload.get("to") or None,
+                payer=payload.get("from") or None,
+                rpc_url=os.environ.get("ATTEST_RPC_URL", onchain.DEFAULT_RPC),
+                confirmations=int(os.environ.get("ATTEST_RPC_CONFIRMATIONS", "2")),
+            )
+        except payment_receipt.ReceiptRejected as exc:
+            return self._send_json(exc.status, {"error": exc.message,
+                                                "spec": payment_receipt.SPEC})
+        except onchain.TransferRejected as exc:
+            # Перевод не найден или не подтверждён — 422 с причиной из цепи.
+            return self._send_json(422, {"error": str(exc), "spec": payment_receipt.SPEC})
+        except FileNotFoundError:
+            return self._send_json(503, {
+                "error": "signing key is not configured: run `python3 -m attest keygen`"})
+        except Exception as exc:  # noqa: BLE001 — сеть — причина, а не «не найдено»
+            return self._send_json(503, {
+                "error": f"could not check the chain: {type(exc).__name__}"})
+        self._send_json(201, {
+            "receipt": receipt,
+            "price_usd": payment_receipt.PRICE_USD,
+            "payment": {
+                "status": "not_enforced",
+                "note": ("the payment gate ships in the next slice: this receipt was "
+                         "issued without payment"),
+            },
+        })
+
+    def _handle_receipt_verify(self) -> None:
+        """Проверить квитанцию офлайн. Сеть не используется вовсе."""
+        from . import payment_receipt
+
+        payload = self._read_json()
+        if payload is None:
+            return
+        if "receipt" not in payload:
+            return self._send_json(400, {"error": 'field "receipt" is required'})
+        verdict = payment_receipt.verify(payload["receipt"],
+                                         expected_key=payload.get("expected_key") or None)
+        self._send_json(200, verdict.as_dict())
 
     def _handle_pop_report(self, report_id: str) -> None:
         """Отдать собранный отчёт. Имя проверяется, а не подставляется в путь."""

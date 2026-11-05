@@ -37,6 +37,15 @@ class ConfirmedTransfer:
     confirmations: int
 
 
+@dataclass(frozen=True)
+class Transfer:
+    """Один перевод токена внутри транзакции, прочитанный из цепи."""
+    payer: str
+    payee: str
+    amount_atoms: int
+    block: int
+
+
 def _rpc(url: str, method: str, params: list, timeout: float = 20.0) -> object:
     payload = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method,
                           "params": params}).encode()
@@ -103,6 +112,58 @@ def confirm_transfer(tx_hash: str, *, pay_to: str, min_atoms: int,
 
     return ConfirmedTransfer(tx_hash=tx_hash.lower(), payer=payer,
                              amount_atoms=total, block=block, confirmations=done)
+
+
+def transfers(tx_hash: str, *, asset: str = USDC_BASE, rpc_url: str = DEFAULT_RPC,
+              confirmations: int = DEFAULT_CONFIRMATIONS,
+              timeout: float = 20.0) -> list[Transfer]:
+    """Все переводы указанного токена в транзакции, по порядку логов.
+
+    Нужен, когда получатель не назван заранее: квитанция должна взять его из
+    цепи, а не из запроса. Статус и подтверждения проверяются так же строго,
+    как в `confirm_transfer`.
+    """
+    tx_hash = (tx_hash or "").strip()
+    if not (tx_hash.startswith("0x") and len(tx_hash) == 66):
+        raise TransferRejected("tx hash must look like 0x followed by 64 hex characters")
+
+    receipt = _rpc(rpc_url, "eth_getTransactionReceipt", [tx_hash], timeout)
+    if not receipt:
+        raise TransferRejected("transaction not found on Base yet")
+    if int(receipt.get("status") or "0x0", 16) != 1:
+        raise TransferRejected("transaction failed on-chain (status 0)")
+
+    block = int(receipt.get("blockNumber") or "0x0", 16)
+    head = int(_rpc(rpc_url, "eth_blockNumber", [], timeout) or "0x0", 16)
+    done = head - block + 1
+    if done < confirmations:
+        raise TransferRejected(f"waiting for confirmations: {done}/{confirmations}")
+
+    want_asset = asset.lower()
+    found: list[Transfer] = []
+    for log in receipt.get("logs") or []:
+        if (log.get("address") or "").lower() != want_asset:
+            continue
+        topics = log.get("topics") or []
+        if len(topics) != 3 or (topics[0] or "").lower() != TRANSFER_TOPIC:
+            continue
+        found.append(Transfer(payer=_topic_to_address(topics[1]),
+                              payee=_topic_to_address(topics[2]),
+                              amount_atoms=int(log.get("data") or "0x0", 16),
+                              block=block))
+    return found
+
+
+def block_time(block: int, *, rpc_url: str = DEFAULT_RPC,
+               timeout: float = 20.0) -> str:
+    """Время блока в RFC 3339 (UTC). Квитанция датируется цепью, а не нами."""
+    from datetime import UTC, datetime
+
+    info = _rpc(rpc_url, "eth_getBlockByNumber", [hex(block), False], timeout)
+    if not info:
+        raise TransferRejected(f"block {block} not found on Base")
+    stamp = int(info.get("timestamp") or "0x0", 16)
+    return datetime.fromtimestamp(stamp, UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def load_used(path) -> set[str]:
