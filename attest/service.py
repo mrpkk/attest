@@ -492,7 +492,7 @@ report a human signs and the log that keeps running when nobody watches.</p>
 
 <h2>Start here</h2>
 <div class="tiers">
- <div class="t"><b>Audit</b><p class="p">$500</p><span class="hint">Flat, ten working days: what your agents actually spent, what they actually got, and one line of evidence per finding. <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">A public sample report</a>.</span></div>
+ <div class="t"><b>Audit</b><p class="p">$500</p><span class="hint">Flat, five working days: one month of agent logs, one line of evidence per finding. <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">A public sample report</a>.</span></div>
  <div class="t"><b>Trust Desk</b><p class="p">$1,500 pilot</p><span class="hint">Ten business days, three artifacts, one revision round; then $299/mo if you keep it running. <a href="/trust-desk">Pay and start intake</a>.</span></div>
  <div class="t"><b>Enterprise</b><p class="p">On request</p><span class="hint">Private reserve confirmation, white-label receipts, the whole engine behind your brand.</span></div>
 </div>
@@ -503,7 +503,7 @@ finding nothing.</p>
 <p class="hint"><b>How to order the audit:</b> email
 <a href="mailto:maxim.pkk@gmail.com?subject=agent%20spend%20audit">maxim.pkk@gmail.com</a> — the reply
 carries the scope line and a USDC address on Base (an invoice instead, if you need one). The audit is
-paid before the ten working days start; undelivered work is refunded in USDC to the paying address.</p>
+paid before the five working days start; undelivered work is refunded in USDC to the paying address.</p>
 
 <h2>Developer access</h2>
 <p class="s">A check is one artifact verified against one schema. No account, no card, no SDK.
@@ -583,7 +583,7 @@ in this window. With an email you get 100 checks and the key by mail.</p>
 <p class="muted">After 30 days the key simply stops working. If it is useful, $99/30 days
 keeps it running — or $49/30 days for India pricing. If you run agents with wallets, the
 paid product is different: an <strong>audit at $500</strong>,
-ten working days, one line of evidence per finding — <a href="/plans">pricing</a> ·
+five working days, one line of evidence per finding — <a href="/plans">pricing</a> ·
 <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">sample report</a> ·
 <a href="/demo">demo</a> · <a href="/article">why positional scanning</a></p>
 </div>
