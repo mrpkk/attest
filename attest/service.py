@@ -1856,6 +1856,16 @@ class AttestHandler(BaseHTTPRequestHandler):
         """Тарифы с настоящим лимитом: объявлять 20 при реальных 3 — враньё."""
         data = json.loads(json.dumps(self.pricing))
         data["free"]["limit_per_day"] = self.free_tier.daily_limit
+        # Индийская цена в JSON была пропущена: страница /plans называет $49,
+        # а /pricing (его читают агенты) — молчал. Тариф без цены в машинном
+        # прайсе — это не «бесплатно», а «неизвестно».
+        data["india_ppp"] = {
+            "price": f"{self.ppp_price_usd:g}",
+            "currency": "USDC",
+            "network": self.x402_network,
+            "what": "same 30 days, purchasing-power price",
+            "plan": "unlimited-30d",
+        }
         return data
 
     def do_HEAD(self) -> None:  # noqa: N802

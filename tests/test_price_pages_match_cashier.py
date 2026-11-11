@@ -13,6 +13,7 @@ $1,600, касса выставлять $1,500, а письмо — третье
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from decimal import Decimal
@@ -144,3 +145,20 @@ def test_pricing_json_publishes_the_price_the_token_is_issued_for():
     """`/pricing` читают агенты: число там обязано совпадать с выдачей токена."""
     published = Decimal(PRICING["subscription"]["price"])
     assert published == Decimal(str(entitlement.PRICE_USD))
+
+
+def test_pricing_json_names_the_india_tier_the_page_shows():
+    """`/pricing` читают агенты. Если в JSON нет индийской цены, агент не знает,
+    что для Индии тариф $49, — и называет западную цену."""
+    data = json.loads(json.dumps(PRICING))
+    data["free"]["limit_per_day"] = 5
+    # То же, что делает обработчик в _dict_pricing, — но без поднятия сервера.
+    import attest.service as svc
+    handler = object.__new__(svc.AttestHandler)
+    handler.pricing = data
+    handler.free_tier = SimpleNamespace(daily_limit=5)
+    handler.ppp_price_usd = AttestHandler.ppp_price_usd
+    handler.x402_network = "eip155:8453"
+    published = handler._dict_pricing()
+    assert published["india_ppp"]["price"] == f"{AttestHandler.ppp_price_usd:g}"
+    assert published["india_ppp"]["price"] != published["subscription"]["price"]
