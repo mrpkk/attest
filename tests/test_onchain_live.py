@@ -39,8 +39,8 @@ SEPOLIA_RPC = "https://sepolia.base.org"
 SEPOLIA_USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
 WALLET = "0xefCD6886f73064ea9EcbaA4741Ef1309A0885C59"
 # Настоящий платёж 0.005 USDC на кошелёк проекта (S6.2, 16.10.2026).
-TX = "0x38b6e9ea83970d97ee1ef5217abe8718ec0425d0607c07f3dbd0665f1142b9df"
-PAID_ATOMS = 5_000
+TX = "0x90408ec02b25c53f56fc126332ea1631cc51bf6b2f257a70acf087e6f358251b"
+PAID_ATOMS = 10_000
 
 
 def test_real_transfer_is_recognised():
@@ -68,6 +68,12 @@ def test_claim_issues_a_token_exactly_once(tmp_path, monkeypatch):
     monkeypatch.setattr(AttestHandler, "x402_asset", SEPOLIA_USDC)
     monkeypatch.setattr(AttestHandler, "x402_network", "eip155:84532")
     monkeypatch.setattr(AttestHandler, "leads_path", tmp_path / "leads.jsonl")
+    # Класс читает конфигурацию при импорте: env уже не помогает, поэтому
+    # подменяем сами атрибуты — иначе тест ищет перевод в майннете, а
+    # транзакция лежит в Base Sepolia, и чек уходит в 402.
+    monkeypatch.setattr(AttestHandler, "x402_network", "eip155:84532")
+    monkeypatch.setattr(AttestHandler, "x402_asset", SEPOLIA_USDC)
+    monkeypatch.setattr(AttestHandler, "x402_pay_to", WALLET)
     monkeypatch.setattr(entitlement, "PRICE_USD", PAID_ATOMS / 1_000_000)
     monkeypatch.setenv("ATTEST_RPC_URL", SEPOLIA_RPC)
 
@@ -88,7 +94,7 @@ def test_claim_issues_a_token_exactly_once(tmp_path, monkeypatch):
         status, body = claim()
         assert status == 200, body
         assert body["paid"] is True
-        assert body["amount_usdc"] == pytest.approx(0.005)
+        assert body["amount_usdc"] == pytest.approx(0.01)
         granted, reason = entitlement.redeem_entitlement(
             body["token"], trusted_key=public_key_b64())
         assert granted is not None, reason
