@@ -787,6 +787,13 @@ an exhausted quota is reported as an error, never as accepted.</p>
  <div class="t"><b>India (PPP)</b>49 USDC<br><span class="hint">same 30 days, purchasing-power price. <a href="/pay?plan=ppp">Pay</a></span></div>
 </div>
 
+<h2 style="font-size:17px;margin:26px 0 6px">Need a human on it? Audit $500</h2>
+<p class="hint">One month of agent logs, five working days, one line of evidence per finding,
+and a report a human signs — read it once, check it yourself. Nothing found, no fee.
+<a href="/plans">pricing</a> ·
+<a href="https://nidhipati.ailegal.legal/site/sample-spend-audit.html">sample report</a> ·
+<a href="https://nidhipati.ailegal.legal/pay/checkout?product=agent-spend-audit">pay and start intake →</a></p>
+
 <h2 style="font-size:17px;margin:26px 0 6px">What 99 USDC / 30 days includes</h2>
 <ul class="hint" style="margin:6px 0 0 18px;padding:0">
 <li>No daily cap while the token is valid.</li>
@@ -930,6 +937,7 @@ review of one artifact is a separate offer, at <a href="/review">/review</a>.</p
      '# किसी भी x402 क्लाइंट से EIP-3009 प्राधिकरण पर हस्ताक्षर करें, फिर:'),
     ('<p class="hint">Source: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nBusinessMCP: <a href="https://businessmcp.com/mcp-servers/attest">marketplace</a> ·\nSet: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/hi">हिन्दी</a></p>',
      '<p class="hint">स्रोत: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nबिज़नेसMCP: <a href="https://businessmcp.com/mcp-servers/attest">मार्केटप्लेस</a> ·\nसेट: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/">English</a></p>'),
+    ('<h2 style="font-size:17px;margin:26px 0 6px">Need a human on it? Audit $500</h2>\n<p class="hint">One month of agent logs, five working days, one line of evidence per finding,\nand a report a human signs — read it once, check it yourself. Nothing found, no fee.\n<a href="/plans">pricing</a> ·\n<a href="https://nidhipati.ailegal.legal/site/sample-spend-audit.html">sample report</a> ·\n<a href="https://nidhipati.ailegal.legal/pay/checkout?product=agent-spend-audit">pay and start intake →</a></p>', '<h2 style="font-size:17px;margin:26px 0 6px">इसमें मानव चाहिए? ऑडिट $500</h2>\n<p class="hint">एक महीने के एजेंट लॉग, पाँच कार्यदिवस, हर निष्कर्ष के लिए एक साक्ष्य पंक्ति,\nऔर मानव द्वारा हस्ताक्षरित रिपोर्ट — एक बार पढ़ें, खुद जाँच लें। कुछ न मिला, तो कोई शुल्क नहीं।\n<a href="/plans">मूल्य</a> ·\n<a href="https://nidhipati.ailegal.legal/site/sample-spend-audit.html">नमूना रिपोर्ट</a> ·\n<a href="https://nidhipati.ailegal.legal/pay/checkout?product=agent-spend-audit">भुगतान करें और शुरू करें →</a></p>'),
 )
 
 
