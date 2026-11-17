@@ -625,3 +625,14 @@ agenticskills (не подано), businessmcp (карточки были paused
 **Весь набор: 853 passed, 4 skipped.**
 **В работу:** `tools/x402_check.sh` + cron пн 09:23 — еженедельный живой
 платёж и проверка чека; при отказе строка FAIL в `/home/iamthat/logs/x402-check.log`.
+
+## 17.11.2026 — площадки, входящие и PR (без изменений кода)
+
+- **MCP.so:** attest опубликован — https://mcp.so/servers/attest. KARTA и Nidhipati в очереди ревью; повторно не отправлять. Ответ support отправлен.
+- **BusinessMCP:** Nidhipati и attest live в marketplace; звонков нет. Отправлен ответ: per-tool цены (receipt $0.05, reserve $5, spend audit $500; attest verify $0.05, pass $500), ждём форму настройки.
+- **GitHub PR:** `punkpeye/awesome-remote-mcp-servers#2904` (Nidhipati) — rebased, `mergeable: clean`; комментарий отправлен. `punkpeye/awesome-mcp-servers#17697` (KARTA) — badge исправлен на Glama server, PR обновлён; блокер — страница Glama `mrpkk/onchain-ai-agent` пока 404.
+- **Proof of Place:** `https://attest.rta.lat/proof-of-place` → 200; входящих нет. **Living Proof:** спека, публичной страницы/входящих нет.
+- **M8ven:** claim-ссылка на drift истекла (410); нужен повторный claim с публичной страницы.
+- **Почта:** отвечено Cedulon (one receipt per settlement + breakdown), MCP.so, BusinessMCP, 36kr (QR/ссылка), Pierrick, Trung. Pavel Lapko отказался от скана; Grantex закрыл issue; Ayush — без действия.
+- **AILegal:** 200, API 200; Search Console сообщает о canonical/redirect вариантах — не блокер, но почистить sitemap `?lang=`.
+- **0 платящих**; ни один платёж не проходил.
