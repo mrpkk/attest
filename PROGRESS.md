@@ -636,3 +636,21 @@ agenticskills (не подано), businessmcp (карточки были paused
 - **Почта:** отвечено Cedulon (one receipt per settlement + breakdown), MCP.so, BusinessMCP, 36kr (QR/ссылка), Pierrick, Trung. Pavel Lapko отказался от скана; Grantex закрыл issue; Ayush — без действия.
 - **AILegal:** 200, API 200; Search Console сообщает о canonical/redirect вариантах — не блокер, но почистить sitemap `?lang=`.
 - **0 платящих**; ни один платёж не проходил.
+
+## 17.11.2026 — Living Proof: `lp/1` и офлайн-`verify()` (без продаж)
+
+**По роадмапу LP заморожен до G6 у PoP.** Поэтому сделано ровно то, что роадмап разрешает
+до разморозки: артефакт и проверка, без страницы, кассы и рассылки.
+
+- `attest/lp.py` — схема `lp/1` по `LP-SPEC.md` §4: версия, limits, issuer, subject,
+  action.sha256/amount_usd, challenge.nonce (32 байта base64url), окно ≤120 с,
+  факторы A+B, C выше `policy.limit_usd`, verdict.
+- Канонизация RFC 8785 (JCS), Ed25519 подпись, ключ проверки **pinned** (не из артефакта).
+- `attest/lp_verify.py` — офлайн-CLI: `python3 -m attest.lp_verify proof.json --key pub.txt` → `ok`.
+- Вердикты: `ok`, `tampered`, `wrong_key`, `stale`, `policy_failed`, `unsigned`, `malformed`.
+- `tests/test_lp.py` — 12 тестов: честный артефакт, изменённый байт, чужой ключ,
+  истёкшее окно, окно >120 с, сумма выше лимита без C, C выше лимита, без подписи,
+  пустые limits, factor без ref, JSON-строка, битый nonce.
+- **865 passed, 4 skipped.** CLI-смоук на сгенерированном proof → `ok`.
+- Офлайн не проверяется (записано в limits): одноразовость nonce, живость человека,
+  целостность видео. Публичной страницы и продаж у LP нет — по правилу PoP-first.
