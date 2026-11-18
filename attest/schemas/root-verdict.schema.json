@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vajra.dev/schemas/root-verdict/1",
+  "title": "VAJRA Root Verdict v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema", "id", "subject", "scope", "claims", "findings", "verdict",
+    "limits", "rules_version", "issued_at", "expires_at", "revocation_url",
+    "verdict_hash", "signature", "algorithm"
+  ],
+  "properties": {
+    "schema": {"const": "vajra/root-verdict/1"},
+    "id": {"type": "string", "minLength": 8},
+    "subject": {
+      "type": "object",
+      "required": ["type", "uri"],
+      "properties": {
+        "type": {"enum": ["repository", "mcp", "skill", "agent", "artifact"]},
+        "uri": {"type": "string", "minLength": 3},
+        "commit": {"type": "string"}
+      }
+    },
+    "scope": {
+      "type": "object",
+      "required": ["profile", "checks"],
+      "properties": {
+        "profile": {"type": "string"},
+        "checks": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "excluded": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "text", "status"],
+        "properties": {
+          "id": {"type": "string"},
+          "text": {"type": "string"},
+          "status": {"$ref": "#/$defs/status"},
+          "evidence": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "title"],
+        "properties": {
+          "id": {"type": "string"},
+          "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+          "title": {"type": "string"},
+          "root_cause": {"type": "string"},
+          "evidence": {"type": "array", "items": {"type": "string"}},
+          "fix": {"type": "string"},
+          "verification": {"type": "string"}
+        }
+      }
+    },
+    "verdict": {"$ref": "#/$defs/status"},
+    "limits": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "rules_version": {"type": "string", "minLength": 1},
+    "hash_alg": {"enum": ["sha256", "blake3"]},
+    "issued_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "revocation_url": {"type": "string", "minLength": 8},
+    "revoked": {"type": "boolean"},
+    "verdict_hash": {"type": "string", "pattern": "^(sha256|blake3):[0-9a-f]+$"},
+    "signature": {"type": "string", "minLength": 32},
+    "algorithm": {"const": "ed25519"},
+    "public_key": {"type": "string"}
+  },
+  "$defs": {
+    "status": {
+      "enum": ["SUPPORTED", "REFUTED", "UNSUPPORTED", "OUT_OF_SCOPE", "EXPIRED", "REVOKED", "DISPUTED"]
+    }
+  }
+}
