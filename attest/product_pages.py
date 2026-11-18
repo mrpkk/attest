@@ -87,7 +87,8 @@ document.getElementById('go').onclick = async () => {{
 
 
 POP_INTAKE_FORM = """
-<h2>Build the report from your photos</h2>
+<h2>Free self-serve build</h2>
+<p>This free JSON build is separate from the $300 order above; use it to see what the report contains before paying.</p>
 <p>Upload one ZIP, describe the site and the date. The builder unpacks it, reads EXIF, compares the
 place and the time with your claim and signs the report. The download link expires after 24 hours; stored files are purged on the next intake.</p>
 <form class="pay" id="pop-form">
