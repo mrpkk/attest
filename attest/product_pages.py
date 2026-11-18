@@ -490,6 +490,7 @@ document.getElementById('send').onclick = async () => {
 <p>If the file shows something worth a written report — duplicate payments, spend nobody approved,
 a vendor the agent invented — the audit is the next step: one month of logs, five working days,
 one line of evidence per finding, nothing found means no fee. <a href="/plans">Prices and scope</a>.</p>
+<p><a href="/sample-audit">See a six-page synthetic sample of the audit</a>.</p>
 """
 
 
@@ -499,3 +500,108 @@ def free_scan_page() -> str:
                   "within one business day. No GitHub, no account, no card.",
                   "/free-scan", FREE_SCAN_BODY)
 
+
+
+SAMPLE_AUDIT_BODY = """
+<style>
+ .audit{max-width:860px;margin:0 auto}
+ .page{border:1px solid #232a33;border-radius:12px;padding:24px;margin:18px 0;background:#10141a}
+ .kicker{letter-spacing:.14em;text-transform:uppercase;color:#7fd1b9;font-size:12px}
+ .page h1{font-size:30px;margin:8px 0 10px} .page h2{font-size:22px;margin:0 0 10px}
+ .page h3{font-size:17px;margin:18px 0 6px} .page p{color:#c3cad4}
+ .page table{border-collapse:collapse;width:100%;font-size:13.5px;margin:10px 0}
+ .page th,.page td{border:1px solid #2a3140;padding:7px 9px;text-align:left;vertical-align:top}
+ .page th{background:#171c24;color:#e8ecf4}
+ .note{color:#8b939f;font-size:13px} .ok{color:#9ff0cf} .warn{color:#ffd38a} .err{color:#ffb4b4}
+ .grid2{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+ .box{border:1px solid #2a3140;border-radius:9px;padding:12px;background:#0d1117}
+ @media print{.page{break-after:page;border:0;margin:0;padding:18mm 12mm}}
+</style>
+<div class="audit">
+<section class="page">
+ <div class="kicker">Synthetic sample · not a client · method real</div>
+ <h1>Agent spend audit</h1>
+ <p>This is a six-page sample of the written report. The export is a synthetic 44-row file with three agents; the findings are reproducible from the same CSV, but no client, company or real payment is shown.</p>
+ <h2>Scope</h2>
+ <table>
+  <tr><th>Item</th><th>Value</th></tr>
+  <tr><td>Period</td><td>one synthetic month</td></tr>
+  <tr><td>Rows read</td><td>44</td></tr>
+  <tr><td>Agents</td><td>agent-writer, agent-loop, agent-buyer</td></tr>
+  <tr><td>Rail</td><td>USDC on Base (synthetic)</td></tr>
+  <tr><td>What was checked</td><td>amount vs quote, duplicates, failed-but-billed, refunds, policy limits, asset/network/payee, loops</td></tr>
+ </table>
+ <p class="note">A real audit starts from your export and your own policy. This sample shows the shape and the level of evidence, not your numbers.</p>
+</section>
+
+<section class="page">
+ <div class="kicker">Page 2 · summary</div>
+ <h2>What the file shows</h2>
+ <table>
+  <tr><th>Metric</th><th>Value</th></tr>
+  <tr><td>Rows read</td><td>44</td></tr>
+  <tr><td>Settled</td><td>$0.661</td></tr>
+  <tr><td>Spent without a recorded reason</td><td>$0.14</td></tr>
+  <tr><td>Above the usual price</td><td>$0.36</td></tr>
+  <tr><td>Over the policy limit</td><td>$0</td></tr>
+  <tr><td>Errors / warnings</td><td>4 / 7</td></tr>
+ </table>
+ <p>The three amounts are deliberately separate. Adding them into one “saved” figure would double-count overlapping findings and make the report useless for finance.</p>
+ <div class="box"><b>Verdict:</b> the file is <span class="warn">not clean</span>. Four findings need an answer before the next payment run; seven warnings are controls, not losses.</div>
+</section>
+
+<section class="page">
+ <div class="kicker">Page 3 · errors</div>
+ <h2>Findings that need an answer</h2>
+ <table>
+  <tr><th>Row</th><th>Code</th><th>Agent</th><th>$</th><th>Detail</th><th>Evidence</th></tr>
+  <tr><td>5</td><td><code>duplicate_charge</code></td><td>agent-writer</td><td>0.02</td><td>same tx_hash as row 2</td><td>0xaaa1</td></tr>
+  <tr><td>7</td><td><code>price_escalation</code></td><td>agent-writer</td><td>0.03</td><td>settled 0.05 above quote 0.02</td><td>0xaaa5</td></tr>
+  <tr><td>8</td><td><code>failed_but_billed</code></td><td>agent-writer</td><td>0.03</td><td>status “failed” with 0.03 charged</td><td>0xaaa6</td></tr>
+  <tr><td>9</td><td><code>missing_refund</code></td><td>agent-writer</td><td>0.06</td><td>charged 0.10 for actual 0.04; refund not recorded</td><td>0xaaa7</td></tr>
+ </table>
+ <p class="note">Each row is tied to a rule and a row number. The auditor can open the export and reproduce every line.</p>
+</section>
+
+<section class="page">
+ <div class="kicker">Page 4 · warnings and controls</div>
+ <h2>What is missing, not what is stolen</h2>
+ <table>
+  <tr><th>Row</th><th>Code</th><th>Agent</th><th>$</th><th>Detail</th></tr>
+  <tr><td>0</td><td><code>budget_bypass</code></td><td>—</td><td>0</td><td>no policy file: any budget lives in a prompt, which the agent can argue with</td></tr>
+  <tr><td>9</td><td><code>model_overpay</code></td><td>agent-writer</td><td>0.08</td><td>paid 0.10 against a median 0.02 for this tool and model</td></tr>
+  <tr><td>10</td><td><code>unknown_asset</code></td><td>agent-writer</td><td>0.02</td><td>asset “MOON” is not recognised</td></tr>
+  <tr><td>10</td><td><code>unknown_network</code></td><td>agent-writer</td><td>0.02</td><td>network “moonnet” is not recognised</td></tr>
+  <tr><td>10</td><td><code>missing_payee</code></td><td>agent-writer</td><td>0.02</td><td>no payee recorded</td></tr>
+  <tr><td>14</td><td><code>model_overpay</code></td><td>agent-writer</td><td>0.28</td><td>paid 0.30 against a median 0.02</td></tr>
+  <tr><td>45</td><td><code>runaway_loop</code></td><td>agent-loop</td><td>0</td><td>31 calls in 60s (threshold 30)</td></tr>
+ </table>
+</section>
+
+<section class="page">
+ <div class="kicker">Page 5 · limits</div>
+ <h2>What this report proves — and what it does not</h2>
+ <div class="grid2">
+  <div class="box"><h3 class="ok">Proves</h3><p>Each finding is tied to a row and a rule; the same input gives the same output; missing prices and unknown assets are reported, not guessed; the three amounts stay separate.</p></div>
+  <div class="box"><h3 class="err">Does not prove</h3><p>It is not a statutory audit, not a legal claim and not a recovery. On-chain verification is not included. Missing rows cannot be found. Confirm every finding against the provider invoice before acting.</p></div>
+ </div>
+ <h3>Privacy</h3>
+ <p>Send the minimum needed: amounts, dates, assets, payees and transaction hashes. Remove API keys, prompts, customer names and anything you would not put in a finance ticket.</p>
+</section>
+
+<section class="page">
+ <div class="kicker">Page 6 · order</div>
+ <h2>One month of logs. Five working days. $500.</h2>
+ <p>Send a CSV export, one line about the agents and the policy you expected. You get a written PDF, a JSON file with the same findings, and a signed verdict you can check offline. If the file shows nothing, there is no fee.</p>
+ <p><a class="btn" href="/free-scan">First, run the free scan</a> <a class="btn" href="/plans">Prices and scope</a></p>
+ <p class="note">This sample is synthetic: it exists to show the report, not to claim a client result. The audit is not KYC, not a statutory audit and not a guarantee of recovery.</p>
+</section>
+</div>
+"""
+
+
+def sample_audit_page() -> str:
+    return _shell("Agent spend audit — six-page synthetic sample",
+                  "A six-page synthetic sample of an AI-agent spend audit: summary, findings, "
+                  "limits and what the $500 report contains. Not a client result.",
+                  "/sample-audit", SAMPLE_AUDIT_BODY)

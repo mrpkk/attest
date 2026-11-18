@@ -1299,3 +1299,16 @@ def test_mcp_get_with_sse_accept_is_405(server):
     except _e.HTTPError as exc:
         code = exc.code
     assert code == 405
+
+
+def test_sample_audit_is_six_pages_and_labeled_synthetic(server):
+    with urllib.request.urlopen(f"{server}/sample-audit", timeout=10) as r:
+        html = r.read().decode("utf-8")
+    assert r.status == 200
+    assert html.count('class="page"') == 6
+    assert "Synthetic sample" in html
+    assert "not a client" in html
+    assert "$500" in html
+    with urllib.request.urlopen(f"{server}/sitemap.xml", timeout=10) as r:
+        sitemap = r.read().decode("utf-8")
+    assert "/sample-audit" in sitemap

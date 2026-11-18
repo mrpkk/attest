@@ -1382,6 +1382,7 @@ def _sitemap() -> str:
                      "/eu-ai-act-evidence", "/mcp-security-pass",
                      "/eu-ai-act", "/mcp-security", "/trust-desk", "/proof-of-place", "/suite.json",
                      "/free-scan",
+                     "/sample-audit",
                      "/verify-receipt",
                      "/mcp/mcp-security-audit", "/mcp/mcp-server-authentication",
                      "/mcp/mcp-tool-descriptions-security", "/mcp/mcp-deny-log",
@@ -1643,6 +1644,9 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/free-scan":
             from .product_pages import free_scan_page
             self._send_html(free_scan_page())
+        elif path == "/sample-audit":
+            from .product_pages import sample_audit_page
+            self._send_html(sample_audit_page())
         elif path == "/eu-ai-act-evidence":
             from .eu_ai_act_page import EU_HTML
             pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
