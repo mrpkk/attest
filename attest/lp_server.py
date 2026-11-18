@@ -97,6 +97,8 @@ class ChallengeStore:
                 " consumed_at TEXT,"
                 " assertion_id TEXT)"
             )
+        # The file holds one-time challenge codes; keep it owner-only.
+        self.path.chmod(0o600)
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=5.0)

@@ -8,6 +8,8 @@
 from __future__ import annotations
 
 import json
+import stat
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -213,3 +215,15 @@ def test_verdicts_other_than_accept_are_kept(store, key):
     assert out["ok"] is True
     assert out["artifact"]["verdict"] == "insufficient"
     assert verify_assertion(out["artifact"], pinned, store=store) == "ok"
+
+
+def test_db_file_is_owner_only(store):
+    assert stat.S_IMODE(store.path.stat().st_mode) == 0o600
+
+
+def test_two_concurrent_consumers_do_not_both_win(store):
+    challenge = issue(ACTION, SUBJECT, store=store)
+    digest = action_sha256(ACTION)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _: consume(challenge["nonce"], digest, store=store), range(2)))
+    assert sorted(results) == ["ok", "replay"]
