@@ -692,3 +692,21 @@ agenticskills (не подано), businessmcp (карточки были paused
   потока и живой задачи — это следующий слайс, не этот.
 - **Чего нет:** passkey и серверная доля A, приём видео, свидетель (C), страница,
   касса, лимит попыток кода. Продаж нет, платящих 0.
+
+## 18.11.2026 — VAJRA v2: Root Verdict schema + offline verify
+
+**Слайс S0 из `VAJRA-SPEC-v2-2026-11-18.md`.** Продукт ещё не сканирует репозитории;
+сделан минимальный честный артефакт, который можно проверить без сервиса.
+
+- `attest/schemas/root-verdict.schema.json` — JSON Schema v1: subject/scope/claims/findings/
+  verdict/limits/rules_version/issued_at/expires_at/revocation_url/verdict_hash/signature.
+- `attest/vajra.py` — канонический payload (SHA-256 v0, BLAKE3 — позже), Ed25519 подпись,
+  внешний публичный ключ, `verify` проверяет: schema, статус, непустые limits, hash,
+  подпись, expiry, revoked. `verdict` может быть `UNSUPPORTED` — это результат, не подделка.
+- CLI: `python3 -m attest.vajra sign verdict.json --key signing.key`;
+  `python3 -m attest.vajra verify signed.json --key vajra.pub`.
+- `tests/test_vajra.py` — 7 тестов: честный, `UNSUPPORTED`, tampered, wrong key,
+  expired, revoked, обязательный внешний ключ.
+- **Полный набор: 897 passed, 4 skipped.** Коммит `a599a6a`, push в `main`.
+- **Границы:** это envelope, не сканер. Нет Semgrep/Trivy/Gitleaks/Checkov/Syft,
+  нет Root Map/Evidence Pack/UI/цены. Следующий слайс — 8 адаптеров и 3 реальных репозитория.
