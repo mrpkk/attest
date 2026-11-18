@@ -52,8 +52,8 @@ DEFAULT_OBJECT = "object_with_serial"
 LIMITS = [
     "nonce is single-use: the server journal rejects a second confirmation",
     "action is bound to the challenge by sha256 over JCS before confirmation",
-    "human liveness is not verified offline",
-    "video authenticity is not verified offline",
+    "human liveness is not verified at all: the server takes factor refs as given",
+    "video authenticity is not verified at all: frames are not cross-checked",
     "wrong challenge codes are not rate-limited",
     "no biometrics are collected or stored",
 ]
@@ -63,6 +63,7 @@ _STATUS = {
     "unknown": ("policy_failed", "challenge nonce was not issued by this server"),
     "policy_failed": ("policy_failed", "challenge was issued for a different action"),
     "replay": ("replay", "challenge nonce was already used"),
+    "stale": ("stale", "challenge has expired"),
     "unconfirmed": ("policy_failed", "challenge was never confirmed by the server"),
 }
 

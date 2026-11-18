@@ -71,8 +71,8 @@ def test_limits_say_what_is_not_checked(store, key):
                   subject=SUBJECT, factors=FACTORS, store=store, key_path=key_path)
     limits = " ".join(out["artifact"]["limits"])
     assert "single-use" in limits
-    assert "liveness is not verified offline" in limits
-    assert "video authenticity is not verified offline" in limits
+    assert "liveness is not verified at all" in limits
+    assert "video authenticity is not verified at all" in limits
 
 
 def test_second_consume_is_replay(store, key):
@@ -111,6 +111,7 @@ def test_expired_nonce_is_stale(store, key):
                   key_path=key_path, now=now + timedelta(seconds=2))
     assert out["ok"] is False
     assert out["verdict"] == "stale"
+    assert out["verdict"].reason == "challenge has expired"
 
 
 def test_ttl_over_the_schema_window_is_refused(store):

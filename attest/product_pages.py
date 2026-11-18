@@ -89,7 +89,7 @@ document.getElementById('go').onclick = async () => {{
 POP_INTAKE_FORM = """
 <h2>Build the report from your photos</h2>
 <p>Upload one ZIP, describe the site and the date. The builder unpacks it, reads EXIF, compares the
-place and the time with your claim and signs the report. The report is kept for 24 hours, then deleted.</p>
+place and the time with your claim and signs the report. The download link expires after 24 hours; stored files are purged on the next intake.</p>
 <form class="pay" id="pop-form">
  <label for="zip">Photos — one ZIP, up to 25 MB, 200 files, JPEG/PNG/HEIC</label>
  <input id="zip" type="file" accept=".zip,application/zip">
@@ -132,7 +132,7 @@ document.getElementById('build').onclick = async () => {
   link.href = j.download_url;
   link.textContent = 'Download report.json';
   const line = document.createElement('div');
-  line.append(link, ' — kept for ' + j.expires_in_hours + ' hours, then deleted.');
+  line.append(link, ' — link expires in ' + j.expires_in_hours + ' hours; stored files are purged on the next intake.');
   out.append(line);
 };
 </script>"""
@@ -274,7 +274,7 @@ an artifact a buyer or an insurer can open without trusting the sender.</p>
 </div>
 <ul class="trust">
  <li>No account needed</li>
- <li>Payment checked on-chain before intake</li>
+ <li>Payment is separate from the free build below</li>
  <li>Every layer in the report says how it was checked</li>
 </ul>
 __PAY__
@@ -283,10 +283,10 @@ __INTAKE__
 <h2>Proof layers, weakest to strongest</h2>
 <table>
 <tr><th>Layer</th><th>What we check</th><th>What it can still miss</th></tr>
-<tr><td><strong>File integrity</strong></td><td>Hash, edits and re-saves, embedded metadata consistency</td><td>A photo taken elsewhere and re-wrapped</td></tr>
-<tr><td><strong>Time</strong></td><td>Capture time against the claim, file timestamps, sequence of frames</td><td>Wrong device clock</td></tr>
+<tr><td><strong>File integrity</strong></td><td>SHA-256 of each file; EXIF presence</td><td>A photo taken elsewhere and re-wrapped; edits and re-saves are not detected</td></tr>
+<tr><td><strong>Time</strong></td><td>Capture time against the claim</td><td>Wrong device clock; frame sequence is not cross-checked</td></tr>
 <tr><td><strong>Place, declared</strong></td><td>GPS and EXIF coordinates cross-checked against the described site</td><td><strong>GPS can be spoofed</strong> — this is not proof on its own</td></tr>
-<tr><td><strong>Place, visual</strong></td><td>Landmarks, skyline, signage, terrain, shadows and sun angle against the date</td><td>A convincing reconstruction; satellite imagery sees only the top</td></tr>
+<tr><td><strong>Place, visual</strong></td><td><strong>Not yet</strong> — landmark, skyline and satellite checks are not implemented in this build</td><td>A convincing reconstruction; satellite imagery sees only the top</td></tr>
 <tr><td><strong>Independent capture</strong></td><td>A local operator we hire takes the photos</td><td>Only as good as the operator's honesty — the highest tier we sell</td></tr>
 </table>
 
