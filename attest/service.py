@@ -504,6 +504,9 @@ finding nothing.</p>
 <a href="mailto:maxim.pkk@gmail.com?subject=agent%20spend%20audit">maxim.pkk@gmail.com</a> — the reply
 carries the scope line and a USDC address on Base (an invoice instead, if you need one). The audit is
 paid before the five working days start; undelivered work is refunded in USDC to the paying address.</p>
+<p class="hint">Not ready to order? <a href="/free-scan">Send one CSV and get a free scan first</a> —
+email and a spend log, no GitHub, no account. A person replies within one business day with what the file
+shows and what it cannot.</p>
 
 <h2>Developer access</h2>
 <p class="s">A check is one artifact verified against one schema. No account, no card, no SDK.
@@ -1378,6 +1381,7 @@ def _sitemap() -> str:
                      "/start", "/privacy", "/health", "/deny-evidence",
                      "/eu-ai-act-evidence", "/mcp-security-pass",
                      "/eu-ai-act", "/mcp-security", "/trust-desk", "/proof-of-place", "/suite.json",
+                     "/free-scan",
                      "/verify-receipt",
                      "/mcp/mcp-security-audit", "/mcp/mcp-server-authentication",
                      "/mcp/mcp-tool-descriptions-security", "/mcp/mcp-deny-log",
@@ -1455,6 +1459,10 @@ class AttestHandler(BaseHTTPRequestHandler):
     # Заявки на пакет раннего доступа. Append-only, как отзывы: IP не
     # храним — только почту, текст и время.
     leads_path: Path = STATE_PATH.with_name("leads.jsonl")
+    # Бесплатные сканы расходов (S6.5): CSV кладётся файлом 0600 рядом с
+    # заявками, а в журнал идёт только хеш. Отдельный каталог, чтобы человек
+    # мог удалить расходы одного клиента, не трогая журнал.
+    free_scans_dir: Path = STATE_PATH.with_name("free_scans")
     # Сеть счёта. Раньше сеть была жёстко mainnet, а ATTEST_NETWORK в конфиге
     # службы не читался нигде: переменная совпадала с умолчанием и потому
     # молчала ровно тогда, когда её меняют на тестнет. Из-за этого платёжный
@@ -1536,7 +1544,7 @@ class AttestHandler(BaseHTTPRequestHandler):
         path = route_path(self.path)
         # Показ страницы — верх воронки. Считаем ДО обработчиков: они
         # возвращают управление и до этой точки дело не доходит.
-        if path in ("/", "/demo", "/pricing", "/article"):
+        if path in ("/", "/demo", "/pricing", "/article", "/free-scan"):
             METRICS.view(channel_of(self.path, self.headers.get("Referer")),
                          agent=self.headers.get("User-Agent"))
             METRICS.save()
@@ -1632,6 +1640,9 @@ class AttestHandler(BaseHTTPRequestHandler):
             from .product_pages import mcp_security_page
             pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
             self._send_html(mcp_security_page(pay_to))
+        elif path == "/free-scan":
+            from .product_pages import free_scan_page
+            self._send_html(free_scan_page())
         elif path == "/eu-ai-act-evidence":
             from .eu_ai_act_page import EU_HTML
             pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
@@ -1913,6 +1924,8 @@ class AttestHandler(BaseHTTPRequestHandler):
             return self._handle_pack_order(product="eu_ai_act", tiers=PACK_TIERS["eu_ai_act"])
         if path == "/api/mcp-security/order":
             return self._handle_pack_order(product="mcp_security", tiers=PACK_TIERS["mcp_security"])
+        if path == "/api/free-scan":
+            return self._handle_free_scan()
         if path == "/deny":
             from .apikeys import consume as consume_key
             raw_key = (self.headers.get("X-API-Key")
@@ -2451,6 +2464,54 @@ document.getElementById('go').onclick = async () => {{
             "paid": True, "order_id": order_id, "product": product, "tier": tier,
             "amount_usd": amount_usd, "tx": transfer.tx_hash, "payer": transfer.payer,
             "block": transfer.block, "next": next_step,
+        })
+
+    def _handle_free_scan(self) -> None:
+        """Заявка на бесплатный скан расходов: почта + CSV (S6.5, 18.11.2026).
+
+        Содержимое файла не логируется и в журнал заявок не попадает — там
+        только хеш, число строк и колонки. Сам CSV ложится рядом файлом 0600:
+        без него разбор сделать нечем, а держать чужие расходы в `leads.jsonl`
+        значит смешать их с метриками.
+        """
+        payload = self._read_json()
+        if payload is None:
+            return
+        email = str(payload.get("email") or "").strip()[:200]
+        note = str(payload.get("note") or "").strip()[:400]
+        csv_text = payload.get("csv")
+        if not EMAIL_RE.fullmatch(email):
+            self._send_json(400, {"error": "a valid email is required"})
+            return
+        if not isinstance(csv_text, str):
+            self._send_json(400, {"error": "csv must be a string"})
+            return
+        from . import free_scan
+
+        try:
+            parsed = free_scan.parse_csv(csv_text)
+        except free_scan.ScanError as exc:
+            self._send_json(400, {"error": str(exc)})
+            return
+        try:
+            request_id = free_scan.store(
+                csv_text,
+                {"email": email, "note": note, **parsed},
+                self.leads_path,
+                self.free_scans_dir,
+            )
+        except OSError as exc:
+            self._send_json(500, {"error": f"could not store the request: {exc}"})
+            return
+        METRICS.lead()
+        message = "Request received — we will reply within one business day."
+        missing = list(parsed["missing"])
+        if missing:
+            message += (" The header does not name " + ", ".join(missing)
+                        + "; the reply will say what could still be read.")
+        self._send_json(200, {
+            "ok": True, "request_id": request_id, "message": message,
+            "rows": parsed["rows"], "columns": parsed["columns"], "missing": missing,
         })
 
     def _handle_pop_build(self) -> None:

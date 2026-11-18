@@ -1,0 +1,141 @@
+"""Форма бесплатного скана без GitHub (S6.5, 18.11.2026).
+
+Держит четыре вещи, без которых форма снова станет пустой страницей:
+1. заявка сохраняется с почтой, хешем и числом строк, а сам CSV — файлом 0600;
+2. мусорный адрес, пустой CSV, файл больше 200 КБ и строка данных вместо
+   заголовка отклоняются до записи (иначе человек ждёт разбора, которого не будет);
+3. недостающие колонки называются в ответе, а не превращаются в отказ;
+4. на странице нет GitHub и нет внешних скриптов — вход без регистрации.
+"""
+
+from __future__ import annotations
+
+import json
+import stat
+import threading
+import urllib.error
+import urllib.request
+
+import pytest
+
+from attest.service import AttestHandler
+
+CSSV = "date,amount,asset,payee,tx_hash\n2026-11-01,0.42,USDC,api.vendor.example,0xabc123\n"
+
+
+@pytest.fixture(scope="module")
+def server():
+    from http.server import ThreadingHTTPServer
+
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), AttestHandler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    yield f"http://127.0.0.1:{httpd.server_address[1]}"
+    httpd.shutdown()
+    httpd.server_close()
+
+
+@pytest.fixture()
+def paths(tmp_path, monkeypatch):
+    leads = tmp_path / "leads.jsonl"
+    scans = tmp_path / "free_scans"
+    monkeypatch.setattr(AttestHandler, "leads_path", leads)
+    monkeypatch.setattr(AttestHandler, "free_scans_dir", scans)
+    return leads, scans
+
+
+def post(base: str, body: dict) -> tuple[int, dict]:
+    req = urllib.request.Request(f"{base}/api/free-scan", data=json.dumps(body).encode(),
+                                 method="POST")
+    req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return r.status, json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        return exc.code, json.loads(exc.read().decode("utf-8"))
+
+
+def test_page_has_the_form_and_no_github(server):
+    with urllib.request.urlopen(f"{server}/free-scan", timeout=10) as r:
+        html = r.read().decode("utf-8")
+        assert r.status == 200
+    assert 'id="email"' in html and 'id="csv"' in html and 'id="csvfile"' in html
+    assert "Request free scan" in html
+    # Слово «GitHub» в тексте есть только как обещание «без него»; ссылки,
+    # входа через GitHub и обращений к api.github.com быть не должно.
+    assert "github.com" not in html.lower() and "oauth" not in html.lower()
+    assert "https://github" not in html.lower()
+    assert "business day" in html
+    assert "<script src" not in html, "внешних скриптов нет"
+
+
+def test_valid_request_is_stored(server, paths):
+    leads, scans = paths
+    status, data = post(server, {"email": "team@example.com", "csv": CSSV,
+                                 "note": "double payments"})
+    assert status == 200 and data["ok"] is True
+    assert data["request_id"].startswith("fs_")
+    assert data["rows"] == 1 and data["missing"] == []
+    assert "business day" in data["message"]
+
+    lines = leads.read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) == 1
+    record = json.loads(lines[0])
+    assert record["product"] == "free_scan"
+    assert record["email"] == "team@example.com"
+    assert record["note"] == "double payments"
+    assert record["rows"] == 1
+    assert record["columns"] == ["date", "amount", "asset", "payee", "tx_hash"]
+    assert len(record["csv_sha256"]) == 64
+    assert "2026-11-01" not in json.dumps(record), "содержимое CSV в журнал не пишем"
+    assert "ip" not in record
+
+    stored = scans / f"{data['request_id']}.csv"
+    assert stored.read_text(encoding="utf-8") == CSSV
+    assert stat.S_IMODE(stored.stat().st_mode) == 0o600
+
+
+def test_invalid_email_is_rejected(server, paths):
+    leads, scans = paths
+    status, data = post(server, {"email": "not-an-email", "csv": CSSV})
+    assert status == 400 and "email" in data["error"]
+    assert not leads.exists() and not scans.exists()
+
+
+def test_empty_csv_is_rejected(server, paths):
+    leads, _scans = paths
+    status, data = post(server, {"email": "team@example.com", "csv": "   \n\n"})
+    assert status == 400 and "empty" in data["error"].lower()
+    assert not leads.exists()
+
+
+def test_oversized_csv_is_rejected(server, paths):
+    leads, _scans = paths
+    big = "amount\n" + "1\n" * (110 * 1024)  # ~220 КБ, больше лимита
+    status, data = post(server, {"email": "team@example.com", "csv": big})
+    assert status == 400 and "200 KB" in data["error"]
+    assert not leads.exists()
+
+
+def test_csv_with_data_as_first_row_is_rejected(server, paths):
+    leads, _scans = paths
+    status, data = post(server, {"email": "team@example.com",
+                                 "csv": "2026-11-01,0.42,USDC,acme,0xabc\n"})
+    assert status == 400 and "header" in data["error"]
+    assert not leads.exists()
+
+
+def test_header_without_rows_is_rejected(server, paths):
+    _leads, _scans = paths
+    status, data = post(server, {"email": "team@example.com", "csv": "date,amount\n"})
+    assert status == 400 and "no rows" in data["error"]
+
+
+def test_missing_columns_are_named_not_fatal(server, paths):
+    leads, _scans = paths
+    status, data = post(server, {"email": "team@example.com",
+                                 "csv": "when,value\n2026-11-01,42\n"})
+    assert status == 200 and data["ok"] is True
+    assert set(data["missing"]) == {"date", "amount", "asset", "payee", "tx_hash"}
+    assert "date" in data["message"]
+    assert len(leads.read_text(encoding="utf-8").strip().splitlines()) == 1

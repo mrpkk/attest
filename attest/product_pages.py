@@ -36,6 +36,7 @@ BASE_CSS = """
  .meta{color:#8b97a4;font-size:13.5px}
  input[type=text],input[type=email]{width:100%;box-sizing:border-box;background:#0b0d10;border:1px solid #30363d;border-radius:8px;color:#e6e6e6;padding:11px;margin:6px 0;font-size:15px}
  input[type=file]{width:100%;box-sizing:border-box;background:#0b0d10;border:1px solid #30363d;border-radius:8px;color:#e6e6e6;padding:9px;margin:6px 0;font-size:14px}
+ textarea{width:100%;box-sizing:border-box;background:#0b0d10;border:1px solid #30363d;border-radius:8px;color:#e6e6e6;padding:11px;margin:6px 0;font-size:13px;font-family:ui-monospace,Menlo,monospace;min-height:110px;resize:vertical}
  label{display:block;font-size:13.5px;color:#a9b4c0;margin-top:8px}
  .row{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
  details{border:1px solid #232a33;border-radius:10px;padding:12px 14px;margin:0 0 10px;background:#10141a}
@@ -414,3 +415,87 @@ def mcp_security_page(pay_to: str) -> str:
                   "MCP security audit for one server: OWASP MCP Top 10 checks, findings with severity, "
                   "concrete patches and a re-check. $500 audit, $1,500 with fixes. USDC on Base, no account.",
                   "/mcp-security", MCP_SECURITY_BODY.replace("__PAY__", pay))
+
+
+FREE_SCAN_BODY = """
+<h1>Send one CSV, see where your agent's money went</h1>
+<p class="lead">A free scan of one spend log: a human reads the file and replies within one business day
+with what it shows, what it cannot show, and whether a $500 audit would find anything more.
+No GitHub, no account, no card.</p>
+
+<h2>What file to send</h2>
+<p>A CSV export of what your agent spent — from your billing dashboard, your wallet indexer,
+or a table you keep by hand. One row per transaction.</p>
+<table>
+<tr><th>Column</th><th>What we read from it</th></tr>
+<tr><td><code>date</code></td><td>When the spend happened (any common format)</td></tr>
+<tr><td><code>amount</code></td><td>How much left the account</td></tr>
+<tr><td><code>asset</code></td><td>USDC, ETH, a token, a card charge</td></tr>
+<tr><td><code>payee</code></td><td>Who received it</td></tr>
+<tr><td><code>tx_hash</code></td><td>The transaction, if there is one</td></tr>
+</table>
+<p class="meta">These are the columns that make the scan cheap, not a requirement: a file without them
+is still read, and the reply says what could not be checked. Up to 200 KB, header row included.
+Nothing about your file is published; it is read for this scan and kept private.</p>
+
+<form class="pay" id="scan-form">
+ <label for="email">Email for the reply</label>
+ <input id="email" type="email" placeholder="you@company.com" autocomplete="email">
+ <label for="csvfile">Spend log — CSV, up to 200 KB</label>
+ <input id="csvfile" type="file" accept=".csv,text/csv,text/plain">
+ <label for="csv">…or paste the CSV here</label>
+ <textarea id="csv" placeholder="date,amount,asset,payee,tx_hash&#10;2026-11-01,0.42,USDC,api.vendor.example,0x…"></textarea>
+ <label for="note">What should the scan look for? (optional, one line)</label>
+ <input id="note" type="text" placeholder="e.g. whether the agent pays the same vendor twice">
+ <button class="btn" id="send" type="button">Request free scan</button>
+ <div class="out" id="scan-out"></div>
+ <p class="meta">The reply is written by a person, not generated per request, so it never claims to be
+an automated report. If the file is too thin to say anything useful, the reply says that too.</p>
+</form>
+<script>
+document.getElementById('csvfile').onchange = () => {
+  const file = document.getElementById('csvfile').files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { document.getElementById('csv').value = String(reader.result || ''); };
+  reader.readAsText(file);
+};
+document.getElementById('send').onclick = async () => {
+  const out = document.getElementById('scan-out');
+  const body = {
+    email: document.getElementById('email').value.trim(),
+    csv: document.getElementById('csv').value,
+    note: document.getElementById('note').value.trim(),
+  };
+  if (!body.email) { out.textContent = 'An email is needed for the reply.'; return; }
+  if (!body.csv.trim()) { out.textContent = 'Attach the CSV or paste it first.'; return; }
+  out.textContent = 'Sending…';
+  const r = await fetch('/api/free-scan', {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { out.textContent = 'Not accepted: ' + (j.error || ('HTTP ' + r.status)); return; }
+  out.textContent = j.message + '\\nRequest id: ' + j.request_id;
+  document.getElementById('scan-form').style.display = 'none';
+};
+</script>
+
+<h2>What the free scan is not</h2>
+<ul>
+<li>Not a signed report and not the $500 audit: no per-finding evidence lines, no revision round.</li>
+<li>Not an automated verdict. A person reads the file; that is why the reply takes up to a business day.</li>
+<li>Not a place to send secrets. Strip API keys from the CSV — the scan needs amounts, not credentials.</li>
+</ul>
+
+<h2>After the scan</h2>
+<p>If the file shows something worth a written report — duplicate payments, spend nobody approved,
+a vendor the agent invented — the audit is the next step: one month of logs, five working days,
+one line of evidence per finding, nothing found means no fee. <a href="/plans">Prices and scope</a>.</p>
+"""
+
+
+def free_scan_page() -> str:
+    return _shell("Free agent spend scan — send one CSV, no GitHub",
+                  "Free scan of an AI agent's spend log: send a CSV by email, get a written reply "
+                  "within one business day. No GitHub, no account, no card.",
+                  "/free-scan", FREE_SCAN_BODY)
+
