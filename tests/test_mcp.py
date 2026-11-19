@@ -86,7 +86,7 @@ class TestProtocol:
         out = rpc("tools/call", {"name": "bridge_check", "arguments": {"action": "trust"}})
         assert "error" not in out, "протокольная ошибка вместо результата"
         assert out["result"]["isError"] is True
-        assert "мост" in out["result"]["content"][0]["text"]
+        assert "unavailable" in out["result"]["content"][0]["text"]
 
     def test_bridge_rejects_unknown_action(self):
         out = rpc("tools/call",

@@ -103,8 +103,8 @@ def sign(record: ProvenanceRecord, key: bytes | None = None) -> Attestation:
         key = key or _key_from_env()
         if key is None:
             raise RuntimeError(
-                "Подписать нечем: нет приватного ключа Ed25519 "
-                f"({exc}) и не задан ATTEST_SECRET. Создать ключ: "
+                "Cannot sign: no Ed25519 private key "
+                f"({exc}) and ATTEST_SECRET is not set. Create a key: "
                 "python3 -m attest keygen") from exc
         signature = "hmac-sha256:" + hmac.new(key, payload, hashlib.sha256).hexdigest()
         return Attestation(record=record, signature=signature,

@@ -140,8 +140,8 @@ def _coerce_json_field(value: Any, field_name: str) -> tuple[Any, str | None]:
         try:
             return json.loads(text), None
         except json.JSONDecodeError as exc:
-            return None, f"{field_name}: не JSON ({exc.msg}, позиция {exc.pos})"
-    return None, f"{field_name}: ожидался объект, массив или JSON-строка"
+            return None, f"{field_name}: not JSON ({exc.msg}, position {exc.pos})"
+    return None, f"{field_name}: expected an object, an array or a JSON string"
 
 
 def attest(artifact: Any, schema: dict[str, Any] | None = None, source: str = "unknown", sign_it: bool = True,

@@ -57,7 +57,7 @@ def _validate(value: Any, schema: dict[str, Any], path: str, depth: int, out: li
         out.append(SchemaViolation(path, "type", f"expected {expected}, got {type(value).__name__}"))
         return
     if isinstance(expected, list) and not any(_type_ok(value, t) for t in expected):
-        out.append(SchemaViolation(path, "type", f"ожидался один из {expected}, получен {type(value).__name__}"))
+        out.append(SchemaViolation(path, "type", f"expected one of {expected}, got {type(value).__name__}"))
         return
 
     if isinstance(value, str):
@@ -75,10 +75,10 @@ def _validate(value: Any, schema: dict[str, Any], path: str, depth: int, out: li
             out.append(SchemaViolation(path, "enum", f"value not in enum[{len(enum)}]"))
         min_length = schema.get("minLength")
         if isinstance(min_length, int) and len(value) < min_length:
-            out.append(SchemaViolation(path, "minLength", f"длина {len(value)} < {min_length}"))
+            out.append(SchemaViolation(path, "minLength", f"length {len(value)} < {min_length}"))
         max_length = schema.get("maxLength")
         if isinstance(max_length, int) and len(value) > max_length:
-            out.append(SchemaViolation(path, "maxLength", f"длина {len(value)} > {max_length}"))
+            out.append(SchemaViolation(path, "maxLength", f"length {len(value)} > {max_length}"))
         return
 
     if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -90,13 +90,13 @@ def _validate(value: Any, schema: dict[str, Any], path: str, depth: int, out: li
 
     if isinstance(value, list):
         if len(value) > MAX_ITEMS:
-            out.append(SchemaViolation(path, "size", f"элементов {len(value)} > {MAX_ITEMS}"))
+            out.append(SchemaViolation(path, "size", f"items {len(value)} > {MAX_ITEMS}"))
         min_items = schema.get("minItems")
         if isinstance(min_items, int) and len(value) < min_items:
-            out.append(SchemaViolation(path, "minItems", f"элементов {len(value)} < {min_items}"))
+            out.append(SchemaViolation(path, "minItems", f"items {len(value)} < {min_items}"))
         max_items = schema.get("maxItems")
         if isinstance(max_items, int) and len(value) > max_items:
-            out.append(SchemaViolation(path, "maxItems", f"элементов {len(value)} > {max_items}"))
+            out.append(SchemaViolation(path, "maxItems", f"items {len(value)} > {max_items}"))
         item_schema = schema.get("items")
         if isinstance(item_schema, dict):
             for i, item in enumerate(value[:1000]):
@@ -110,7 +110,7 @@ def _validate(value: Any, schema: dict[str, Any], path: str, depth: int, out: li
 
         for key in required:
             if key not in value:
-                out.append(SchemaViolation(f"{path}.{key}", "required", "обязательное поле отсутствует"))
+                out.append(SchemaViolation(f"{path}.{key}", "required", "required field is missing"))
 
         for key, sub in props.items():
             if key in value:
@@ -119,7 +119,7 @@ def _validate(value: Any, schema: dict[str, Any], path: str, depth: int, out: li
         if additional is False:
             for key in value:
                 if key not in props:
-                    out.append(SchemaViolation(f"{path}.{key}", "additionalProperties", "лишнее поле"))
+                    out.append(SchemaViolation(f"{path}.{key}", "additionalProperties", "unexpected field"))
 
 
 def _basic_invariants(artifact: Any, path: str, depth: int, out: list[SchemaViolation]) -> None:
@@ -133,10 +133,10 @@ def _basic_invariants(artifact: Any, path: str, depth: int, out: list[SchemaViol
         return
     if isinstance(artifact, str):
         if len(artifact) > MAX_STRING:
-            out.append(SchemaViolation(path, "size", f"строка {len(artifact)} > {MAX_STRING}"))
+            out.append(SchemaViolation(path, "size", f"string {len(artifact)} > {MAX_STRING}"))
     elif isinstance(artifact, list):
         if len(artifact) > MAX_ITEMS:
-            out.append(SchemaViolation(path, "size", f"элементов {len(artifact)} > {MAX_ITEMS}"))
+            out.append(SchemaViolation(path, "size", f"items {len(artifact)} > {MAX_ITEMS}"))
         for i, item in enumerate(artifact[:200]):
             _basic_invariants(item, f"{path}[{i}]", depth + 1, out)
     elif isinstance(artifact, dict):
@@ -154,10 +154,10 @@ def validate_against_schema(artifact: Any, schema: dict[str, Any] | None) -> lis
         _basic_invariants(artifact, "$", 0, out)
 
     if artifact is None:
-        out.append(SchemaViolation("$", "null", "артефакт пуст — агент получит ничего"))
+        out.append(SchemaViolation("$", "null", "the artifact is null: the agent would receive nothing"))
     elif isinstance(artifact, str) and not artifact.strip():
-        out.append(SchemaViolation("$", "empty", "пустая строка"))
+        out.append(SchemaViolation("$", "empty", "empty string"))
     elif isinstance(artifact, (list, dict)) and not artifact:
-        out.append(SchemaViolation("$", "empty", "пустая структура"))
+        out.append(SchemaViolation("$", "empty", "empty structure"))
 
     return out

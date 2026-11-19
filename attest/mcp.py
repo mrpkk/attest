@@ -224,13 +224,13 @@ def handle_request(
     if not isinstance(message, Mapping) or message.get("jsonrpc") != "2.0":
         return _error(
             message.get("id") if isinstance(message, Mapping) else None,
-            RpcError(JSONRPC_INVALID_REQUEST, "ожидается JSON-RPC 2.0"),
+            RpcError(JSONRPC_INVALID_REQUEST, "JSON-RPC 2.0 is required"),
         )
     request_id = message.get("id")
     method = message.get("method")
     params = message.get("params") or {}
     if not isinstance(params, Mapping):
-        return _error(request_id, RpcError(JSONRPC_INVALID_PARAMS, "params должны быть объектом"))
+        return _error(request_id, RpcError(JSONRPC_INVALID_PARAMS, "params must be an object"))
 
     try:
         if method == "initialize":
@@ -268,12 +268,12 @@ def handle_request(
             return {"jsonrpc": "2.0", "id": request_id, "result": {}}
         return _error(
             request_id,
-            RpcError(JSONRPC_METHOD_NOT_FOUND, f"метод {method!r} не поддерживается"),
+            RpcError(JSONRPC_METHOD_NOT_FOUND, f"method {method!r} is not supported"),
         )
     except RpcError as exc:
         return _error(request_id, exc)
     except Exception as exc:  # noqa: BLE001
-        return _error(request_id, RpcError(JSONRPC_INTERNAL, f"внутренняя ошибка: {exc}"))
+        return _error(request_id, RpcError(JSONRPC_INTERNAL, f"internal error: {exc}"))
 
 
 def _call_batch(arguments: Mapping[str, Any],
@@ -287,11 +287,11 @@ def _call_batch(arguments: Mapping[str, Any],
     artifacts = arguments.get("artifacts")
     if not isinstance(artifacts, list) or not artifacts:
         raise RpcError(JSONRPC_INVALID_PARAMS,
-                       'нужен непустой массив "artifacts"')
+                       '"artifacts" must be a non-empty array')
     if len(artifacts) > MAX_BATCH_ITEMS:
         raise RpcError(
             JSONRPC_INVALID_PARAMS,
-            f"в пачке {len(artifacts)} артефактов, максимум {MAX_BATCH_ITEMS}",
+            f"batch has {len(artifacts)} artifacts, the maximum is {MAX_BATCH_ITEMS}",
         )
     schema = arguments.get("schema")
     source = arguments.get("source")
@@ -304,7 +304,7 @@ def _call_batch(arguments: Mapping[str, Any],
         if len(encoded.encode("utf-8")) > MAX_ARTIFACT_BYTES:
             raise RpcError(
                 JSONRPC_INVALID_PARAMS,
-                f"артефакт [{index}] больше {MAX_ARTIFACT_BYTES} байт",
+                f"artifact [{index}] is larger than {MAX_ARTIFACT_BYTES} bytes",
                 {"index": index, "bytes": len(encoded.encode("utf-8"))},
             )
         result = verify(
@@ -325,9 +325,9 @@ def _call_batch(arguments: Mapping[str, Any],
             {
                 "type": "text",
                 "text": (
-                    f"{worst.upper()} · {summary['accept']} принято, "
-                    f"{summary['review']} на проверку, {summary['reject']} отклонено "
-                    f"из {len(results)}"
+                    f"{worst.upper()} · {summary['accept']} accepted, "
+                    f"{summary['review']} need review, {summary['reject']} rejected "
+                    f"out of {len(results)}"
                 ),
             }
         ],
@@ -365,15 +365,15 @@ def _call_tool(
     name = params.get("name")
     arguments = params.get("arguments") or {}
     if not isinstance(arguments, Mapping):
-        raise RpcError(JSONRPC_INVALID_PARAMS, "arguments должны быть объектом")
+        raise RpcError(JSONRPC_INVALID_PARAMS, "arguments must be an object")
     if name == BRIDGE_TOOL["name"]:
         if bridge is None:
             # Инструмент объявлен в tools/list, значит вызов обязан вернуть
             # результат. -32601 здесь читался как «сервер сломан», и из-за
             # этого bridge_check выпадал из листингов каталогов.
             return _tool_error(
-                "bridge_check недоступен: мост не подключён к этому развёртыванию. "
-                "Используйте verify_artifact или verify_artifact_batch."
+                "bridge_check is unavailable: the bridge is not wired into this deployment. "
+                "Use verify_artifact or verify_artifact_batch."
             )
         return _call_bridge(arguments, bridge)
     if name == BATCH_TOOL["name"]:
@@ -381,12 +381,12 @@ def _call_tool(
     if name != VERIFY_TOOL["name"]:
         raise RpcError(JSONRPC_METHOD_NOT_FOUND, f"no such tool: {name!r}")
     if "artifact" not in arguments:
-        return _tool_error('нужен аргумент "artifact"')
+        return _tool_error('the "artifact" argument is required')
 
     encoded = json.dumps(arguments["artifact"], ensure_ascii=False, default=str)
     if len(encoded.encode("utf-8")) > MAX_ARTIFACT_BYTES:
         return _tool_error(
-            f"артефакт больше {MAX_ARTIFACT_BYTES} байт "
+            f"artifact is larger than {MAX_ARTIFACT_BYTES} bytes "
             f"({len(encoded.encode('utf-8'))})"
         )
 
@@ -405,7 +405,7 @@ def _call_tool(
             {
                 "type": "text",
                 "text": (
-                    f"{payload['verdict'].upper()} · доверие "
+                    f"{payload['verdict'].upper()} · trust "
                     f"{payload['trust_score']:.0f}/100 · {payload['reason']}"
                 ),
             }
@@ -424,15 +424,15 @@ def _call_bridge(arguments: Mapping[str, Any], bridge: Callable[..., Any]) -> di
     """
     action = arguments.get("action")
     if action not in ("job", "deliver", "release", "refund", "verify", "trust"):
-        raise RpcError(JSONRPC_INVALID_PARAMS, f"неизвестное действие {action!r}")
+        raise RpcError(JSONRPC_INVALID_PARAMS, f"unknown action {action!r}")
 
     kwargs = {k: v for k, v in arguments.items() if k != "action"}
     try:
         result = bridge(action=action, **kwargs)
     except TypeError as exc:
-        raise RpcError(JSONRPC_INVALID_PARAMS, f"неверные аргументы: {exc}") from exc
+        raise RpcError(JSONRPC_INVALID_PARAMS, f"invalid arguments: {exc}") from exc
     except Exception as exc:  # noqa: BLE001
-        raise RpcError(JSONRPC_INTERNAL, f"мост: {exc}") from exc
+        raise RpcError(JSONRPC_INTERNAL, f"bridge: {exc}") from exc
 
     payload = result if isinstance(result, dict) else {"result": str(result)}
     is_error = action == "deliver" and payload.get("verdict", {}).get("accepted") is False
@@ -440,7 +440,7 @@ def _call_bridge(arguments: Mapping[str, Any], bridge: Callable[..., Any]) -> di
         "content": [
             {
                 "type": "text",
-                "text": str(payload.get("summary") or f"{action}: выполнено"),
+                "text": str(payload.get("summary") or f"{action}: done"),
             }
         ],
         "structuredContent": payload,
@@ -453,14 +453,14 @@ def parse_body(raw: bytes) -> dict[str, Any] | list[dict[str, Any]]:
     try:
         parsed = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise RpcError(JSONRPC_PARSE_ERROR, f"не разобрал JSON: {exc}") from exc
+        raise RpcError(JSONRPC_PARSE_ERROR, f"could not parse JSON: {exc}") from exc
     if isinstance(parsed, dict):
         return parsed
     if isinstance(parsed, list):
         if not all(isinstance(item, dict) for item in parsed):
-            raise RpcError(JSONRPC_INVALID_REQUEST, "в пакете не только объекты")
+            raise RpcError(JSONRPC_INVALID_REQUEST, "the batch contains something other than objects")
         return parsed
-    raise RpcError(JSONRPC_INVALID_REQUEST, "ожидался объект или массив")
+    raise RpcError(JSONRPC_INVALID_REQUEST, "an object or an array is required")
 
 
 def respond(
@@ -477,7 +477,7 @@ def respond(
         return 200, json.dumps(_error(None, exc)).encode()
     if isinstance(message, list):
         if not message:
-            return 200, json.dumps(_error(None, RpcError(JSONRPC_INVALID_REQUEST, "пустой пакет"))).encode()
+            return 200, json.dumps(_error(None, RpcError(JSONRPC_INVALID_REQUEST, "empty batch"))).encode()
         replies = [handle_request(item, verify, bridge, protocol_version=protocol_version)
                    for item in message]
         replies = [item for item in replies if "id" in item or item.get("id") is not None]

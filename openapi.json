@@ -1,14 +1,15 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "attest — слой доверия к артефактам агентов",
-    "version": "0.1.0",
-    "description": "Проверка артефакта агента перед оплатой: схема, пустота, провенанс, полномочия. Вердикт accept/review/reject, подписан Ed25519. 20 проверок в день бесплатно, далее $0.005 за вызов по x402."
+    "title": "attest — trust layer for AI agent artifacts",
+    "version": "0.2.0",
+    "description": "Check an agent artifact before you accept it or pay for it. Rule-based, no LLM: the same artifact always yields the same verdict. What is checked: JSON Schema conformance (when a schema is supplied), hollow content (empty values, duplicate items, placeholders, truncation), prompt-injection and exfiltration patterns in any field, and — only when both `mandate` and `action` are supplied — whether the mandate permitted the spend (amount, payee, audience, currency, time window, intent). The response verdict record is signed with Ed25519; the request itself is not signature-checked and replay is not detected. Free daily quota per address, then per-call payment over x402 (USDC on Base); the live quota and price are in GET /pricing."
   },
   "paths": {
     "/verify": {
       "post": {
-        "summary": "Проверить артефакт агента",
+        "summary": "Verify an agent artifact",
+        "description": "Returns a deterministic verdict: `accept`, `review` or `reject`, plus a 0-100 trust score, concrete findings and the signed verdict record.",
         "requestBody": {
           "required": true,
           "content": {
@@ -17,11 +18,27 @@
                 "type": "object",
                 "properties": {
                   "artifact": {
-                    "description": "Артефакт агента: объект, массив или строка"
+                    "description": "The agent artifact: object, array or JSON string."
                   },
                   "schema": {
                     "type": "object",
-                    "description": "Необязательная JSON Schema"
+                    "description": "Optional JSON Schema the artifact must satisfy. Without it, conformance is not checked."
+                  },
+                  "source": {
+                    "type": "string",
+                    "description": "Where the artifact came from; recorded in the attestation."
+                  },
+                  "generation": {
+                    "type": "object",
+                    "description": "Optional generation context used to bind the artifact to a chain: model, model_version, prompt, parameters, generated_at, generator, generator_version."
+                  },
+                  "mandate": {
+                    "type": "object",
+                    "description": "Optional signed spend mandate: payee_id, audience, max_amount_minor, currency, valid_from, valid_until, allowed_intents. Checked only together with `action`."
+                  },
+                  "action": {
+                    "type": "object",
+                    "description": "Optional proposed action checked against the mandate: intent, payee_id, audience, amount_minor, currency, at."
                   }
                 },
                 "required": [
@@ -32,21 +49,38 @@
           }
         },
         "responses": {
-          "402": {
-            "description": "Требуется оплата x402 (USDC на Base)"
-          },
           "200": {
-            "description": "Вердикт проверенного артефакта"
+            "description": "Verdict for the artifact, with findings and the signed record."
+          },
+          "400": {
+            "description": "Malformed request: bad JSON body, missing `artifact`, or an artifact field that is not object/array/JSON string."
+          },
+          "401": {
+            "description": "Only when the operator sets ATTEST_REQUIRE_MARKET_SECRET=1: the direct anonymous path is closed and no paid API key was supplied."
+          },
+          "402": {
+            "description": "Free daily quota is used up and no payment was supplied. Pay over x402 (USDC on Base) and retry."
           }
         }
       }
     },
     "/health": {
       "get": {
-        "summary": "Живость сервиса",
+        "summary": "Service health",
         "responses": {
           "200": {
             "description": "OK"
+          }
+        }
+      }
+    },
+    "/pricing": {
+      "get": {
+        "summary": "Live quota and price",
+        "description": "The free daily limit, the per-call price and the subscription price, read from the running service rather than from this document.",
+        "responses": {
+          "200": {
+            "description": "Current pricing and limits."
           }
         }
       }
@@ -58,6 +92,6 @@
     "chain_id": 8453,
     "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "facilitator": "PayAI",
-    "note": "ETH не требуется: газ платит фасилитатор"
+    "note": "No ETH needed: the facilitator pays the gas"
   }
 }

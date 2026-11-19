@@ -183,13 +183,13 @@ def _scan_key(text: str, where: str) -> list[PoisonSignal]:
     for pattern, name in COMPILED:
         if pattern.search(norm):
             signals.append(PoisonSignal(name, SEVERITY.get(name, "medium"), where,
-                                        f"имя поля: «{text[:60]}»"))
+                                        f"field name: «{text[:60]}»"))
             break
 
     target = _structural_exfiltration(norm)
     if target:
         signals.append(PoisonSignal("key_exfiltration", "critical", where,
-                                    f"имя поля требует утечки: «{text[:60]}»"))
+                                    f"field name demands exfiltration: «{text[:60]}»"))
 
     return signals
 
@@ -204,16 +204,16 @@ def _scan_text(text: str, where: str) -> list[PoisonSignal]:
             signals.append(PoisonSignal(name, SEVERITY.get(name, "medium"), where, m.group(0)))
 
     if ZERO_WIDTH.search(text):
-        signals.append(PoisonSignal("zero_width_smuggle", "high", where, "невидимые unicode-символы"))
+        signals.append(PoisonSignal("zero_width_smuggle", "high", where, "invisible unicode characters"))
 
     if HIDDEN_TEXT.search(text):
-        signals.append(PoisonSignal("hidden_html", "high", where, "скрытый текст в разметке"))
+        signals.append(PoisonSignal("hidden_html", "high", where, "hidden text in markup"))
 
     # омоглифы: слово со смешанными алфавитами («Іgnore» = латинская I + кириллиская)
     for word in re.findall(r"\S+", norm):
         stripped = word.strip(".,!?;:'\"()[]{}")
         if len(stripped) >= 4 and CYRILLIC.search(stripped) and LATIN.search(stripped):
-            signals.append(PoisonSignal("mixed_script_word", "high", where, f"«{stripped[:40]}» — смешанные алфавиты"))
+            signals.append(PoisonSignal("mixed_script_word", "high", where, f"«{stripped[:40]}» — mixed alphabets"))
             break
 
     for m in BASE64_BLOB.finditer(norm):
@@ -228,14 +228,14 @@ def _scan_text(text: str, where: str) -> list[PoisonSignal]:
             continue
         for pattern, name in COMPILED:
             if pattern.search(decoded):
-                signals.append(PoisonSignal(f"base64_{name}", "critical", where, f"декодировано: {decoded[:120]}"))
+                signals.append(PoisonSignal(f"base64_{name}", "critical", where, f"decoded: {decoded[:120]}"))
                 break
         else:
             # декодированный текст проверяем тем же структурным каналом, что и обычный
             if _structural_exfiltration(decoded):
-                signals.append(PoisonSignal("base64_exfiltration", "critical", where, f"декодировано: {decoded[:120]}"))
+                signals.append(PoisonSignal("base64_exfiltration", "critical", where, f"decoded: {decoded[:120]}"))
             else:
-                signals.append(PoisonSignal("base64_blob", "low", where, f"base64-блок {len(blob)} символов"))
+                signals.append(PoisonSignal("base64_blob", "low", where, f"base64 blob of {len(blob)} characters"))
 
     return signals
 
@@ -309,7 +309,7 @@ def _scan(artifact) -> list[PoisonSignal]:
             if target:
                 signals.append(PoisonSignal(
                     f"exfiltration_instruction:{key}", "critical", path,
-                    f"императив + упоминание секрета + адрес {target}",
+                    f"imperative + secret mention + address {target}",
                 ))
 
     for m in URL.finditer(json_safe(artifact)):

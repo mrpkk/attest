@@ -68,9 +68,12 @@ DEFAULT_FREE_DAILY = 5
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s.]+\.[A-Za-z]{2,}$")
 
 # Заголовок, которым маркетплейс (api.market) подтверждает свой вызов.
-# Секрет задаётся ATTEST_GATEWAY_KEY на сервере; без него заголовок
+# Секрет задаётся ATTEST_API_MARKET_SECRET на сервере; без него заголовок
 # игнорируется целиком — «пустой ключ» не должен открывать платный путь.
-GATEWAY_HEADER = "X-API-Market-Key"
+GATEWAY_HEADER = "X-API-Market-Secret"
+# Прежнее имя заголовка: оно было настроено 20.10.2026 и может остаться
+# в чужой панели. Оба имени проверяются одинаково, секрет один.
+GATEWAY_HEADER_LEGACY = "X-API-Market-Key"
 MAX_BODY_BYTES = 512 * 1024
 FREE_TTL_SECONDS = 30 * 24 * 3600
 
@@ -973,7 +976,18 @@ MANIFEST_MIME = {
     "SKILL.md": "text/markdown; charset=utf-8",
     "openapi.json": "application/json; charset=utf-8",
 }
-VERIFY_DESCRIPTION = "Deterministic verification of an agent artifact"
+VERIFY_DESCRIPTION = (
+    "Verify an AI agent artifact before you accept or pay for it. Checks: "
+    "(1) JSON Schema conformance when a schema is supplied; (2) hollow content — "
+    "empty values, duplicate items, placeholders, truncation; (3) prompt-injection "
+    "and exfiltration patterns in any field; (4) spend authority, only when both "
+    "`mandate` and `action` are supplied — amount, payee, audience, currency, time "
+    "window, intent. Returns accept/review/reject, a 0-100 trust score, the findings, "
+    "and the verdict record signed with Ed25519 so a third party can verify it offline. "
+    "Rule-based, no LLM: the same artifact always yields the same result. "
+    "The request is not signature-signed and replay is not detected: the service does "
+    "not verify a signature you send, it signs the verdict it returns."
+)
 
 
 def resolve_manifest(name: str) -> Path | None:
@@ -1485,7 +1499,13 @@ class AttestHandler(BaseHTTPRequestHandler):
     x402_rpc_url: str | None = os.environ.get("ATTEST_RPC_URL") or None
     # Секрет вызова от api.market. Вызовы с этим заголовком не тратят наш
     # бесплатный лимит и не требуют x402: покупатель платит маркетплейсу.
-    gateway_key: str | None = os.environ.get("ATTEST_GATEWAY_KEY") or None
+    gateway_key: str | None = (os.environ.get("ATTEST_API_MARKET_SECRET")
+                               or os.environ.get("ATTEST_GATEWAY_KEY") or None)
+    # Закрытый режим: без секрета маркетплейса и без оплаченного ключа
+    # вызов отклоняется. По умолчанию выключен — публичная демо-страница
+    # и прямая проверка остаются доступны.
+    require_market_secret: bool = (os.environ.get("ATTEST_REQUIRE_MARKET_SECRET")
+                                   or "").strip().lower() in ("1", "true", "yes", "on")
     confirm_timeout_seconds: float = 3.0
     # nonce'ы уже оплаченных платежей: повтор той же подписи оплатой не считается.
     # С 17.10.2026 лежат на диске (metrics.SpentNonces): раньше перезапуск
@@ -2126,6 +2146,21 @@ class AttestHandler(BaseHTTPRequestHandler):
             })
             return
 
+        # Прямой вызов без секрета маркетплейса и без оплаченного ключа.
+        # Проверяется после подписки: у подписчика доступ уже оплачен.
+        paid_key = self._paid_key_call()
+        if self.require_market_secret and not paid_key:
+            self._refuse_direct_call()
+            return
+        # Оплаченный ключ — как подписка: суточного лимита у него нет,
+        # иначе предъявленный ключ упирался бы в те же 5 проверок.
+        if paid_key:
+            body = self._verify_result(payload, source, paid=None)
+            body["paid"] = True
+            body["free_remaining"] = -1
+            self._send_json(200, body)
+            return
+
         payment_header = self.headers.get("PAYMENT-SIGNATURE") or self.headers.get("X-PAYMENT")
         try:
             self.free_tier.spend(client)
@@ -2190,6 +2225,11 @@ class AttestHandler(BaseHTTPRequestHandler):
         client = self.client_id()
         channel = channel_of(self.path, self.headers.get("Referer"))
 
+        if self._gateway_call():
+            METRICS.check(channel, paid=False, client=self.client_id(),
+                          agent=self.headers.get("User-Agent"))
+            return True
+
         ent_token = self.headers.get(ENT_HEADER)
         ent_ok, ent_why = self._entitlement_access(ent_token)
         if ent_ok:
@@ -2203,6 +2243,14 @@ class AttestHandler(BaseHTTPRequestHandler):
                 "hint": "Buy 30 days of access: https://attest.rta.lat/subscribe",
             })
             return False
+
+        paid_key = self._paid_key_call()
+        if self.require_market_secret and not paid_key:
+            self._refuse_direct_call()
+            return False
+        if paid_key:
+            METRICS.check(channel, paid=False, client=self.client_id())
+            return True
 
         payment_header = (self.headers.get("PAYMENT-SIGNATURE")
                           or self.headers.get("X-PAYMENT"))
@@ -2305,15 +2353,48 @@ class AttestHandler(BaseHTTPRequestHandler):
     def _gateway_call(self) -> bool:
         """Вызов от маркетплейса? Сравнение постоянного времени.
 
-        Проверяем только если секрет задан: без ATTEST_GATEWAY_KEY
+        Проверяем только если секрет задан: без ATTEST_API_MARKET_SECRET
         заголовок не значит ничего — иначе забытая переменная открыла
         бы платный путь кому угодно, кто угадает имя заголовка.
+
+        Секрет принимается в трёх видах, потому что панель маркетплейса
+        умеет и «свой заголовок», и «Bearer»: X-API-Market-Secret,
+        X-API-Market-Key (прежнее имя) и `Authorization: Bearer <секрет>`.
         """
         key = self.gateway_key
         if not key:
             return False
-        supplied = self.headers.get(GATEWAY_HEADER) or ""
+        supplied = (self.headers.get(GATEWAY_HEADER)
+                    or self.headers.get(GATEWAY_HEADER_LEGACY) or "")
+        if not supplied:
+            auth = self.headers.get("Authorization") or ""
+            if auth.startswith("Bearer "):
+                supplied = auth[len("Bearer "):].strip()
         return hmac.compare_digest(supplied, key)
+
+    def _paid_key_call(self) -> bool:
+        """Действующий оплаченный ключ в X-API-Key или Authorization: Bearer."""
+        from . import apikeys
+
+        raw = self.headers.get("X-API-Key") or ""
+        if not raw:
+            auth = self.headers.get("Authorization") or ""
+            if auth.startswith("Bearer "):
+                raw = auth[len("Bearer "):].strip()
+        return bool(raw and apikeys.verify(raw))
+
+    def _refuse_direct_call(self) -> None:
+        """401 для прямого вызова, когда включён ATTEST_REQUIRE_MARKET_SECRET.
+
+        Оплаченные ключи и секрет маркетплейса проходят: закрывается только
+        анонимный путь.
+        """
+        self._send_json(401, {
+            "error": "this endpoint is served through api.market",
+            "hint": ("Call it through the marketplace, or send a paid API key "
+                     "in X-API-Key. Free per-call access is closed."),
+            "buy": f"{self._base_url()}/pay",
+        })
 
     def _handle_entitled(self, payload: dict, source: str,
                          detail: str = "") -> None:

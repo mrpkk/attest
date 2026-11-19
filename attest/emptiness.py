@@ -105,7 +105,7 @@ def _scan_stub(node: Any, path: str, where: str) -> list[EmptinessSignal]:
         kind="stub_value",
         severity="high" if only else "low",
         where=where,
-        evidence=text.strip()[:60] or "(пусто)",
+        evidence=text.strip()[:60] or "(empty)",
         detail=("the field consists entirely of a placeholder" if only
                 else "placeholder word found: " + ", ".join(hits[:3])),
     )]
@@ -189,7 +189,7 @@ def _scan_repetition(node: Any, path: str, where: str) -> list[EmptinessSignal]:
         return []
     return [EmptinessSignal(
         "repetitive_text", "medium", where,
-        f"{len(words)} слов, уникальных {unique:.0%}",
+        f"{len(words)} words, {unique:.0%} of them unique",
         "fewer than a third of words are unique: the text is very likely filler")]
 
 

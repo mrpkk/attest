@@ -514,6 +514,163 @@ class TestMarketplaceGateway:
         finally:
             AttestHandler.free_tier.reset("ip:127.0.0.1")
 
+    def test_secret_header_name_from_review_bypasses_limit(self, server, monkeypatch):
+        """Имя, о котором просил api.market в ревью 19.11.2026.
+
+        Их панель настраивает свой заголовок; заголовок X-API-Market-Key
+        она не отправляла, поэтому покупатель упирался в наш 402.
+        """
+        AttestHandler.free_tier.reset("ip:127.0.0.1")
+        monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 0)
+        monkeypatch.setattr(AttestHandler, "gateway_key", "review-secret")
+        try:
+            status, body = post(
+                f"{server}/verify", {"artifact": {"a": 1}},
+                headers={"X-API-Market-Secret": "review-secret"})
+            assert status == 200
+            assert body["paid"] is True
+            assert body["free_remaining"] == -1
+        finally:
+            monkeypatch.setattr(AttestHandler, "gateway_key", None)
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
+
+    def test_secret_as_bearer_bypasses_limit(self, server, monkeypatch):
+        """Панель, у которой нет «своего заголовка», шлёт Bearer — он тоже годится."""
+        AttestHandler.free_tier.reset("ip:127.0.0.1")
+        monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 0)
+        monkeypatch.setattr(AttestHandler, "gateway_key", "review-secret")
+        try:
+            status, body = post(
+                f"{server}/verify", {"artifact": {"a": 1}},
+                headers={"Authorization": "Bearer review-secret"})
+            assert status == 200
+            assert body["paid"] is True
+        finally:
+            monkeypatch.setattr(AttestHandler, "gateway_key", None)
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
+
+    def test_require_mode_refuses_anonymous_direct_call(self, server, monkeypatch):
+        """ATTEST_REQUIRE_MARKET_SECRET=1 закрывает прямой путь без ключа."""
+        AttestHandler.free_tier.reset("ip:127.0.0.1")
+        monkeypatch.setattr(AttestHandler, "gateway_key", "review-secret")
+        monkeypatch.setattr(AttestHandler, "require_market_secret", True)
+        try:
+            status, body = post(f"{server}/verify", {"artifact": {"a": 1}})
+            assert status == 401
+            assert "api.market" in body["error"]
+        finally:
+            monkeypatch.setattr(AttestHandler, "require_market_secret", False)
+            monkeypatch.setattr(AttestHandler, "gateway_key", None)
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
+
+    def test_require_mode_still_serves_marketplace_and_paid_keys(
+            self, server, monkeypatch, tmp_path):
+        """Закрывается только аноним: маркетплейс и оплаченный ключ проходят."""
+        from attest import apikeys
+
+        monkeypatch.setattr(apikeys, "KEYS_PATH", tmp_path / "api_keys.jsonl")
+        key = apikeys.issue(plan="trial", subject="test", tx="tx", days=7)["key"]
+
+        AttestHandler.free_tier.reset("ip:127.0.0.1")
+        monkeypatch.setattr(AttestHandler, "gateway_key", "review-secret")
+        monkeypatch.setattr(AttestHandler, "require_market_secret", True)
+        try:
+            status, _ = post(
+                f"{server}/verify", {"artifact": {"a": 1}},
+                headers={"X-API-Market-Secret": "review-secret"})
+            assert status == 200
+
+            status, body = post(
+                f"{server}/verify", {"artifact": {"a": 1}},
+                headers={"X-API-Key": key})
+            assert status == 200
+            # Ключ не должен упираться в суточный лимит: он уже оплачен.
+            assert body["free_remaining"] == -1
+        finally:
+            monkeypatch.setattr(AttestHandler, "require_market_secret", False)
+            monkeypatch.setattr(AttestHandler, "gateway_key", None)
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
+
+    def test_paid_key_has_no_daily_limit_in_default_mode(
+            self, server, monkeypatch, tmp_path):
+        """Оплаченный ключ работает и без закрытого режима — иначе ключ бесполезен."""
+        from attest import apikeys
+
+        monkeypatch.setattr(apikeys, "KEYS_PATH", tmp_path / "api_keys.jsonl")
+        key = apikeys.issue(plan="trial", subject="test", tx="tx", days=7)["key"]
+
+        AttestHandler.free_tier.reset("ip:127.0.0.1")
+        monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 0)
+        try:
+            status, body = post(f"{server}/verify", {"artifact": {"a": 1}},
+                                headers={"X-API-Key": key})
+            assert status == 200
+            assert body["paid"] is True
+            assert body["free_remaining"] == -1
+        finally:
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
+
+    def test_default_mode_keeps_direct_path_open(self, server, monkeypatch):
+        """Без ATTEST_REQUIRE_MARKET_SECRET прямой демо-путь не ломается."""
+        AttestHandler.free_tier.reset("ip:127.0.0.1")
+        monkeypatch.setattr(AttestHandler, "require_market_secret", False)
+        monkeypatch.setattr(AttestHandler, "gateway_key", "review-secret")
+        try:
+            status, body = post(f"{server}/verify", {"artifact": {"a": 1}})
+            assert status == 200
+            assert body["paid"] is False
+        finally:
+            monkeypatch.setattr(AttestHandler, "gateway_key", None)
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
+
+
+class TestPublicDescriptionIsHonest:
+    """Ревью api.market 19.11.2026: описание обещало входы, которых нет.
+
+    Проверка ловит именно расхождение «обещано — принимается»: описание и
+    OpenAPI обязаны называть то, что сервис правда проверяет.
+    """
+
+    def test_verify_description_names_real_checks_only(self):
+        from attest.service import VERIFY_DESCRIPTION
+
+        text = VERIFY_DESCRIPTION.lower()
+        assert "schema" in text
+        assert "empty" in text or "hollow" in text
+        assert "injection" in text
+        assert "mandate" in text
+        # Чего сервис не делает — того и в описании быть не должно.
+        assert "does not verify a signature you send" in text
+
+    def test_openapi_documents_every_accepted_field(self, server):
+        status, _ctype, doc = get(f"{server}/openapi.json")
+        assert status == 200
+        props = doc["paths"]["/verify"]["post"]["requestBody"]["content"][
+            "application/json"]["schema"]["properties"]
+        for field in ("artifact", "schema", "source", "generation", "mandate", "action"):
+            assert field in props
+
+    def test_openapi_is_english(self, server):
+        status, _ctype, doc = get(f"{server}/openapi.json")
+        assert status == 200
+        blob = json.dumps(doc, ensure_ascii=False)
+        assert not any("\u0400" <= ch <= "\u04ff" for ch in blob)
+
+    def test_client_visible_findings_are_english(self, server, monkeypatch):
+        """Нарушения схемы видит внешний клиент — они на английском."""
+        AttestHandler.free_tier.reset("ip:127.0.0.1")
+        try:
+            status, body = post(f"{server}/verify", {
+                "artifact": {"a": 1},
+                "schema": {"type": "object", "required": ["b"]},
+            })
+            assert status == 200
+            blob = json.dumps(body["violations"], ensure_ascii=False)
+            assert not any("\u0400" <= ch <= "\u04ff" for ch in blob)
+            assert "required field is missing" in blob
+        finally:
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
+
 
 class TestX402Interop:
     """Челлендж attest обязан разбираться парсером agentpay.
