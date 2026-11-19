@@ -123,6 +123,10 @@ PACK_TIERS = {
 TRIAL_MIN_USD = 0.01
 #: Журнал отказов: от этой суммы /pay/claim выдаёт план deny-30d.
 DENY_PRICE_USD = 29.0
+#: Аудит трат агента продаётся карточной кассой Nidhipati, не x402-кассой attest.
+#: Цена сверена с живой страницей 19.11.2026: `PRICE = "199"`.
+AUDIT_PRICE_USD = 199
+AUDIT_PAY_URL = "https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit"
 
 
 def _env_float(name: str, default: float) -> float:
@@ -471,7 +475,7 @@ def _send_key_email(to: str, token: str, valid_until: int) -> str:
 _PLANS_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>attest — pricing</title>
-<meta name="description" content="attest pricing: a free verifier, an agent spend audit at $500, an Agent Trust Desk pilot at $1,500 then $299/month, and developer access at $0.005 per call or $99 for 30 days.">
+<meta name="description" content="attest pricing: a free verifier, an agent spend audit at $199, an Agent Trust Desk pilot at $1,500 then $299/month, and developer access at $0.005 per call or $99 for 30 days.">
 <link rel="canonical" href="https://attest.rta.lat/plans">
 <style>
  body{background:#0b0d12;color:#e8ecf4;font:16px/1.65 system-ui,sans-serif;max-width:760px;margin:0 auto;padding:44px 22px 80px}
@@ -492,15 +496,17 @@ report a human signs and the log that keeps running when nobody watches.</p>
 
 <h2>Start here</h2>
 <div class="tiers">
- <div class="t"><b>Audit</b><p class="p">$500</p><span class="hint">Flat, five working days: one month of agent logs, one line of evidence per finding. <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">A public sample report</a>.</span></div>
+ <div class="t"><b>Audit</b><p class="p">$199</p><span class="hint">Flat, five working days: one month of agent logs, one line of evidence per finding. <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">A public sample report</a>.</span></div>
  <div class="t"><b>Trust Desk</b><p class="p">$1,500 pilot</p><span class="hint">Ten business days, three artifacts, one revision round; then $299/mo if you keep it running. <a href="/trust-desk">Pay and start intake</a>.</span></div>
  <div class="t"><b>Enterprise</b><p class="p">On request</p><span class="hint">Private reserve confirmation, white-label receipts, the whole engine behind your brand.</span></div>
 </div>
+<p><a class="cta" href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit">Pay by card — $199</a></p>
 <p class="hint">Why start with an audit and not a subscription: a subscription asks to be trusted every month;
 a report can be read once and checked. The monthly re-check makes sense only after an audit found
 something worth watching. If there is nothing to find, the report says so and there is no fee for
 finding nothing.</p>
-<p class="hint"><b>How to order the audit:</b> email
+<p class="hint"><b>How to order the audit:</b> pay by card on the button above — the five working days
+start when the payment shows. Or email
 <a href="mailto:maxim.pkk@gmail.com?subject=agent%20spend%20audit">maxim.pkk@gmail.com</a> — the reply
 carries the scope line and a USDC address on Base (an invoice instead, if you need one). The audit is
 paid before the five working days start; undelivered work is refunded in USDC to the paying address.</p>
@@ -585,8 +591,9 @@ in this window. With an email you get 100 checks and the key by mail.</p>
 • an Ed25519-signed verdict you can verify offline, without trusting this service</p>
 <p class="muted">After 30 days the key simply stops working. If it is useful, $99/30 days
 keeps it running — or $49/30 days for India pricing. If you run agents with wallets, the
-paid product is different: an <strong>audit at $500</strong>,
+paid product is different: an <strong>audit at $199</strong>,
 five working days, one line of evidence per finding — <a href="/plans">pricing</a> ·
+<a href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit">pay by card</a> ·
 <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">sample report</a> ·
 <a href="/demo">demo</a> · <a href="/article">why positional scanning</a></p>
 </div>
@@ -790,12 +797,12 @@ an exhausted quota is reported as an error, never as accepted.</p>
  <div class="t"><b>India (PPP)</b>49 USDC<br><span class="hint">same 30 days, purchasing-power price. <a href="/pay?plan=ppp">Pay</a></span></div>
 </div>
 
-<h2 style="font-size:17px;margin:26px 0 6px">Need a human on it? Audit $500</h2>
+<h2 style="font-size:17px;margin:26px 0 6px">Need a human on it? Audit $199</h2>
 <p class="hint">One month of agent logs, five working days, one line of evidence per finding,
 and a report a human signs — read it once, check it yourself. Nothing found, no fee.
 <a href="/plans">pricing</a> ·
-<a href="https://nidhipati.ailegal.legal/site/sample-spend-audit.html">sample report</a> ·
-<a href="https://nidhipati.ailegal.legal/pay/checkout?product=agent-spend-audit">pay and start intake →</a></p>
+<a href="https://nidhipati.ailegal.legal/site/sample-spend-audit.html">sample report</a></p>
+<p style="margin:10px 0 0"><a href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit" style="display:inline-block;background:#1c6b58;color:#eafff8;text-decoration:none;padding:11px 18px;border-radius:8px;font-weight:600">Pay by card — $199</a></p>
 
 <h2 style="font-size:17px;margin:26px 0 6px">What 99 USDC / 30 days includes</h2>
 <ul class="hint" style="margin:6px 0 0 18px;padding:0">
@@ -940,7 +947,7 @@ review of one artifact is a separate offer, at <a href="/review">/review</a>.</p
      '# किसी भी x402 क्लाइंट से EIP-3009 प्राधिकरण पर हस्ताक्षर करें, फिर:'),
     ('<p class="hint">Source: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nBusinessMCP: <a href="https://businessmcp.com/mcp-servers/attest">marketplace</a> ·\nSet: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/hi">हिन्दी</a></p>',
      '<p class="hint">स्रोत: <a href="https://github.com/mrpkk/attest">github.com/mrpkk/attest</a> ·\nबिज़नेसMCP: <a href="https://businessmcp.com/mcp-servers/attest">मार्केटप्लेस</a> ·\nसेट: <a href="https://indra.rta.lat">indra.rta.lat</a> · <a href="/">English</a></p>'),
-    ('<h2 style="font-size:17px;margin:26px 0 6px">Need a human on it? Audit $500</h2>\n<p class="hint">One month of agent logs, five working days, one line of evidence per finding,\nand a report a human signs — read it once, check it yourself. Nothing found, no fee.\n<a href="/plans">pricing</a> ·\n<a href="https://nidhipati.ailegal.legal/site/sample-spend-audit.html">sample report</a> ·\n<a href="https://nidhipati.ailegal.legal/pay/checkout?product=agent-spend-audit">pay and start intake →</a></p>', '<h2 style="font-size:17px;margin:26px 0 6px">इसमें मानव चाहिए? ऑडिट $500</h2>\n<p class="hint">एक महीने के एजेंट लॉग, पाँच कार्यदिवस, हर निष्कर्ष के लिए एक साक्ष्य पंक्ति,\nऔर मानव द्वारा हस्ताक्षरित रिपोर्ट — एक बार पढ़ें, खुद जाँच लें। कुछ न मिला, तो कोई शुल्क नहीं।\n<a href="/plans">मूल्य</a> ·\n<a href="https://nidhipati.ailegal.legal/site/sample-spend-audit.html">नमूना रिपोर्ट</a> ·\n<a href="https://nidhipati.ailegal.legal/pay/checkout?product=agent-spend-audit">भुगतान करें और शुरू करें →</a></p>'),
+    ('<h2 style="font-size:17px;margin:26px 0 6px">Need a human on it? Audit $199</h2>\n<p class="hint">One month of agent logs, five working days, one line of evidence per finding,\nand a report a human signs — read it once, check it yourself. Nothing found, no fee.\n<a href="/plans">pricing</a> ·\n<a href="https://nidhipati.ailegal.legal/site/sample-spend-audit.html">sample report</a></p>\n<p style="margin:10px 0 0"><a href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit" style="display:inline-block;background:#1c6b58;color:#eafff8;text-decoration:none;padding:11px 18px;border-radius:8px;font-weight:600">Pay by card — $199</a></p>', '<h2 style="font-size:17px;margin:26px 0 6px">इसमें मानव चाहिए? ऑडिट $199</h2>\n<p class="hint">एक महीने के एजेंट लॉग, पाँच कार्यदिवस, हर निष्कर्ष के लिए एक साक्ष्य पंक्ति,\nऔर मानव द्वारा हस्ताक्षरित रिपोर्ट — एक बार पढ़ें, खुद जाँच लें। कुछ न मिला, तो कोई शुल्क नहीं।\n<a href="/plans">मूल्य</a> ·\n<a href="https://nidhipati.ailegal.legal/site/sample-spend-audit.html">नमूना रिपोर्ट</a></p>\n<p style="margin:10px 0 0"><a href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit" style="display:inline-block;background:#1c6b58;color:#eafff8;text-decoration:none;padding:11px 18px;border-radius:8px;font-weight:600">कार्ड से भुगतान करें — $199</a></p>'),
 )
 
 

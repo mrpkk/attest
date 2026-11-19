@@ -481,7 +481,7 @@ document.getElementById('send').onclick = async () => {
 
 <h2>What the free scan is not</h2>
 <ul>
-<li>Not a signed report and not the $500 audit: no per-finding evidence lines, no revision round.</li>
+<li>Not a signed report and not the $199 audit: no per-finding evidence lines, no revision round.</li>
 <li>Not an automated verdict. A person reads the file; that is why the reply takes up to a business day.</li>
 <li>Not a place to send secrets. Strip API keys from the CSV — the scan needs amounts, not credentials.</li>
 </ul>
@@ -591,9 +591,11 @@ SAMPLE_AUDIT_BODY = """
 
 <section class="page">
  <div class="kicker">Page 6 · order</div>
- <h2>One month of logs. Five working days. $500.</h2>
+ <h2>One month of logs. Five working days. $199.</h2>
  <p>Send a CSV export, one line about the agents and the policy you expected. You get a written PDF, a JSON file with the same findings, and a signed verdict you can check offline. If the file shows nothing, there is no fee.</p>
- <p><a class="btn" href="/free-scan">First, run the free scan</a> <a class="btn" href="/plans">Prices and scope</a></p>
+ <p><a class="btn" href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit">Pay by card — $199</a>
+ <a class="btn" href="/free-scan">First, run the free scan</a>
+ <a class="btn" href="/plans">Prices and scope</a></p>
  <p class="note">This sample is synthetic: it exists to show the report, not to claim a client result. The audit is not KYC, not a statutory audit and not a guarantee of recovery.</p>
 </section>
 </div>
@@ -603,5 +605,5 @@ SAMPLE_AUDIT_BODY = """
 def sample_audit_page() -> str:
     return _shell("Agent spend audit — six-page synthetic sample",
                   "A six-page synthetic sample of an AI-agent spend audit: summary, findings, "
-                  "limits and what the $500 report contains. Not a client result.",
+                  "limits and what the $199 report contains. Not a client result.",
                   "/sample-audit", SAMPLE_AUDIT_BODY)

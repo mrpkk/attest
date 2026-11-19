@@ -16,7 +16,7 @@ Refusal evidence for agents ($99 / 30 days): **<https://attest.rta.lat/deny-evid
 Conformance corpus, CC0: [`conformance/receipt-vectors.json`](conformance/receipt-vectors.json) — 12 vectors
 including five that must be rejected. A Python and a browser implementation agree on all twelve.
 
-Pricing: the verifier is free, forever. An **audit of what your agents spent** is $500 flat —
+Pricing: the verifier is free, forever. An **audit of what your agents spent** is $199 flat —
 ten working days, one line of evidence per finding. Developer access for pipelines:
 $0.005 per call over x402 (USDC on Base), or $99 for 30 days ($49 at India purchasing-power parity).
 

@@ -1308,7 +1308,8 @@ def test_sample_audit_is_six_pages_and_labeled_synthetic(server):
     assert html.count('class="page"') == 6
     assert "Synthetic sample" in html
     assert "not a client" in html
-    assert "$500" in html
+    assert "$199" in html
+    assert "pay/card?product=agent-spend-audit" in html
     with urllib.request.urlopen(f"{server}/sitemap.xml", timeout=10) as r:
         sitemap = r.read().decode("utf-8")
     assert "/sample-audit" in sitemap

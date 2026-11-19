@@ -30,10 +30,12 @@ from attest.article import ARTICLE_HTML  # noqa: E402
 from attest.eu_ai_act_page import EU_HTML  # noqa: E402
 from attest.mcp_pages import SEO_PAGES, mcp_pass_page, seo_page  # noqa: E402
 from attest.product_pages import (  # noqa: E402
-    eu_ai_act_page, mcp_security_page, proof_of_place_page, trust_desk_page,
+    eu_ai_act_page, mcp_security_page, proof_of_place_page, sample_audit_page,
+    trust_desk_page,
 )
 from attest.service import (  # noqa: E402
-    DENY_PRICE_USD, LANDING, PACK_TIERS, PRICING, TRIAL_MIN_USD, AttestHandler, _PLANS_HTML,
+    AUDIT_PAY_URL, AUDIT_PRICE_USD, DENY_PRICE_USD, LANDING, PACK_TIERS, PRICING,
+    TRIAL_MIN_USD, AttestHandler, _PLANS_HTML,
 )
 
 PAY_TO = "0xefCD6886f73064ea9EcbaA4741Ef1309A0885C59"
@@ -53,7 +55,7 @@ def tier_prices(product: str) -> set[str]:
 def catalogue() -> set[str]:
     """Все суммы, которые attest реально выставляет."""
     prices = {str(int(entitlement.PRICE_USD)), f"{AttestHandler.ppp_price_usd:g}",
-              f"{DENY_PRICE_USD:g}", f"{TRIAL_MIN_USD:g}",
+              f"{DENY_PRICE_USD:g}", f"{TRIAL_MIN_USD:g}", str(AUDIT_PRICE_USD),
               str(PRICING["per_call"]["price"]), str(PRICING["free"]["price"])}
     for product in PACK_TIERS:
         prices |= tier_prices(product)
@@ -125,6 +127,22 @@ def test_no_page_names_a_price_the_cashier_cannot_charge(page: str):
     """Сквозная проверка: каждая сумма на витрине существует в кассе."""
     extra = money(SELLING_PAGES[page]) - catalogue()
     assert not extra, f"{page} называет цену вне кассы: {sorted(extra)}"
+
+
+@pytest.mark.parametrize("page,html", [
+    ("/plans", _PLANS_HTML),
+    ("/", LANDING),
+    ("/sample-audit", sample_audit_page()),
+], ids=["plans", "landing", "sample-audit"])
+def test_audit_cta_is_a_card_payment_at_the_real_price(page: str, html: str):
+    """Аудит оплачивается картой на кассе Nidhipati, а не письмом «пришлите перевод».
+
+    19.11.2026: касса отдаёт PRICE = "199", страницы называли $500 — человек читал
+    одну сумму, платил другую. Кнопка и цена теперь на всех трёх страницах аудита.
+    """
+    assert AUDIT_PAY_URL in html, f"{page}: нет ссылки на карточную кассу"
+    assert f"${AUDIT_PRICE_USD}" in html, f"{page}: нет цены ${AUDIT_PRICE_USD}"
+    assert "$500" not in html, f"{page}: осталась старая цена $500"
 
 
 @pytest.mark.parametrize("slug", sorted(SEO_PAGES))
