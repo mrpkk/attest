@@ -420,8 +420,21 @@ def mcp_security_page(pay_to: str) -> str:
 FREE_SCAN_BODY = """
 <h1>Send one CSV, see where your agent's money went</h1>
 <p class="lead">A free scan of one spend log: a human reads the file and replies within one business day
-with what it shows, what it cannot show, and whether a $500 audit would find anything more.
+with what it shows, what it cannot show, and whether a $199 audit would find anything more.
 No GitHub, no account, no card.</p>
+
+<!-- Воронка: после скана человек видит следующий шаг здесь же, а не ищет его сам.
+     Нажатие отмечается маячком — без этого «free scan → аудит» измерить нечем. -->
+<div class="box" id="after-scan">
+<h3>After the scan</h3>
+<p>If the file shows money that left without a reason, the next step is the audit: one month of logs,
+five working days, a written report where every finding is tied to a row and a rule. $199 flat,
+nothing found — no fee.</p>
+<p><a id="audit-cta" class="btn" href="/plans#audit"
+ onclick="try{navigator.sendBeacon('/api/audit-intent')}catch(e){}">See the $199 audit</a>
+ <a class="btn" href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit"
+ onclick="try{navigator.sendBeacon('/api/audit-intent')}catch(e){}">Pay by card — $199</a></p>
+</div>
 
 <h2>What file to send</h2>
 <p>A CSV export of what your agent spent — from your billing dashboard, your wallet indexer,

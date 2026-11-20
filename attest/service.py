@@ -2634,6 +2634,14 @@ document.getElementById('go').onclick = async () => {{
         self._send_json(200, {
             "ok": True, "request_id": request_id, "message": message,
             "rows": parsed["rows"], "columns": parsed["columns"], "missing": missing,
+            # Следующий шаг отдаём вместе с ответом: через день человек уже
+            # не вспомнит, что мы делаем ещё и аудит.
+            "next_step": {
+                "audit": "https://attest.rta.lat/plans#audit",
+                "pay": "https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit",
+                "note": "If the file shows unexplained spend, the $199 audit covers one month "
+                        "of logs with one line of evidence per finding. Nothing found — no fee.",
+            },
         })
 
     def _handle_pop_build(self) -> None:

@@ -91,3 +91,32 @@ def test_plans_page_carries_the_beacon(server):
     with urllib.request.urlopen(f"{server}/plans", timeout=10) as r:
         html = r.read().decode()
     assert "/api/audit-intent" in html, "кнопка аудита должна сообщать о нажатии"
+
+
+# ── следующий шаг после бесплатного скана ─────────────────────────────────
+
+CSV = "date,amount,asset,payee,tx_hash\n2026-11-01,0.42,USDC,api.vendor.example,0xabc123\n"
+
+
+def test_free_scan_page_offers_the_audit_with_beacon(server):
+    with urllib.request.urlopen(f"{server}/free-scan", timeout=10) as r:
+        html = r.read().decode()
+    assert 'id="after-scan"' in html, "после скана должен быть виден следующий шаг"
+    assert "/api/audit-intent" in html and "199" in html
+
+
+def test_scan_response_carries_next_step(server, tmp_path, monkeypatch):
+    """Ответ скана обязан называть платный шаг: через день это никто не вспомнит."""
+    import attest.service as svc
+
+    monkeypatch.setattr(svc.AttestHandler, "leads_path", tmp_path / "leads.jsonl")
+    monkeypatch.setattr(svc.AttestHandler, "free_scans_dir", tmp_path / "free_scans")
+    body = json.dumps({"email": "buyer@rta.lat", "csv": CSV}).encode()
+    req = urllib.request.Request(f"{server}/api/free-scan", data=body,
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=15) as r:
+        assert r.status == 200
+        data = json.loads(r.read().decode())
+    step = data["next_step"]
+    assert "plans#audit" in step["audit"] and "agent-spend-audit" in step["pay"]
+    assert "no fee" in step["note"].lower()
