@@ -417,6 +417,19 @@ def mcp_security_page(pay_to: str) -> str:
                   "/mcp-security", MCP_SECURITY_BODY.replace("__PAY__", pay))
 
 
+FREE_SCAN_SCHEMA = """<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Service",
+ "name":"Free agent spend scan",
+ "description":"Send one CSV of an AI agent's spend log; a human replies within one business day with what the file shows and what it cannot.",
+ "provider":{"@type":"Organization","name":"attest","url":"https://attest.rta.lat"},
+ "areaServed":"Worldwide",
+ "offers":{"@type":"Offer","price":"0","priceCurrency":"USD",
+  "availability":"https://schema.org/InStock","url":"https://attest.rta.lat/free-scan"},
+ "isRelatedTo":{"@type":"Service","name":"Agent spend audit",
+  "offers":{"@type":"Offer","price":"199","priceCurrency":"USD",
+            "url":"https://attest.rta.lat/plans#audit"}}}
+</script>"""
+
 FREE_SCAN_BODY = """
 <h1>Send one CSV, see where your agent's money went</h1>
 <p class="lead">A free scan of one spend log: a human reads the file and replies within one business day
@@ -508,10 +521,12 @@ one line of evidence per finding, nothing found means no fee. <a href="/plans">P
 
 
 def free_scan_page() -> str:
+    # Разметку кладём в начало тела: _shell отвечает за <head>, но JSON-LD
+    # валиден и в теле, а поисковики читают его откуда угодно.
     return _shell("Free agent spend scan — send one CSV, no GitHub",
                   "Free scan of an AI agent's spend log: send a CSV by email, get a written reply "
                   "within one business day. No GitHub, no account, no card.",
-                  "/free-scan", FREE_SCAN_BODY)
+                  "/free-scan", FREE_SCAN_SCHEMA + FREE_SCAN_BODY)
 
 
 

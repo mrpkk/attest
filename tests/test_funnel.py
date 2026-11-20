@@ -120,3 +120,26 @@ def test_scan_response_carries_next_step(server, tmp_path, monkeypatch):
     step = data["next_step"]
     assert "plans#audit" in step["audit"] and "agent-spend-audit" in step["pay"]
     assert "no fee" in step["note"].lower()
+
+
+# ── находимость: разметка и llms.txt ──────────────────────────────────────
+
+def test_free_scan_page_has_structured_data(server):
+    """Поиск и AI-краулеры читают разметку; без неё страница — просто текст."""
+    with urllib.request.urlopen(f"{server}/free-scan", timeout=10) as r:
+        html = r.read().decode()
+    assert 'application/ld+json' in html
+    import re
+    m = re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.S)
+    data = json.loads(m.group(1))
+    assert data["@type"] == "Service"
+    assert data["offers"]["price"] == "0"
+    assert data["isRelatedTo"]["offers"]["price"] == "199"
+
+
+def test_llms_txt_names_the_free_entry_and_the_paid_step():
+    """llms.txt — вход для AI-краулеров: без него о бесплатном скане не узнают."""
+    from pathlib import Path
+    text = (Path(__file__).resolve().parents[1] / "llms.txt").read_text(encoding="utf-8")
+    assert "free-scan" in text and "199" in text
+    assert "api/funnel" in text
