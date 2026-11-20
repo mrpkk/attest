@@ -1351,7 +1351,7 @@ def _server_card() -> dict:
             "inputSchema": tool["inputSchema"],
         })
     return {
-        "serverInfo": {"name": "attest", "version": "0.1.0"},
+        "serverInfo": {"name": "attest", "version": __version__},
         "authentication": {"required": False, "schemes": []},
         "tools": tools,
         "resources": [],

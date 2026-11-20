@@ -139,5 +139,6 @@
     }
   ],
   "resources": [],
-  "prompts": []
+  "prompts": [],
+  "version": "0.2.0"
 }

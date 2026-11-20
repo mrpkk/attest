@@ -1475,3 +1475,26 @@ def test_sample_audit_is_six_pages_and_labeled_synthetic(server):
     with urllib.request.urlopen(f"{server}/sitemap.xml", timeout=10) as r:
         sitemap = r.read().decode("utf-8")
     assert "/sample-audit" in sitemap
+
+
+def test_version_is_single_source(server):
+    """Каталоги, /health и карточка обязаны называть одну версию.
+
+    21.11.2026: registry и server.json говорили 0.1.1, живой /health — 0.1.0.
+    Агент сравнивает версии, и расхождение читается как «сервер не тот».
+    """
+    import json as _json
+    import urllib.request as _u
+    import attest
+
+    with _u.urlopen(f"{server}/health", timeout=10) as r:
+        health = _json.loads(r.read().decode())
+    assert health["version"] == attest.__version__
+
+    with _u.urlopen(f"{server}/.well-known/mcp/server-card.json", timeout=10) as r:
+        card = _json.loads(r.read().decode())
+    assert card["serverInfo"]["version"] == attest.__version__
+
+    from pathlib import Path
+    server_json = _json.loads((Path(__file__).resolve().parents[1] / "server.json").read_text())
+    assert server_json["version"] == attest.__version__
