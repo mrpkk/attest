@@ -172,6 +172,13 @@ class Metrics:
     # Заявки на пакет раннего доступа (лид-магнит). Считаем, но не храним
     # почту в метриках — она лежит отдельно, в leads.jsonl.
     leads: int = 0
+    # Бесплатные сканы расходов (CSV прислан, разбор ещё не оплачен).
+    # Отдельно от leads: лид-магнит «пакет раннего доступа» и скан расходов —
+    # разные входы, и складывать их в одно число значит врать самому себе.
+    free_scans: int = 0
+    # Сколько раз человек, получив бесплатный скан, нажал «аудит $199».
+    # Это единственный шаг, где видно, превращается ли бесплатный разбор в заявку.
+    audit_intents: int = 0
     # Сколько раз клиент упёрся в бесплатный лимит и получил 402.
     # Это единственная метрика, которая показывает, доходит ли кто-то до
     # платного барьера: 100 проверок без единого 402 значат «никто не
@@ -247,6 +254,24 @@ class Metrics:
             return
         with self._lock:
             self.pay_attempts += 1
+            self._touch()
+        self.save()
+
+    def free_scan(self) -> None:
+        """Пришёл бесплатный скан — вход воронки, ещё не деньги."""
+        if not self.enabled:
+            return
+        with self._lock:
+            self.free_scans += 1
+            self._touch()
+        self.save()
+
+    def audit_intent(self) -> None:
+        """Нажали «аудит $199» после скана: заявка, а не просмотр."""
+        if not self.enabled:
+            return
+        with self._lock:
+            self.audit_intents += 1
             self._touch()
         self.save()
 
@@ -399,6 +424,10 @@ class Metrics:
                 "unique_payers": len(self.payers),
                 "agents": {k: int(v[2]) for k, v in sorted(self.agents.items())},
                 "leads_total": self.leads,
+                "free_scans": self.free_scans,
+                "audit_intents": self.audit_intents,
+                "free_scan_to_audit": (
+                    f"{self.audit_intents / self.free_scans:.3f}" if self.free_scans else "—"),
                 "paywall_hits": self.paywall,
                 "pay_attempts": self.pay_attempts,
                 "by_channel": dict(sorted(self.paid.items())),
@@ -438,6 +467,8 @@ class Metrics:
         self.pay_attempts = int(data.get("pay_attempts") or 0)
         self.revenue_atoms = int(data.get("revenue_atoms") or 0)
         self.leads = int(data.get("leads") or 0)
+        self.free_scans = int(data.get("free_scans") or 0)
+        self.audit_intents = int(data.get("audit_intents") or 0)
         self.first_event = float(data.get("first_event") or 0)
         self.last_event = float(data.get("last_event") or 0)
 
@@ -459,6 +490,8 @@ class Metrics:
                 "views": self.views, "checks": self.checks,
                 "paid": self.paid, "revenue_atoms": self.revenue_atoms,
                 "payers": self.payers, "leads": self.leads,
+                "free_scans": self.free_scans,
+                "audit_intents": self.audit_intents,
                 "paywall": self.paywall,
                 # Без этой строки поле жило только в памяти: файл его не
                 # сохранял, и после рестарта «попытки оплаты» всегда читались
@@ -471,6 +504,7 @@ class Metrics:
             }
             empty = not any((self.views, self.checks, self.paid, self.payers,
                              self.paywall, self.pay_attempts, self.leads,
+                             self.free_scans, self.audit_intents,
                              self.clients, self.agents, self.revenue_atoms))
         # 23.10.2026: история за три дня обнулилась — поверх файла лёг пустой
         # снимок от процесса, который не поднял состояние с диска. Терять

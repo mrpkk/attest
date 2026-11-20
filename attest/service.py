@@ -512,7 +512,8 @@ report a human signs and the log that keeps running when nobody watches.</p>
  <div class="t"><b>Trust Desk</b><p class="p">$1,500 pilot</p><span class="hint">Ten business days, three artifacts, one revision round; then $299/mo if you keep it running. <a href="/trust-desk">Pay and start intake</a>.</span></div>
  <div class="t"><b>Enterprise</b><p class="p">On request</p><span class="hint">Private reserve confirmation, white-label receipts, the whole engine behind your brand.</span></div>
 </div>
-<p><a class="cta" href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit">Pay by card — $199</a></p>
+<p><a class="cta" id="audit-cta" href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit"
+ onclick="try{navigator.sendBeacon('/api/audit-intent')}catch(e){}">Pay by card — $199</a></p>
 <p class="hint">Why start with an audit and not a subscription: a subscription asks to be trusted every month;
 a report can be read once and checked. The monthly re-check makes sense only after an audit found
 something worth watching. If there is nothing to find, the report says so and there is no fee for
@@ -1585,6 +1586,19 @@ class AttestHandler(BaseHTTPRequestHandler):
             METRICS.view(channel_of(self.path, self.headers.get("Referer")),
                          agent=self.headers.get("User-Agent"))
             METRICS.save()
+        if path == "/api/funnel":
+            snap = METRICS.snapshot()
+            self._send_json(200, {
+                "views": snap["listing_views_total"],
+                "free_scans": snap["free_scans"],
+                "audit_intents": snap["audit_intents"],
+                "free_scan_to_audit": snap["free_scan_to_audit"],
+                "leads": snap["leads_total"],
+                "pay_attempts": snap["pay_attempts"],
+                "paid_actions": snap["successful_paid_actions"],
+                "paywall_hits": snap["paywall_hits"],
+            })
+            return
         if path == "/pay":
             self._send(200, self._pay_page().encode(), "text/html; charset=utf-8")
         elif path == "/thanks":
@@ -1964,6 +1978,13 @@ class AttestHandler(BaseHTTPRequestHandler):
             return self._handle_pack_order(product="eu_ai_act", tiers=PACK_TIERS["eu_ai_act"])
         if path == "/api/mcp-security/order":
             return self._handle_pack_order(product="mcp_security", tiers=PACK_TIERS["mcp_security"])
+        if path == "/api/audit-intent":
+            # Маячок с кнопки «аудит $199»: тела нет, ответ 204 — страницу не ждём.
+            METRICS.audit_intent()
+            self.send_response(204)
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
         if path == "/api/free-scan":
             return self._handle_free_scan()
         if path == "/deny":
@@ -2604,7 +2625,7 @@ document.getElementById('go').onclick = async () => {{
         except OSError as exc:
             self._send_json(500, {"error": f"could not store the request: {exc}"})
             return
-        METRICS.lead()
+        METRICS.free_scan()
         message = "Request received — we will reply within one business day."
         missing = list(parsed["missing"])
         if missing:
