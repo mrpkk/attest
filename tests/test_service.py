@@ -1319,6 +1319,11 @@ def test_plans_page_is_human_readable(server):
     assert "text/html" in r.headers.get("Content-Type", "")
     for needle in ("99 USDC", "49 USDC", "India (PPP)", 'href="/start"'):
         assert needle in html, f"на странице цен нет {needle}"
+    # Шапка: два входа, которые нужны до оплаты — листинг на API.market и
+    # бесплатный скан. Без них страница цен — тупик для того, кто не готов платить.
+    for needle in ('href="https://api.market/store/attest"', 'class="scan" href="/free-scan"',
+                   'aria-label="Where to start"'):
+        assert needle in html, f"в шапке /plans нет {needle}"
     # машинный прайс остался на месте и совпадает со страницей
     with urllib.request.urlopen(f"{server}/pricing", timeout=10) as r2:
         data = json.loads(r2.read().decode("utf-8"))

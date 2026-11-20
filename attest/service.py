@@ -492,7 +492,16 @@ _PLANS_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
  a{color:#7fd1b9} code{background:#171b21;padding:2px 6px;border-radius:4px;font-size:14px}
  .cta{display:inline-block;background:#1c6b58;color:#eafff8;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600;margin:8px 0}
  ul{color:#c3cad4} li{margin:0 0 6px}
+ .top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+  border-bottom:1px solid #232a33;padding:0 0 12px;margin:0 0 18px;font-size:14px}
+ .top a{text-decoration:none} .top .l{display:flex;gap:14px;flex-wrap:wrap}
+ .top .scan{border:1px solid #1c6b58;border-radius:8px;padding:6px 11px;color:#7fd1b9}
 </style></head><body>
+<nav class="top" aria-label="Where to start">
+ <span class="l"><a href="/">attest</a> · <a href="https://api.market/store/attest">API.market listing</a>
+ · <a href="/sample-audit">sample audit</a></span>
+ <a class="scan" href="/free-scan">Free scan — send one CSV</a>
+</nav>
 <h1>Pricing</h1>
 <p class="s">One ladder, five lines. The verifier is free and stays free; the money is in the
 report a human signs and the log that keeps running when nobody watches.</p>
