@@ -23,7 +23,10 @@ sys.path.insert(0, str(ROOT))
 from attest import alerts  # noqa: E402
 
 BASE = "https://attest.rta.lat"
-CHECKS = ("/health", "/stats")
+# Проверяем не только «жив», но и путь продажи: страница бесплатного скана и
+# счётчик воронки. Упавший /free-scan — это потерянный покупатель, а /health при
+# этом может отвечать 200.
+CHECKS = ("/health", "/free-scan", "/api/funnel")
 STATE = ROOT / "data" / "watchdog.json"
 
 

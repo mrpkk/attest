@@ -109,11 +109,11 @@ def test_watchdog_alerts_on_change_only(tmp_path):
     assert res["status"] == "ok" and len(sent) == 2 and "снова" in sent[1]
 
 
-def test_watchdog_reports_both_checks(tmp_path):
+def test_watchdog_reports_every_failing_check(tmp_path):
     res = wd.run_once(tmp_path / "w.json", probes=lambda url: 200 if url.endswith("/health") else 500,
                       send=lambda text: (True, ""))
     assert res["status"] == "down"
-    assert res["bad"] == {"/stats": 500}
+    assert set(res["bad"]) == {"/free-scan", "/api/funnel"}
 
 
 def test_service_reports_5xx_to_alerts():
@@ -121,3 +121,32 @@ def test_service_reports_5xx_to_alerts():
     src = (ROOT / "attest" / "service.py").read_text(encoding="utf-8")
     assert "alert_errors()" in src
     assert "if status >= 500" in src
+
+
+def test_health_reports_whether_alerts_can_be_delivered(monkeypatch):
+    """Неготовый webhook должен быть виден до аварии, а не выясняться после."""
+    monkeypatch.setenv("ATTEST_SLACK_WEBHOOK", "https://hooks.example/abc")
+    assert alerts.webhook_configured() is True
+    monkeypatch.delenv("ATTEST_SLACK_WEBHOOK", raising=False)
+    monkeypatch.setattr(alerts, "_env_value", lambda key: "")
+    assert alerts.webhook_configured() is False
+
+
+def test_watchdog_probes_the_sale_path_not_only_health():
+    """Упавшая страница скана — потерянный покупатель, даже если /health отвечает."""
+    assert "/free-scan" in wd.CHECKS
+    assert "/api/funnel" in wd.CHECKS
+
+
+def test_watchdog_reports_which_sale_path_check_failed(tmp_path):
+    codes = {"/health": 200, "/free-scan": 500, "/api/funnel": 200}
+
+    def probe(url):
+        for path, code in codes.items():
+            if url.endswith(path):
+                return code
+        return 0
+
+    res = wd.run_once(tmp_path / "w.json", probes=probe, send=lambda text: (True, ""))
+    assert res["status"] == "down"
+    assert res["bad"] == {"/free-scan": 500}

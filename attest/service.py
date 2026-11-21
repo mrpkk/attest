@@ -1636,7 +1636,13 @@ class AttestHandler(BaseHTTPRequestHandler):
             from .store_page import store_page
             self._send_html(store_page())
         elif path == "/health":
-            self._send_json(200, {"status": "ok", "version": __version__})
+            # Состояние алертов видно в healthcheck: если webhook не настроен,
+            # «тревога ушла» — это только строчка в логе, и знать об этом надо
+            # до аварии, а не после.
+            from .alerts import webhook_configured
+
+            self._send_json(200, {"status": "ok", "version": __version__,
+                                  "alerts": {"slack_webhook": webhook_configured()}})
         elif path == "/stats":
             client = self.client_id()
             self._send_json(200, {
