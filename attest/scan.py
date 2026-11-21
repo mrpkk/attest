@@ -9,11 +9,14 @@
 """
 from __future__ import annotations
 
+import ipaddress
 import json
 import re
+import socket
 import urllib.error
 import urllib.request
 from html import escape
+from urllib.parse import urlsplit
 
 TIMEOUT = 12
 UA = "attest-scan/0.1 (+https://attest.rta.lat/scan)"
@@ -25,7 +28,53 @@ CONTROL_WORDS = ("budget", "limit", "cap", "quota", "kill", "stop", "pause",
                  "receipt", "audit", "spend", "approval", "policy")
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Редирект — это обход проверки адреса: не ходим за ним.
+
+    Без этого `https://evil.example → http://127.0.0.1:8291/pay/...` превращает
+    скан в SSRF-прокси одним запросом.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D102
+        raise urllib.error.HTTPError(req.full_url, code,
+                                     "redirects are not followed by the scanner",
+                                     headers, fp)
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
+def assert_public_url(url: str) -> None:
+    """Разрешаем только публичные http(s)-адреса.
+
+    Проверяем и имя, и **все** адреса, которые оно резолвит: `localhost`,
+    `127.0.0.1`, `169.254.169.254` (метаданные облака), `10/8`, `192.168/16`,
+    `::1` — всё это внутренняя сеть, а не MCP-сервер клиента.
+    """
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https"):
+        raise RuntimeError("url must be http:// or https://")
+    host = (parts.hostname or "").strip().lower()
+    if not host:
+        raise RuntimeError("url has no host")
+    if host in ("localhost", "localhost.localdomain") or host.endswith(".localhost"):
+        raise RuntimeError("internal address is not allowed")
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError as exc:
+        raise RuntimeError(f"host does not resolve: {type(exc).__name__}") from exc
+    for info in infos:
+        addr = info[4][0]
+        try:
+            ip = ipaddress.ip_address(addr.split("%", 1)[0])
+        except ValueError:
+            raise RuntimeError("host resolves to an unparsable address") from None
+        if not ip.is_global:
+            raise RuntimeError("internal address is not allowed")
+
+
 def _rpc(url: str, payload: dict, session: str = "") -> tuple[dict, str]:
+    assert_public_url(url)
     """Один JSON-RPC вызов. Возвращает (ответ, id сессии). Понимает SSE."""
     body = json.dumps(payload).encode()
     headers = {
@@ -36,7 +85,7 @@ def _rpc(url: str, payload: dict, session: str = "") -> tuple[dict, str]:
     if session:
         headers["Mcp-Session-Id"] = session
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+    with _OPENER.open(req, timeout=TIMEOUT) as resp:
         sid = resp.headers.get("Mcp-Session-Id", session)
         raw = resp.read(2_000_000).decode("utf-8", "ignore")
         ctype = resp.headers.get("Content-Type", "")
@@ -141,6 +190,7 @@ def analyze(tools: list[dict]) -> dict:
 
 
 def scan(url: str) -> dict:
+    assert_public_url(url)
     tools = fetch_tools(url)
     result = analyze(tools)
     result["url"] = url
