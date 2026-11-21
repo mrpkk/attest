@@ -500,6 +500,7 @@ _PLANS_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
 <nav class="top" aria-label="Where to start">
  <span class="l"><a href="/">attest</a> · <a href="https://api.market/store/attest">API.market listing</a>
  · <a href="/sample-audit">sample audit</a></span>
+ <a class="scan" href="/scan">Scan your MCP server</a>
  <a class="scan" href="/free-scan">Free scan — send one CSV</a>
 </nav>
 <h1>Pricing</h1>
@@ -1495,6 +1496,8 @@ class AttestHandler(BaseHTTPRequestHandler):
     # заявками, а в журнал идёт только хеш. Отдельный каталог, чтобы человек
     # мог удалить расходы одного клиента, не трогая журнал.
     free_scans_dir: Path = STATE_PATH.with_name("free_scans")
+    # Лиды скана MCP-серверов (21.11.2026): только url/находки/время, без токенов.
+    scan_leads_path: Path = STATE_PATH.with_name("scan_leads.jsonl")
     # Сеть счёта. Раньше сеть была жёстко mainnet, а ATTEST_NETWORK в конфиге
     # службы не читался нигде: переменная совпадала с умолчанием и потому
     # молчала ровно тогда, когда её меняют на тестнет. Из-за этого платёжный
@@ -1614,6 +1617,9 @@ class AttestHandler(BaseHTTPRequestHandler):
             # неё идёт в HN и каталоги, и она же работает на SEO.
             from .article import ARTICLE_HTML
             self._send(200, ARTICLE_HTML.encode(), "text/html; charset=utf-8")
+        elif path == "/scan":
+            from .scan import scan_page
+            self._send_html(scan_page())
         elif path == "/health":
             self._send_json(200, {"status": "ok", "version": __version__})
         elif path == "/stats":
@@ -1987,6 +1993,8 @@ class AttestHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/free-scan":
             return self._handle_free_scan()
+        if path == "/api/scan":
+            return self._handle_scan()
         if path == "/deny":
             from .apikeys import consume as consume_key
             raw_key = (self.headers.get("X-API-Key")
@@ -2587,6 +2595,57 @@ document.getElementById('go').onclick = async () => {{
             "amount_usd": amount_usd, "tx": transfer.tx_hash, "payer": transfer.payer,
             "block": transfer.block, "next": next_step,
         })
+
+    # Скан MCP-сервера: 10 в час на IP, без аккаунта. Журнал — только лиды,
+    # без содержимого инструментов и без токенов.
+    _scan_hits: dict = {}
+
+    def _scan_allowed(self) -> bool:
+        ip = self.client_id()
+        now = time.time()
+        hits = [t for t in self.__class__._scan_hits.get(ip, []) if now - t < 3600]
+        if len(hits) >= 10:
+            self.__class__._scan_hits[ip] = hits
+            return False
+        hits.append(now)
+        self.__class__._scan_hits[ip] = hits
+        return True
+
+    def _handle_scan(self) -> None:
+        """POST /api/scan {url, email?} → находки по MCP-серверу."""
+        if not self._scan_allowed():
+            self._send_json(429, {"error": "too many scans, try again in an hour"})
+            return
+        payload = self._read_json()
+        if payload is None:
+            return
+        url = str(payload.get("url") or "").strip()
+        if not re.match(r"^https?://", url) or len(url) > 500:
+            self._send_json(400, {"error": "url must start with http:// or https://"})
+            return
+        from . import scan as scan_mod
+        try:
+            result = scan_mod.scan(url)
+        except RuntimeError as exc:
+            self._send_json(400, {"error": str(exc)[:200]})
+            return
+        except Exception as exc:  # noqa: BLE001 — наружу отдаём понятную причину
+            self._send_json(400, {"error": f"scan failed: {type(exc).__name__}"})
+            return
+        email = str(payload.get("email") or "").strip()[:200]
+        if email and EMAIL_RE.fullmatch(email):
+            try:
+                record = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                          "email": email, "url": url,
+                          "tools": result.get("tools"), "score": result.get("score"),
+                          "findings": [f["title"] for f in result.get("findings", [])]}
+                self.scan_leads_path.parent.mkdir(parents=True, exist_ok=True)
+                with self.scan_leads_path.open("a", encoding="utf-8") as fh:
+                    fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+            except OSError:
+                pass
+        result.pop("url", None)
+        self._send_json(200, result)
 
     def _handle_free_scan(self) -> None:
         """Заявка на бесплатный скан расходов: почта + CSV (S6.5, 18.11.2026).
