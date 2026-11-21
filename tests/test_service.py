@@ -1498,3 +1498,23 @@ def test_version_is_single_source(server):
     from pathlib import Path
     server_json = _json.loads((Path(__file__).resolve().parents[1] / "server.json").read_text())
     assert server_json["version"] == attest.__version__
+
+
+def test_registry_manifest_takes_version_from_package():
+    """Версия в публикаторе не должна быть копией: иначе каталог отстаёт молча.
+
+    21.11.2026: в publish_registry.py стояло 0.1.0, в коде 0.2.0.
+    """
+    import importlib.util
+    from pathlib import Path
+
+    import attest
+
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location("publish_registry", root / "publish_registry.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod._pkg_version() == attest.__version__
+    doc = mod.manifest("attest")
+    assert doc["name"] == "io.github.mrpkk/attest"
+    assert doc["remotes"][0]["url"].startswith("https://attest.rta.lat")

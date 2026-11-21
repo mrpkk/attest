@@ -69,6 +69,20 @@ SERVERS = {
 }
 
 
+def _pkg_version() -> str:
+    """Версия из пакета, а не копия в этом файле.
+
+    21.11.2026: здесь стояло 0.1.0, в коде 0.2.0 — публикация ушла бы со старой
+    версией, и каталог снова показал бы расхождение.
+    """
+    import ast as _ast
+    src = (Path(__file__).resolve().parent / "attest" / "__init__.py").read_text(encoding="utf-8")
+    for node in _ast.parse(src).body:
+        if isinstance(node, _ast.Assign) and getattr(node.targets[0], "id", "") == "__version__":
+            return _ast.literal_eval(node.value)
+    raise SystemExit("версия пакета не найдена")
+
+
 def _env_value(key: str) -> str:
     for line in ENV.read_text(encoding="utf-8").splitlines():
         if line.startswith(key + "="):
@@ -133,6 +147,7 @@ def main() -> None:
     if key not in SERVERS:
         raise SystemExit(f"неизвестный сервер: {key}")
     doc = manifest(key)
+    doc["version"] = _pkg_version()
     # заголовок без мусора: None в массиве ломает схему
     doc["remotes"][0] = {k: v for k, v in doc["remotes"][0].items() if v}
 
