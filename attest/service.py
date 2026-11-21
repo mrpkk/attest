@@ -2625,7 +2625,12 @@ document.getElementById('go').onclick = async () => {{
         except OSError as exc:
             self._send_json(500, {"error": f"could not store the request: {exc}"})
             return
-        METRICS.free_scan()
+        # 21.11.2026: свои проверки не должны выглядеть клиентским интересом.
+        # QA-скан помечается заголовком X-Attest-QA: 1 (или ?qa=1) и в воронку не идёт.
+        qa = ((self.headers.get("X-Attest-QA") or "").strip() in ("1", "true", "yes")
+              or "qa=1" in (self.path or ""))
+        if not qa:
+            METRICS.free_scan()
         message = "Request received — we will reply within one business day."
         missing = list(parsed["missing"])
         if missing:
