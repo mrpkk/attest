@@ -198,6 +198,7 @@ footer{margin:56px 0 40px;border-top:1px solid var(--line);padding-top:20px;colo
       <p class="lead">Scan any MCP server in 30 seconds. See the tools that can spend, write or delete —
       and whether anything stops them. Then fix it with a receipt, a limit or a kill switch.</p>
       <a class="btn" href="/scan">Scan free — no account</a>
+      <a class="btn ghost" href="/plans">Fix it — from $19</a>
       <a class="btn ghost" href="https://mrpkk.github.io/nidhipati/audit-sample.html">See a sample audit</a>
       <div class="metrics">
         <span><b>Free</b> scan</span><span><b>$19</b> founding audit</span>
@@ -224,6 +225,21 @@ footer{margin:56px 0 40px;border-top:1px solid var(--line);padding-top:20px;colo
   </div>
   <div class="grid" id="cards">
 __CARDS__
+  </div>
+</section>
+
+<section class="wrap block" id="proof">
+  <h2>Check it before you pay</h2>
+  <p class="sub">Everything below is verifiable in a browser or a terminal — no screenshots needed.</p>
+  <div class="trust">
+    <div><b>Live counters</b><br><span class="muted">Views, scans and paywall hits: <a href="/api/funnel">/api/funnel</a>
+    — the same numbers we see.</span></div>
+    <div><b>Ten free checks a day</b><br><span class="muted">The scan endpoint is the same one agents call:
+    <code>curl -s -X POST https://attest.rta.lat/mcp -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'</code></span></div>
+    <div><b>Verdict you can verify offline</b><br><span class="muted">Every paid verdict is Ed25519-signed:
+    <a href="/verify-receipt">/verify-receipt</a> checks it without trusting us.</span></div>
+    <div><b>Nothing found — no fee</b><br><span class="muted">Written rule, not a promise by email:
+    <a href="/docs/scan">/docs/scan</a> and the audit scope on <a href="/plans">/plans</a>.</span></div>
   </div>
 </section>
 
