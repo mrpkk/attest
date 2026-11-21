@@ -1712,9 +1712,13 @@ class AttestHandler(BaseHTTPRequestHandler):
             from .product_pages import mcp_security_page
             pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
             self._send_html(mcp_security_page(pay_to))
-        elif path == "/free-scan":
-            from .product_pages import free_scan_page
-            self._send_html(free_scan_page())
+        elif path in ("/free-scan", "/docs/scan"):
+            if path == "/docs/scan":
+                from .product_pages import scan_docs_page
+                self._send_html(scan_docs_page())
+            else:
+                from .product_pages import free_scan_page
+                self._send_html(free_scan_page())
         elif path == "/sample-audit":
             from .product_pages import sample_audit_page
             self._send_html(sample_audit_page())

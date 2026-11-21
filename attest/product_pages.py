@@ -477,7 +477,8 @@ Nothing about your file is published; it is read for this scan and kept private.
  <button class="btn" id="send" type="button">Request free scan</button>
  <div class="out" id="scan-out"></div>
  <p class="meta">The reply is written by a person, not generated per request, so it never claims to be
-an automated report. If the file is too thin to say anything useful, the reply says that too.</p>
+an automated report. If the file is too thin to say anything useful, the reply says that too.
+<a href="/docs/scan">What exactly is checked, the limits, and what the scan does not do</a>.</p>
 </form>
 <script>
 document.getElementById('csvfile').onchange = () => {
@@ -645,3 +646,66 @@ def sample_audit_page() -> str:
                   "A six-page synthetic sample of an AI-agent spend audit: summary, findings, "
                   "limits and what the $199 report contains. Not a client result.",
                   "/sample-audit", SAMPLE_AUDIT_BODY)
+
+
+SCAN_DOCS_BODY = """
+<h1>How the free scan works</h1>
+<p class="lead">One CSV of what your agent spent, read by a person, answered within one business day.
+This page says exactly what is checked, what the limits are, and what the scan will not do — so you
+can decide before you send anything.</p>
+
+<h2>What is checked</h2>
+<table>
+<tr><th>Check</th><th>What it means</th></tr>
+<tr><td>Duplicates</td><td>The same amount to the same payee at (nearly) the same time — paying twice for one call.</td></tr>
+<tr><td>Failed but charged</td><td>A row that looks like an error or a retry, where money still left the account.</td></tr>
+<tr><td>Quote vs settled</td><td>What the vendor quoted versus what the wallet actually sent.</td></tr>
+<tr><td>Missing refunds</td><td>A charge with a matching credit that never arrived.</td></tr>
+<tr><td>Unapproved payees</td><td>A recipient that does not appear in your own list of vendors, if you send one.</td></tr>
+<tr><td>Gaps</td><td>Periods where the log has no rows although the agent was running.</td></tr>
+</table>
+
+<h2>Limits, exactly</h2>
+<ul>
+<li>One file, up to <b>200 KB</b>, header row included.</li>
+<li>One file per request; asks for more than that are read in turn, not in parallel.</li>
+<li>Reply within <b>one business day</b> — a person reads it, so it does not arrive in seconds.</li>
+<li>The reply says what could not be checked. Missing columns are named, not guessed.</li>
+<li>No account, no GitHub access, no card. Nothing from your file is published.</li>
+</ul>
+
+<h2>Example of what a reply looks like</h2>
+<pre><code>Read: 4 rows, columns: date,amount,asset,payee,tx_hash
+Found: 1 duplicate (0.42 USDC to api.vendor.example, same day, two hashes present)
+Cannot say: whether the second call was a retry — the log has no status column
+Next: with a month of rows and statuses, the $199 audit can tie each finding to a row.</code></pre>
+<p class="meta">This is a synthetic example, not a customer file. It shows the shape of an answer:
+what was read, what was found, what is unknown, and what would make the answer better.</p>
+
+<h2>What the scan does not do</h2>
+<ul>
+<li><b>Not an automated verdict.</b> There is no score, no pass/fail badge, no model deciding — a person reads the file.</li>
+<li><b>Not the $199 audit.</b> No per-finding evidence lines, no revision round, no written report you can attach to a policy.</li>
+<li><b>Not a security review.</b> Keys, permissions, contract logic and infrastructure are out of scope here.</li>
+<li><b>Not financial or legal advice.</b> We say what the numbers show; what to do about it is your decision.</li>
+<li><b>Not a place for secrets.</b> Strip API keys, tokens and personal data before sending. Amounts are what we need.</li>
+</ul>
+
+<h2>How to send it</h2>
+<p><a class="btn" href="/free-scan">Open the free scan form</a>
+ <a class="btn" href="/sample-audit">See a six-page synthetic audit sample</a></p>
+<p class="meta">Questions before sending a file: <a href="mailto:maxim.pkk@gmail.com?subject=attest%20free%20scan%20question">ask first</a>.
+No file needed for that.</p>
+"""
+
+
+def scan_docs_page() -> str:
+    """Документация бесплатного скана: что проверяется, лимиты, чего не делает.
+
+    Нужна потому, что «пришлите CSV» без описания границ — это просьба поверить
+    на слово; здесь границы названы до отправки файла.
+    """
+    return _shell("Free scan — what is checked, limits, what it does not do",
+                  "How the attest free spend scan works: checks, 200 KB and one business day limits, "
+                  "a synthetic reply example, and what the scan explicitly does not do.",
+                  "/docs/scan", SCAN_DOCS_BODY)

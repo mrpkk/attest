@@ -165,3 +165,40 @@ def test_page_offers_a_synthetic_sample():
     assert "Download a synthetic sample" in html
     # пример обязан быть помечен как синтетический: это не чьи-то расходы
     assert "synthetic" in html
+
+
+def test_scan_docs_page_says_what_is_checked_and_what_is_not():
+    """«Пришлите CSV» без границ — просьба поверить на слово.
+
+    21.11.2026: документации скана не было; человек не знал ни лимитов, ни того,
+    что скан не является аудитом.
+    """
+    from attest import product_pages
+
+    html = product_pages.scan_docs_page()
+    assert "200 KB" in html and "one business day" in html
+    assert "What the scan does not do" in html
+    assert "Duplicates" in html and "Failed but charged" in html
+    assert "not the $199 audit" in html.lower()
+    assert "synthetic" in html.lower()
+    assert "/free-scan" in html          # путь к форме есть на странице
+
+
+def test_scan_docs_page_is_served(server):
+    """Страница должна реально отдаваться: 200 и текст про лимиты."""
+    import urllib.request
+
+    with urllib.request.urlopen(f"{server}/docs/scan", timeout=10) as r:
+        assert r.status == 200
+        body = r.read().decode("utf-8")
+    assert "How the free scan works" in body
+    assert "200 KB" in body
+
+
+def test_scan_page_links_to_the_docs(server):
+    """Со страницы скана — ссылка на документацию, иначе её никто не найдёт."""
+    import urllib.request
+
+    with urllib.request.urlopen(f"{server}/free-scan", timeout=10) as r:
+        body = r.read().decode("utf-8")
+    assert 'href="/docs/scan"' in body
