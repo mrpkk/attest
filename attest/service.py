@@ -1627,6 +1627,9 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/tools":
             from .tools_page import tools_page
             self._send_html(tools_page())
+        elif path == "/hub":
+            from .hub_page import hub_page
+            self._send_html(hub_page())
         elif path == "/health":
             self._send_json(200, {"status": "ok", "version": __version__})
         elif path == "/stats":
