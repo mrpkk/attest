@@ -1419,7 +1419,7 @@ def _sitemap() -> str:
                      "/start", "/privacy", "/health", "/deny-evidence",
                      "/eu-ai-act-evidence", "/mcp-security-pass",
                      "/eu-ai-act", "/mcp-security", "/trust-desk", "/proof-of-place", "/suite.json",
-                     "/scan", "/free-scan", "/docs/scan",
+                     "/scan", "/free-scan", "/docs/scan", "/docs/api",
                      "/sample-audit",
                      "/verify-receipt",
                      "/mcp/mcp-security-audit", "/mcp/mcp-server-authentication",
@@ -1462,7 +1462,8 @@ trial — 100 records / 7 days; deny-30d — unlimited / 30 days.</p>
 <pre>from attest.deny import read, verify_log
 print(verify_log(read()))</pre>
 <h2>Docs</h2>
-<p><a href="/deny-evidence">deny-evidence</a> · <a href="/docs">API docs</a> ·
+<p><a href="/deny-evidence">deny-evidence</a> · <a href="/docs/api">API: endpoints, limits, errors</a> ·
+<a href="/docs">что доказывает квитанция</a> ·
 <a href="/eu-ai-act-evidence">EU AI Act evidence pack</a></p>
 </html>"""
 
@@ -1681,6 +1682,9 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/docs":
             from .docs_page import DOCS_HTML
             self._send_html(DOCS_HTML)
+        elif path == "/docs/api":
+            from .docs_api import page_html
+            self._send_html(page_html())
         elif path == "/deny":
             from urllib.parse import parse_qs
             from .deny import query as deny_query
