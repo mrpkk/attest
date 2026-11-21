@@ -150,7 +150,15 @@ def scan(url: str) -> dict:
 def scan_page() -> str:
     return """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Scan your MCP server — attest</title>
+<title>MCP server scan — check tools, annotations and hidden instructions | attest</title>
+<meta name="description" content="Scan any MCP server in 30 seconds: which tools can move money or state, whether annotations exist, and whether descriptions contain hidden instructions. No account, five scans a day free.">
+<link rel="canonical" href="https://attest.rta.lat/scan">
+<meta property="og:type" content="website">
+<meta property="og:title" content="MCP server scan — what your agent can do, and what it cannot stop">
+<meta property="og:description" content="Paste an MCP server URL: tools that move money, missing annotations, instructions hidden in descriptions. Free, no account.">
+<meta property="og:url" content="https://attest.rta.lat/scan">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"MCP server scan","applicationCategory":"DeveloperApplication","operatingSystem":"Any","url":"https://attest.rta.lat/scan","description":"Scan an MCP server's public tool list: tools that move money or state, missing annotations, and hidden instructions in descriptions.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
 <style>
 :root{color-scheme:dark}
 body{margin:0;background:#0d1117;color:#e6edf3;font:16px/1.55 system-ui,sans-serif}
@@ -169,15 +177,71 @@ button:disabled{opacity:.6;cursor:wait}
 .cta{margin-top:22px;padding:16px;border:1px solid #2f81f7;border-radius:10px;background:#0d1b2f}
 .cta a{color:#58a6ff}
 .err{color:#f85149}
+.doc{margin-top:44px;border-top:1px solid #21262d;padding-top:26px}
+.doc h2{font-size:20px;margin:26px 0 8px}
+.doc table{width:100%;border-collapse:collapse;font-size:14.5px;margin:10px 0}
+.doc th,.doc td{border:1px solid #30363d;padding:8px 10px;text-align:left;vertical-align:top}
+.doc th{background:#161b22;color:#8b949e}
+.doc pre{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px;overflow:auto;font-size:13px}
+.doc code{background:#161b22;padding:2px 5px;border-radius:4px}
+.doc a{color:#58a6ff}
+.doc ul{margin:8px 0;padding-left:20px;color:#c9d1d9}
+.doc li{margin:4px 0}
 </style></head><body><main>
 <h1>Scan your MCP server</h1>
 <p class="s">30 seconds. No account. We show what your agent can do — and what it can't stop.</p>
 <form id="f"><input id="u" placeholder="https://your-server.com/mcp" required>
 <button id="b" type="submit">Scan</button></form>
 <div id="out"></div>
+
+<section class="doc">
+<h2>What a scan of an MCP server looks like</h2>
+<p>The scan reads the server's public tool list — the same <code>tools/list</code> answer any MCP
+client receives — and reports three things a buyer or a reviewer needs to know before pointing an
+agent at it:</p>
+<table>
+<tr><th>Check</th><th>Why it matters</th></tr>
+<tr><td>Tools that can move money or state</td><td>A tool that transfers, approves or deletes is a
+different risk class from one that reads a price.</td></tr>
+<tr><td>Annotations present</td><td><code>readOnlyHint</code>, <code>destructiveHint</code> and
+<code>openWorldHint</code> tell the client what the tool does; without them every tool looks equally
+dangerous.</td></tr>
+<tr><td>Descriptions that instruct instead of describe</td><td>A description containing "ignore
+previous instructions" is a hidden instruction, not documentation.</td></tr>
+</table>
+
+<h2>Example result</h2>
+<pre><code>Tools: 14, annotated: 9, risk score: 42/100 — needs review
+[high]   transfer_usdc — moves funds, no readOnlyHint
+[high]   description of "approve" contains "ignore previous instructions"
+[medium] delete_channel — destructive, destructiveHint missing</code></pre>
+<p class="s">Synthetic example. The scan does not read prompts, does not store content, and does not
+call any tool — only the public list.</p>
+
+<h2>Limits</h2>
+<ul>
+<li>One server per scan, three findings; five free scans a day per address.</li>
+<li>The server must answer <code>tools/list</code> over HTTP. Stdio-only servers are not reachable
+from here.</li>
+<li>No account, no card, nothing stored about the server beyond counters.</li>
+</ul>
+
+<h2>What the scan does not do</h2>
+<ul>
+<li>It does not prove the server is safe — it shows what it can do, not what it will do.</li>
+<li>It does not read tool results, prompts or user data.</li>
+<li>It is not the $19 audit: the audit reads one month of spend logs and ties each finding to a row.</li>
+</ul>
+
+<h2>Next steps</h2>
+<p><a href="/docs/scan?ref=scan-page">What a spend scan checks, with limits</a> ·
+<a href="/store?ref=scan-page">All tools and prices</a> ·
+<a href="/plans?ref=scan-page">The $19 audit — scope</a></p>
+</section>
+
 <div class="cta" id="cta" hidden>
 <b>Want the full report?</b> One month of logs, one line of evidence per finding.
-<a href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit">$19 founding audit (first 10)</a> —
+<a href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit?ref=scan-page">$19 founding audit (first 10)</a> —
 or reply to the email and we'll send the checklist.
 </div>
 <script>
