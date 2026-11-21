@@ -3548,6 +3548,14 @@ document.getElementById('go').onclick = async () => {{
     def _send_json(
         self, status: int, body: Any, extra_headers: dict[str, str] | None = None
     ) -> None:
+        if status >= 500:
+            # Всплеск 5xx — единственный сигнал, что сервис «жив, но не работает».
+            # Шлём не на каждый ответ, а одно сообщение за окно (см. alerts).
+            try:
+                from .alerts import alert_errors
+                alert_errors()
+            except Exception:  # noqa: BLE001 — алерт не должен ломать ответ
+                pass
         self._send(
             status,
             json.dumps(body, ensure_ascii=False).encode(),
