@@ -46,13 +46,21 @@ BASE_CSS = """
 """
 
 
-def _shell(title: str, description: str, canonical: str, body: str) -> str:
+def _shell(title: str, description: str, canonical: str, body: str,
+           jsonld: str = "") -> str:
+    url = f"https://attest.rta.lat{canonical}"
+    ld = f'\n<script type="application/ld+json">{jsonld}</script>' if jsonld else ""
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{title}</title>
 <meta name="description" content="{description}">
-<link rel="canonical" href="https://attest.rta.lat{canonical}">
-<style>{BASE_CSS}</style></head><body><main>{body}</main></body></html>"""
+<link rel="canonical" href="{url}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{description}">
+<meta property="og:url" content="{url}">
+<meta name="twitter:card" content="summary">
+<style>{BASE_CSS}</style>{ld}</head><body><main>{body}</main></body></html>"""
 
 
 def _pay_block(price_note: str, endpoint: str, pay_to: str, extra_fields: str = "") -> str:
@@ -691,12 +699,55 @@ what was read, what was found, what is unknown, and what would make the answer b
 <li><b>Not a place for secrets.</b> Strip API keys, tokens and personal data before sending. Amounts are what we need.</li>
 </ul>
 
+<h2>What happens after you send it</h2>
+<table>
+<tr><th>When</th><th>What you get</th></tr>
+<tr><td>Same day</td><td>Confirmation that the file was read, with the row count and recognized columns.</td></tr>
+<tr><td>Within one business day</td><td>Written reply: what was found, what could not be checked, and whether an audit would add anything.</td></tr>
+<tr><td>If you want more</td><td>The $199 audit: one month of logs, five working days, one line of evidence per finding. Nothing found — no fee.</td></tr>
+</table>
+
 <h2>How to send it</h2>
 <p><a class="btn" href="/free-scan?ref=docs-scan">Open the free scan form</a>
- <a class="btn" href="/sample-audit">See a six-page synthetic audit sample</a></p>
+ <a class="btn" href="/sample-audit?ref=docs-scan">See a six-page synthetic audit sample</a>
+ <a class="btn" href="/plans?ref=docs-scan">The $199 audit — scope and price</a></p>
 <p class="meta">Questions before sending a file: <a href="mailto:maxim.pkk@gmail.com?subject=attest%20free%20scan%20question">ask first</a>.
 No file needed for that.</p>
 """
+
+
+SCAN_FAQ = [
+    ("What does the free scan actually check?",
+     "Duplicates, failed-but-charged rows, quoted versus settled amounts, missing refunds, "
+     "unapproved payees and gaps in the log. Each finding is described in words, not a score."),
+    ("What are the limits?",
+     "One CSV up to 200 KB, header row included. The reply arrives within one business day. "
+     "Missing columns are named in the reply, not guessed."),
+    ("Is the scan an automated verdict?",
+     "No. A person reads the file and writes the reply. There is no score, no pass/fail badge "
+     "and no model deciding."),
+    ("Is this the $199 audit?",
+     "No. The audit is one month of logs, five working days and a written report where every "
+     "finding is tied to a row and a rule. The scan is the free first step."),
+    ("What is out of scope?",
+     "Keys, permissions, contract logic and infrastructure — that is a security review, "
+     "not this scan. The scan also does not give financial or legal advice."),
+]
+
+
+def scan_faq_jsonld() -> str:
+    import json as _json
+
+    payload = {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {"@type": "Question", "name": q,
+             "acceptedAnswer": {"@type": "Answer", "text": a}}
+            for q, a in SCAN_FAQ
+        ],
+    }
+    return _json.dumps(payload, ensure_ascii=False)
 
 
 def scan_docs_page() -> str:
@@ -708,4 +759,4 @@ def scan_docs_page() -> str:
     return _shell("Free scan — what is checked, limits, what it does not do",
                   "How the attest free spend scan works: checks, 200 KB and one business day limits, "
                   "a synthetic reply example, and what the scan explicitly does not do.",
-                  "/docs/scan", SCAN_DOCS_BODY)
+                  "/docs/scan", SCAN_DOCS_BODY, jsonld=scan_faq_jsonld())

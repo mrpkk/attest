@@ -202,3 +202,27 @@ def test_scan_page_links_to_the_docs(server):
     with urllib.request.urlopen(f"{server}/free-scan", timeout=10) as r:
         body = r.read().decode("utf-8")
     assert 'href="/docs/scan' in body      # теперь с меткой ?ref=scan-page
+
+
+def test_scan_docs_has_open_graph_and_faq_markup():
+    """Страница должна выглядеть как страница, когда её пересылают, и отвечать
+    на вопросы поисковика — без разметки её просто не показывают в выдаче."""
+    import json
+
+    from attest import product_pages
+
+    html = product_pages.scan_docs_page()
+    assert 'property="og:title"' in html and 'property="og:url"' in html
+    assert 'name="twitter:card"' in html
+    start = html.index('application/ld+json') + len('application/ld+json">')
+    data = json.loads(html[start:html.index('</script>', start)])
+    assert data["@type"] == "FAQPage" and len(data["mainEntity"]) >= 5
+
+
+def test_scan_docs_has_a_path_to_the_paid_step():
+    from attest import product_pages
+
+    html = product_pages.scan_docs_page()
+    assert "/plans?ref=docs-scan" in html
+    assert "$199" in html
+    assert "Within one business day" in html      # таймлайн, а не только лимиты
