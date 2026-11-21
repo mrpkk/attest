@@ -502,6 +502,7 @@ _PLANS_HTML = """<!doctype html><html lang="en"><head><meta charset=utf-8>
 <nav class="top" aria-label="Where to start">
  <span class="l"><a href="/">attest</a> · <a href="https://api.market/store/attest">API.market listing</a>
  · <a href="/sample-audit">sample audit</a></span>
+ <a class="scan" href="/store">Store</a>
  <a class="scan" href="/scan">Scan your MCP server</a>
  <a class="scan" href="/free-scan">Free scan — send one CSV</a>
 </nav>
@@ -766,6 +767,7 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
 </style>
 </head>
 <body><div class="wrap">
+<p class="hint" style="margin:0 0 8px"><a href="/store">Store</a> · <a href="/scan">Scan an MCP server</a> · <a href="/plans">Pricing</a></p>
 <h1>attest — artifact verification for agents</h1>
 <p class="lead">An agent calls a tool or another agent and receives a foreign artifact that
 goes straight into its context. Four checks, each answering only its own question.</p>
@@ -1630,6 +1632,9 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path == "/hub":
             from .hub_page import hub_page
             self._send_html(hub_page())
+        elif path == "/store":
+            from .store_page import store_page
+            self._send_html(store_page())
         elif path == "/health":
             self._send_json(200, {"status": "ok", "version": __version__})
         elif path == "/stats":
