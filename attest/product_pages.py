@@ -460,6 +460,7 @@ or a table you keep by hand. One row per transaction.</p>
 <tr><td><code>payee</code></td><td>Who received it</td></tr>
 <tr><td><code>tx_hash</code></td><td>The transaction, if there is one</td></tr>
 </table>
+<p class="meta">No file at hand? <a download="sample-spend.csv" href="data:text/csv;charset=utf-8,date%2Camount%2Casset%2Cpayee%2Ctx_hash%0A2026-11-01%2C0.42%2CUSDC%2Capi.vendor.example%2C0xaa11%0A2026-11-01%2C0.42%2CUSDC%2Capi.vendor.example%2C0xaa11%0A2026-11-02%2C1.10%2CUSDC%2Csearch.provider.example%2C0xbb22%0A2026-11-03%2C0.00%2CUSDC%2Cfailed.vendor.example%2Cfailed">Download a synthetic sample (4 rows, including one duplicate)</a> — it shows the format, nothing of ours.</p>
 <p class="meta">These are the columns that make the scan cheap, not a requirement: a file without them
 is still read, and the reply says what could not be checked. Up to 200 KB, header row included.
 Nothing about your file is published; it is read for this scan and kept private.</p>
@@ -500,7 +501,16 @@ document.getElementById('send').onclick = async () => {
     body: JSON.stringify(body)});
   const j = await r.json().catch(() => ({}));
   if (!r.ok) { out.textContent = 'Not accepted: ' + (j.error || ('HTTP ' + r.status)); return; }
-  out.textContent = j.message + '\\nRequest id: ' + j.request_id;
+  // Что уже прочитано — показываем сразу. Раньше страница отдавала только
+  // «заявка принята», и человек уходил, не зная, что файл вообще разобрали.
+  const cols = (j.columns || []).join(', ') || '—';
+  const lines = [
+    'Read: ' + (j.rows || 0) + ' rows · columns: ' + cols,
+    (j.missing && j.missing.length) ? 'Not named in the header: ' + j.missing.join(', ') : 'Header looks complete.',
+    j.message,
+    'Request id: ' + j.request_id,
+  ];
+  out.textContent = lines.join('\\n');
   document.getElementById('scan-form').style.display = 'none';
 };
 </script>

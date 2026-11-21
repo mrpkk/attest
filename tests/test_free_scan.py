@@ -139,3 +139,29 @@ def test_missing_columns_are_named_not_fatal(server, paths):
     assert set(data["missing"]) == {"date", "amount", "asset", "payee", "tx_hash"}
     assert "date" in data["message"]
     assert len(leads.read_text(encoding="utf-8").strip().splitlines()) == 1
+
+
+def test_page_shows_what_was_already_read(tmp_path):
+    """Страница обязана показать прочитанное, а не только «заявка принята».
+
+    21.11.2026: API возвращал rows/columns/missing, страница их выбрасывала —
+    6194 просмотра, 1 заявка. Человек не видел, что файл вообще разобрали.
+    """
+    from attest import product_pages
+
+    html = product_pages.free_scan_page()
+    assert "j.rows" in html and "j.columns" in html
+    assert "j.missing" in html
+    assert "Request id" in html
+
+
+def test_page_offers_a_synthetic_sample():
+    """Без файла под рукой шаг «пришлите CSV» невыполним — даём пример формата."""
+    from attest import product_pages
+
+    html = product_pages.free_scan_page()
+    assert "sample-spend.csv" in html
+    assert "data:text/csv" in html
+    assert "Download a synthetic sample" in html
+    # пример обязан быть помечен как синтетический: это не чьи-то расходы
+    assert "synthetic" in html
