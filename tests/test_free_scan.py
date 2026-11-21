@@ -201,4 +201,4 @@ def test_scan_page_links_to_the_docs(server):
 
     with urllib.request.urlopen(f"{server}/free-scan", timeout=10) as r:
         body = r.read().decode("utf-8")
-    assert 'href="/docs/scan"' in body
+    assert 'href="/docs/scan' in body      # теперь с меткой ?ref=scan-page

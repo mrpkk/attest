@@ -1,5 +1,8 @@
 # attest — trust layer for agent artifacts
 
+Free scan of an agent's spend log: **<https://attest.rta.lat/free-scan>** — what is checked,
+the limits and what the scan does *not* do: **<https://attest.rta.lat/docs/scan>**.
+
 [![M8ven Score](https://m8ven.ai/badge/mcp/mrpkk-attest-70kdum?v=33841343e7786aeebf405effce42c591)](https://m8ven.ai/mcp/mrpkk-attest-70kdum?s=readme)
 [![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/mrpkk/attest)
 [![mrpkk/attest MCP server](https://glama.ai/mcp/servers/mrpkk/attest/badges/score.svg)](https://glama.ai/mcp/servers/mrpkk/attest)

@@ -1419,7 +1419,7 @@ def _sitemap() -> str:
                      "/start", "/privacy", "/health", "/deny-evidence",
                      "/eu-ai-act-evidence", "/mcp-security-pass",
                      "/eu-ai-act", "/mcp-security", "/trust-desk", "/proof-of-place", "/suite.json",
-                     "/free-scan",
+                     "/free-scan", "/docs/scan",
                      "/sample-audit",
                      "/verify-receipt",
                      "/mcp/mcp-security-audit", "/mcp/mcp-server-authentication",

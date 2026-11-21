@@ -478,7 +478,7 @@ Nothing about your file is published; it is read for this scan and kept private.
  <div class="out" id="scan-out"></div>
  <p class="meta">The reply is written by a person, not generated per request, so it never claims to be
 an automated report. If the file is too thin to say anything useful, the reply says that too.
-<a href="/docs/scan">What exactly is checked, the limits, and what the scan does not do</a>.</p>
+<a href="/docs/scan?ref=scan-page">What exactly is checked, the limits, and what the scan does not do</a>.</p>
 </form>
 <script>
 document.getElementById('csvfile').onchange = () => {
@@ -692,7 +692,7 @@ what was read, what was found, what is unknown, and what would make the answer b
 </ul>
 
 <h2>How to send it</h2>
-<p><a class="btn" href="/free-scan">Open the free scan form</a>
+<p><a class="btn" href="/free-scan?ref=docs-scan">Open the free scan form</a>
  <a class="btn" href="/sample-audit">See a six-page synthetic audit sample</a></p>
 <p class="meta">Questions before sending a file: <a href="mailto:maxim.pkk@gmail.com?subject=attest%20free%20scan%20question">ask first</a>.
 No file needed for that.</p>
