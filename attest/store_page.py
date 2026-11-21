@@ -31,8 +31,9 @@ def store_page() -> str:
          "https://nidhipati.ailegal.legal/pay/card?product=drift-kill-switch", "Add limits"),
         ("Site Guard", "$49/yr", "Uptime every 5 minutes, SSL and domain expiry, alerts to Telegram. One site, 12 months.",
          "https://nidhipati.ailegal.legal/pay/card?product=site-guard-year", "Guard my site"),
-        ("Channel Vault", "$19", "Full export of a Telegram channel: posts, media, members. One channel, one ZIP.",
-         "https://nidhipati.ailegal.legal/pay/card?product=channel-vault-export", "Back up"),
+        ("Channel Vault", "soon", "Full export of a Telegram channel: posts, media, members. "
+         "The exporter is being finished — join the waitlist and we write when it is ready.",
+         "mailto:maxim.pkk@gmail.com?subject=Channel%20Vault%20waitlist", "Join waitlist"),
         ("Doc Answer Box", "$49", "Upload documents, get a link that answers with citations and refuses when unsure. One team, first month.",
          "https://nidhipati.ailegal.legal/pay/card?product=doc-answer-box", "Open the box"),
         ("Sheet Doctor", "$19", "Duplicates, whitespace, dates and broken rows: clean file plus a fix report. Up to 50k rows.",

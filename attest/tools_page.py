@@ -8,8 +8,8 @@ CARDS = [
     ("Site Guard — uptime, SSL, домен", "49", "site-guard-year",
      "Проверка сайта каждые 5 минут, срок SSL и домена, алерт в Telegram. Один сайт, 12 месяцев.",
      "Сайт упал — вы узнаёте первым, а не клиент."),
-    ("Channel Vault — бэкап Telegram-канала", "19", "channel-vault-export",
-     "Полный экспорт постов, медиа и участников в ZIP. Один канал, один экспорт.",
+    ("Channel Vault — бэкап Telegram-канала", "soon", "channel-vault-export",
+     "Экспорт постов, медиа и участников в ZIP. Доделываем — оставь почту в waitlist.",
      "Контент канала не теряется вместе с каналом."),
     ("Doc Answer Box — RAG для папки", "49", "doc-answer-box",
      "Загрузите документы — получите ссылку с вопросами и цитатами. Один отдел, первый месяц.",
@@ -23,12 +23,16 @@ CARDS = [
 def tools_page() -> str:
     cards = []
     for title, price, product, desc, why in CARDS:
+        wait = product == "channel-vault-export"
+        href = ("mailto:maxim.pkk@gmail.com?subject=Channel%20Vault%20waitlist"
+                if wait else f"https://nidhipati.ailegal.legal/pay/card?product={escape(product)}")
+        cta = "Оставить почту" if wait else "Оплатить картой"
         cards.append(f"""<div class="c">
 <h2>{escape(title)}</h2>
 <p class="p">${escape(price)}</p>
 <p>{escape(desc)}</p>
 <p class="w">{escape(why)}</p>
-<a class="b" href="https://nidhipati.ailegal.legal/pay/card?product={escape(product)}">Оплатить картой</a>
+<a class="b" href="{href}">{cta}</a>
 </div>""")
     return f"""<!doctype html><html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
