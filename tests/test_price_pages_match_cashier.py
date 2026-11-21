@@ -34,7 +34,7 @@ from attest.product_pages import (  # noqa: E402
     trust_desk_page,
 )
 from attest.service import (  # noqa: E402
-    AUDIT_PAY_URL, AUDIT_PRICE_USD, DENY_PRICE_USD, LANDING, PACK_TIERS, PRICING,
+    AUDIT_FOUNDING_PRICE_USD, AUDIT_PAY_URL, AUDIT_PRICE_USD, DENY_PRICE_USD, LANDING, PACK_TIERS, PRICING,
     TRIAL_MIN_USD, AttestHandler, _PLANS_HTML,
 )
 
@@ -56,6 +56,7 @@ def catalogue() -> set[str]:
     """Все суммы, которые attest реально выставляет."""
     prices = {str(int(entitlement.PRICE_USD)), f"{AttestHandler.ppp_price_usd:g}",
               f"{DENY_PRICE_USD:g}", f"{TRIAL_MIN_USD:g}", str(AUDIT_PRICE_USD),
+              str(AUDIT_FOUNDING_PRICE_USD),
               str(PRICING["per_call"]["price"]), str(PRICING["free"]["price"])}
     for product in PACK_TIERS:
         prices |= tier_prices(product)

@@ -129,6 +129,8 @@ DENY_PRICE_USD = 29.0
 #: Аудит трат агента продаётся карточной кассой Nidhipati, не x402-кассой attest.
 #: Цена сверена с живой страницей 19.11.2026: `PRICE = "199"`.
 AUDIT_PRICE_USD = 199
+# Демпинг-цена для первых 10 (21.11.2026): та же работа, ниже рынка, с дедлайном.
+AUDIT_FOUNDING_PRICE_USD = 19
 AUDIT_PAY_URL = "https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit"
 
 
@@ -509,12 +511,14 @@ report a human signs and the log that keeps running when nobody watches.</p>
 
 <h2>Start here</h2>
 <div class="tiers">
- <div class="t"><b>Audit</b><p class="p">$199</p><span class="hint">Flat, five working days: one month of agent logs, one line of evidence per finding. <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">A public sample report</a>.</span></div>
+ <div class="t"><b>Audit — founding</b><p class="p"><s>$199</s> $19</p><span class="hint">First 10 teams only: five working days, one month of agent logs, one line of evidence per finding. Then the price returns to $199. <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">A public sample report</a>.</span></div>
  <div class="t"><b>Trust Desk</b><p class="p">$1,500 pilot</p><span class="hint">Ten business days, three artifacts, one revision round; then $299/mo if you keep it running. <a href="/trust-desk">Pay and start intake</a>.</span></div>
  <div class="t"><b>Enterprise</b><p class="p">On request</p><span class="hint">Private reserve confirmation, white-label receipts, the whole engine behind your brand.</span></div>
 </div>
-<p><a class="cta" id="audit-cta" href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit"
- onclick="try{navigator.sendBeacon('/api/audit-intent')}catch(e){}">Pay by card — $199</a></p>
+<p><a class="cta" id="audit-cta" href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit-founding"
+ onclick="try{navigator.sendBeacon('/api/audit-intent')}catch(e){}">Pay by card — $19 (founding, first 10)</a></p>
+<p class="hint">Founding price ends after the first 10 teams; after that the audit is
+<a href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit">$199</a>.</p>
 <p class="hint">Why start with an audit and not a subscription: a subscription asks to be trusted every month;
 a report can be read once and checked. The monthly re-check makes sense only after an audit found
 something worth watching. If there is nothing to find, the report says so and there is no fee for
