@@ -1463,3 +1463,36 @@ thousands»; `viewport` и отсутствие жёсткой `width:NNNpx`; с
 (`developers.google.com/search/docs/appearance/title-link`, 200).
 
 **БЛОКЕР:** `https://attest.rta.lat/store` по-прежнему **530** (туннель), проверка только локальная.
+
+## 23.11.2026 — SEO под запрос «MCP server scan»: FAQ + JSON-LD, llms, повторный IndexNow
+
+**Что уже было (проверил, не ломал):** `<title>` = «MCP server scan — check tools, annotations and hidden
+instructions», H1 «Scan your MCP server», description, canonical, `/scan` в sitemap, 4 внутренние ссылки
+с `?ref=scan-page`.
+
+**Добавлено:**
+1. **FAQ-блок на странице** — три вопроса, которые люди реально вбивают: «How do I scan an MCP server?»,
+   «What does an MCP server scan check?», «Is this a security audit?».
+2. **FAQPage JSON-LD** рядом с существующим `WebApplication` — поисковик видит структуру, а не только текст.
+3. **llms.txt: английская строка** «MCP server scan (English query): …» — раньше был только русский
+   вариант «Скан MCP-сервера», а AI-клиенты ищут по-английски.
+4. **IndexNow повторно** для `/scan` — Яндекс ответил `200 {"success":true}`.
+
+**Проверено:**
+```
+local /scan → 200 · 8421 байт (было 6766; +FAQ)
+pytest tests/test_scan_seo_faq.py tests/test_scan_discovery.py → 6 passed
+```
+Тесты держат: title и текст содержат фразу; FAQ-блок и **валидный** JSON-LD с `FAQPage` (≥3 вопроса);
+llms.txt содержит английскую фразу и URL; `/scan` в sitemap; ≥3 ссылки с `ref=scan-page`.
+
+**Рынок (проверено HTTP 200):** `FAQPage` — официальный тип schema.org (`schema.org/FAQPage`, 200);
+Google документирует FAQ-разметку отдельной страницей
+(`developers.google.com/.../structured-data/faqpage`, 200); галерея структурированных данных — что вообще
+поддерживается (`.../search-gallery`, 200).
+
+**БЛОКЕР:** публично `https://attest.rta.lat/scan` по-прежнему 530 (туннель); индексация проверяется
+только по факту обхода, а не мной.
+
+**Дальше:** через 2–3 дня проверить `site:attest.rta.lat "MCP server scan"` — если страницы нет,
+причина будет не в разметке, а в отсутствии внешних ссылок.

@@ -71,6 +71,8 @@ python3 -m pytest -q     # 746 passed, 4 skipped
 ## Бесплатный вход и платный шаг
 
 - Бесплатный скан расходов агента: https://attest.rta.lat/free-scan — пришлите CSV, человек ответит
+- MCP server scan (English query): https://attest.rta.lat/scan — scan any MCP server's public
+  tools/list for money/state-changing tools, missing annotations and hidden instructions.
 - Скан MCP-сервера (tools/list: деньги, состояние, аннотации, скрытые инструкции):
   https://attest.rta.lat/scan — 5 бесплатных сканов в сутки, без аккаунта
 - Что скан проверяет, лимиты и чего он не делает: https://attest.rta.lat/docs/scan — 6 проверок,

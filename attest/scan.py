@@ -208,6 +208,7 @@ def scan_page() -> str:
 <meta property="og:description" content="Paste an MCP server URL: tools that move money, missing annotations, instructions hidden in descriptions. Free, no account.">
 <meta property="og:url" content="https://attest.rta.lat/scan">
 <meta name="twitter:card" content="summary">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I scan an MCP server?","acceptedAnswer":{"@type":"Answer","text":"Paste the server URL (SSE or HTTP transport) into the form. The scan reads the public tools/list response and returns flags in about 30 seconds — no account, no card."}},{"@type":"Question","name":"What does an MCP server scan check?","acceptedAnswer":{"@type":"Answer","text":"Whether each tool can move money or change state, whether annotations are declared, and whether descriptions contain hidden instructions for an AI agent."}},{"@type":"Question","name":"Is an MCP server scan a security audit?","acceptedAnswer":{"@type":"Answer","text":"No. It is a filter before an audit: it shows what the server can do, not what it will do, and does not read prompts, results or user data."}}]}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"MCP server scan","applicationCategory":"DeveloperApplication","operatingSystem":"Any","url":"https://attest.rta.lat/scan","description":"Scan an MCP server's public tool list: tools that move money or state, missing annotations, and hidden instructions in descriptions.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
 <style>
 :root{color-scheme:dark}
@@ -282,6 +283,19 @@ from here.</li>
 <li>It does not read tool results, prompts or user data.</li>
 <li>It is not the $19 audit: the audit reads one month of spend logs and ties each finding to a row.</li>
 </ul>
+
+<h2>FAQ: scanning an MCP server</h2>
+<dl>
+<dt>How do I scan an MCP server?</dt>
+<dd>Paste the server URL (SSE or HTTP transport) into the form above. The scan reads the public
+<code>tools/list</code> response and returns flags in about 30 seconds — no account, no card.</dd>
+<dt>What does an MCP server scan check?</dt>
+<dd>Three things per tool: can it move money or change state, does it declare annotations
+(read-only / destructive), and do its descriptions contain hidden instructions for an AI agent.</dd>
+<dt>Is this a security audit?</dt>
+<dd>No. It is a filter before one: it shows what the server can do, not what it will do, and it does not
+read prompts, results or user data. The $19 audit reads a month of spend logs instead.</dd>
+</dl>
 
 <h2>Next steps</h2>
 <p><a href="/docs/scan?ref=scan-page">What a spend scan checks, with limits</a> ·
