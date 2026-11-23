@@ -1395,7 +1395,4 @@ local /health → 200, {"alerts":{"slack_webhook":false,"last_error_alert_at":nu
 Пробовал: рестарт сервиса, ожидание, SIGKILL+start — 530 остаётся. Значит `https://attest.rta.lat`
 сейчас недоступен не из-за кода: нужен разбор сети/ingress у владельца.
 
-**Рынок (23.11.2026):** алерты разделяют по симптому (падение ≠ рост ошибок) и глушат повторы окном
-(`docs.ilert.com`, `alertops.com`); Slack incoming webhook — простой транспорт `{"text": ...}`
-(`api.slack.com`); health-эндпоинт должен показывать состояние самого мониторинга, иначе «аларм не
-пришёл» неотличим от «аларма нет».
+**Рынок (проверено HTTP 23.11.2026):** Slack incoming webhook — отправка сообщений и ответ 200 (`api.slack.com/messaging/webhooks`, 200); «alert on silence» — отдельный класс алертов (`docs.ilert.com/alerting/heartbeat-monitoring`, 200); усталость от алертов — известная проблема, лечится приоритетами и глушением повторов (`atlassian.com/incident-management/on-call/alert-fatigue`, 200); алертить по SLO-симптомам, а не по каждой метрике (`sre.google/workbook/alerting-on-slos/`, 200).
