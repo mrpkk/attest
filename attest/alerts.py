@@ -27,7 +27,7 @@ log = logging.getLogger("attest.alerts")
 ENV_KEY = "ATTEST_SLACK_WEBHOOK"
 ERROR_WINDOW_SECONDS = 300.0
 ERROR_THRESHOLD = 5
-_state = {"sent_at": 0.0, "errors": []}
+_state = {"sent_at": 0.0, "errors": [], "down_sent_at": 0.0}
 
 
 def _env_value(key: str) -> str:
@@ -85,7 +85,32 @@ def alert_errors(count: int = 1, now: float | None = None,
     return {"sent": ok, "errors": len(recent), "reason": why or "sent"}
 
 
+def alert_down(reason: str = "", now: float | None = None,
+               cooldown: float = 900.0, url: str | None = None) -> dict:
+    """Сервис недоступен/не отвечает: одно сообщение за 15 минут, а не каждую минуту.
+
+    Отдельный счётчик от алертов 5xx: падение сервиса и всплеск ошибок — разные события,
+    и глушить одно другим нельзя.
+    """
+    now = time.time() if now is None else now
+    if now - _state["down_sent_at"] < cooldown:
+        return {"sent": False, "reason": "already_sent"}
+    ok, why = post(f"🔴 attest DOWN: {reason[:160] or 'health недоступен'} · "
+                   f"проверить: systemctl --user status attest, journalctl -u attest", url=url)
+    if ok:
+        _state["down_sent_at"] = now
+    return {"sent": ok, "reason": why or "sent"}
+
+
+def status() -> dict:
+    """Что видно снаружи: настроен ли канал и когда последний раз что-то уходило."""
+    return {"webhook_configured": webhook_configured(),
+            "last_error_alert_at": _state["sent_at"] or None,
+            "last_down_alert_at": _state["down_sent_at"] or None}
+
+
 def reset() -> None:
     """Сбросить состояние (для тестов и для нового окна)."""
     _state["sent_at"] = 0.0
+    _state["down_sent_at"] = 0.0
     _state["errors"] = []

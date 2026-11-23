@@ -150,3 +150,22 @@ def test_watchdog_reports_which_sale_path_check_failed(tmp_path):
     res = wd.run_once(tmp_path / "w.json", probes=probe, send=lambda text: (True, ""))
     assert res["status"] == "down"
     assert res["bad"] == {"/free-scan": 500}
+
+
+def test_alert_down_sends_once_per_cooldown(monkeypatch):
+    from attest import alerts
+    alerts.reset()
+    sent = []
+    monkeypatch.setattr(alerts, "post", lambda text, url=None, timeout=10: (sent.append(text), (True, ""))[1])
+    assert alerts.alert_down("health недоступен", now=1000.0)["sent"] is True
+    assert alerts.alert_down("снова", now=1100.0)["reason"] == "already_sent"
+    assert alerts.alert_down("снова", now=2000.0)["sent"] is True
+    assert len(sent) == 2 and "DOWN" in sent[0]
+
+
+def test_status_reports_webhook_and_timestamps(monkeypatch):
+    from attest import alerts
+    alerts.reset()
+    monkeypatch.setattr(alerts, "webhook_configured", lambda: True)
+    st = alerts.status()
+    assert st["webhook_configured"] is True and st["last_error_alert_at"] is None

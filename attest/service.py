@@ -1640,10 +1640,13 @@ class AttestHandler(BaseHTTPRequestHandler):
             # Состояние алертов видно в healthcheck: если webhook не настроен,
             # «тревога ушла» — это только строчка в логе, и знать об этом надо
             # до аварии, а не после.
-            from .alerts import webhook_configured
+            from .alerts import status as alert_status
 
+            st = alert_status()
             self._send_json(200, {"status": "ok", "version": __version__,
-                                  "alerts": {"slack_webhook": webhook_configured()}})
+                                  "alerts": {"slack_webhook": st["webhook_configured"],
+                                             "last_error_alert_at": st["last_error_alert_at"],
+                                             "last_down_alert_at": st["last_down_alert_at"]}})
         elif path == "/stats":
             client = self.client_id()
             self._send_json(200, {
