@@ -1728,7 +1728,7 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path in ("/free-scan", "/docs/scan"):
             if path == "/docs/scan":
                 from .product_pages import scan_docs_page
-                self._send_html(scan_docs_page())
+                self._send_html(scan_docs_page(self.free_tier.daily_limit))
             else:
                 from .product_pages import free_scan_page
                 self._send_html(free_scan_page())

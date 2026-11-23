@@ -674,6 +674,7 @@ can decide before you send anything.</p>
 </table>
 
 <h2>Limits, exactly</h2>
+<p><b>Free limit: __FREE_LIMIT__ scans per day per client.</b> Counted from the first call of the day (UTC).</p>
 <ul>
 <li>One file, up to <b>200 KB</b>, header row included.</li>
 <li>One file per request; asks for more than that are read in turn, not in parallel.</li>
@@ -750,13 +751,14 @@ def scan_faq_jsonld() -> str:
     return _json.dumps(payload, ensure_ascii=False)
 
 
-def scan_docs_page() -> str:
+def scan_docs_page(limit: int = 5) -> str:
     """Документация бесплатного скана: что проверяется, лимиты, чего не делает.
 
     Нужна потому, что «пришлите CSV» без описания границ — это просьба поверить
     на слово; здесь границы названы до отправки файла.
     """
+    body = SCAN_DOCS_BODY.replace("__FREE_LIMIT__", str(limit))
     return _shell("Free scan — what is checked, limits, what it does not do",
                   "How the attest free spend scan works: checks, 200 KB and one business day limits, "
                   "a synthetic reply example, and what the scan explicitly does not do.",
-                  "/docs/scan", SCAN_DOCS_BODY, jsonld=scan_faq_jsonld())
+                  "/docs/scan", body, jsonld=scan_faq_jsonld())

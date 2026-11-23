@@ -1396,3 +1396,35 @@ local /health → 200, {"alerts":{"slack_webhook":false,"last_error_alert_at":nu
 сейчас недоступен не из-за кода: нужен разбор сети/ingress у владельца.
 
 **Рынок (проверено HTTP 23.11.2026):** Slack incoming webhook — отправка сообщений и ответ 200 (`api.slack.com/messaging/webhooks`, 200); «alert on silence» — отдельный класс алертов (`docs.ilert.com/alerting/heartbeat-monitoring`, 200); усталость от алертов — известная проблема, лечится приоритетами и глушением повторов (`atlassian.com/incident-management/on-call/alert-fatigue`, 200); алертить по SLO-симптомам, а не по каждой метрике (`sre.google/workbook/alerting-on-slos/`, 200).
+
+## 23.11.2026 — /docs/scan: страница была, лимита в ней не было
+
+**Что проверил:** `/docs/scan` отдаёт **200** и содержит все четыре обязательных блока —
+«What is checked», «Limits, exactly», «Example of what a reply looks like», «What the scan does not do».
+
+**Нашёл расхождение:** код держит лимит `FREE_DAILY_LIMIT = 5` (env `ATTEST_FREE_DAILY`), а страница
+о лимите в сутки **молчала** — говорила только про 200 КБ и один файл. Человек не знал, сколько сканов
+ему доступно, хотя лендинг лимит показывает.
+
+**Исправлено:** `scan_docs_page(limit)` подставляет живое значение из `free_tier.daily_limit`,
+в разделе лимитов теперь: «Free limit: 5 scans per day per client. Counted from the first call of the day
+(UTC)». Число берётся из кода, а не из текста — при смене env страница не соврёт.
+
+**Проверено:**
+```
+local /docs/scan → 200 · 8804 байта · «Free limit: 5 scans per day»
+pytest tests/test_scan_docs_page.py → 3 passed
+(+ test_scan_discovery, test_docs_api — вместе 200-е и sitemap)
+```
+Новые тесты держат: четыре блока на месте, лимит совпадает с `FREE_DAILY_LIMIT`, плейсхолдер
+не остаётся в HTML, страница есть в sitemap и на неё ссылается `/scan`.
+
+**БЛОКЕР (тот же):** публичный домен отдаёт 530/1033 (туннель не держит соединение с edge),
+поэтому проверка `https://attest.rta.lat/docs/scan` сейчас невозможна — только локально.
+
+**Рынок (проверено HTTP 200):** документация платёжных API строит доверие на явных границах и лимитах
+(`docs.stripe.com/payments/checkout`, 200); страницы-документация должны быть индексируемыми и
+описывать себя (`developers.google.com/search/docs/crawling-indexing/special-tags`, 200);
+доступность страницы — часть доверия (`w3.org/WAI/WCAG22/quickref/`, 200).
+
+**Дальше:** домен (туннель) — единственное, что мешает проверить страницу снаружи.
