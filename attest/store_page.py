@@ -75,7 +75,7 @@ def store_page() -> str:
                         "priceCurrency": "USD", "url": h}}
             for t, p, n, h in [
                 ("Free scan", "$0", "MCP server scan", "https://attest.rta.lat/scan"),
-                ("Founding audit", "$19", "Agent spend audit", "https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit-founding"),
+                ("Founding audit", "$19", "Agent spend audit — founding price for the first 10 teams (normally $199)", "https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit-founding"),
                 ("KARTA receipt", "$19", "Agent spend receipt", "https://nidhipati.ailegal.legal/pay/card?product=karta-report"),
                 ("Drift mandate", "$79", "Spend limits and kill switch", "https://nidhipati.ailegal.legal/pay/card?product=drift-kill-switch"),
                 ("Site Guard", "$49", "Uptime, SSL and domain", "https://nidhipati.ailegal.legal/pay/card?product=site-guard-year"),
