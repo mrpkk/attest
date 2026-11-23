@@ -17,6 +17,10 @@ ROOT = Path(__file__).resolve().parents[1]
 #: Что не попадает в openapi.json, но обязано быть в документации: JSON-RPC и
 #: человеческие страницы оплаты.
 EXTRA_ENDPOINTS = {
+    "POST /api/scan": "scan a public MCP server: JSON {\"url\": \"https://…\"} → tools/list flags "
+                      "(400 with error text when the server does not answer tools/list)",
+    "GET /health": "service status + whether the alert webhook is configured",
+    "GET /stats": "free-tier usage for your client: limit, used, remaining",
     "POST /mcp": "MCP 2026-07-28 (JSON-RPC): tools/list, tools/call — verify_artifact, verify_artifact_batch",
     "POST /api/free-scan": "free spend scan: email + CSV (≤200 KB), written reply in one business day",
     "GET /verify-receipt": "human page: paste a receipt, see whether it verifies",
