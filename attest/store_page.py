@@ -14,6 +14,7 @@
 никаких фреймворков и внешних шрифтов — страница весит десятки КБ.
 """
 import json
+from pathlib import Path
 
 
 def _card(group, title, price, note, href, cta, old="", badge=""):
@@ -27,7 +28,22 @@ def _card(group, title, price, note, href, cta, old="", badge=""):
 </article>"""
 
 
+def _tests_count() -> int:
+    """Сколько автотестов в репозитории — доказательство, а не эпитет «протестировано»."""
+    try:
+        total = 0
+        for f in (Path(__file__).resolve().parents[1] / "tests").glob("test_*.py"):
+            total += f.read_text(encoding="utf-8", errors="ignore").count("def test_")
+        return total
+    except OSError:
+        return 0
+
+
 def store_page() -> str:
+    n = _tests_count()
+    proof = (f"<b>{n:,}</b> automated checks in the repository · live <code>/health</code> and "
+             f"<code>/scan</code> · no external scripts or fonts" if n else
+             "live <code>/health</code> and <code>/scan</code> · no external scripts or fonts")
     cards = "\n".join([
         _card("agent", "Free scan", "$0", "One MCP server, three findings. No account, no card.",
               "/scan", "Scan now", badge="Start here"),
@@ -197,13 +213,14 @@ footer{margin:56px 0 40px;border-top:1px solid var(--line);padding-top:20px;colo
       <h1>Your agent moves money.<br>Can you prove what it bought?</h1>
       <p class="lead">Scan any MCP server in 30 seconds. See the tools that can spend, write or delete —
       and whether anything stops them. Then fix it with a receipt, a limit or a kill switch.</p>
-      <a class="btn" href="/scan">Scan free — no account</a>
+      <a class="btn" href="/scan" data-primary="1">Scan free — no account</a>
       <a class="btn ghost" href="/plans">Fix it — from $19</a>
       <a class="btn ghost" href="https://mrpkk.github.io/nidhipati/audit-sample.html">See a sample audit</a>
       <div class="metrics">
         <span><b>Free</b> scan</span><span><b>$19</b> founding audit</span>
         <span><b>USDC</b> or card</span><span><b>Nothing found</b> — no fee</span>
       </div>
+      <p class="proof">{proof}</p>
     </div>
     <div class="panel" aria-label="Live scan">
       <form class="scan-row" id="scanForm">
@@ -325,4 +342,4 @@ __CARDS__
 </script>
 <script type="application/ld+json">__LD__</script>
 </body></html>"""
-    return html.replace("__CARDS__", cards).replace("__LD__", json.dumps(ld, ensure_ascii=False))
+    return html.replace("__CARDS__", cards).replace("__LD__", json.dumps(ld, ensure_ascii=False)).replace("{proof}", proof)
