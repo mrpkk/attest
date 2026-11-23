@@ -1558,3 +1558,27 @@ pytest tests/test_docs_api_drift.py tests/test_docs_api.py → 8 passed
 (`developers.google.com/workspace/calendar/api/guides/errors`, 200).
 
 **БЛОКЕР:** публичный домен 530 (туннель), проверка локальная.
+
+## 23.11.2026 — критичные пути: полный прогон зелёный, 1018 passed
+
+**Что было:** 1014 passed, но **1 красный** — `test_scan_seo::test_structured_data_is_valid_json`. Причина
+моя: добавив FAQ-разметку раньше WebApplication, я сломал тест, который брал **первый** блок JSON-LD и
+считал его WebApplication. Тест исправлен на выбор по типу (`next(p for p in parsed if @type ==
+"WebApplication")`) плюс проверка, что FAQPage тоже валиден.
+
+**Добавлено тестов на стыки (не на функции):** `tests/test_critical_paths.py` — 3 теста:
+1. ключ выдан → `verify` видит план → `consume` списывает квоту → третья попытка `None`;
+2. два ключа разных покупателей не путаются, случайный `dn_…` отклоняется;
+3. истёкший ключ (days=-1) отклоняется.
+
+**Проверено:**
+```
+pytest tests -q → 1018 passed, 4 skipped
+```
+
+**Рынок (проверено HTTP 200):** покрытие считается по стыкам и рискам, а не по строкам
+(`pytest-cov.readthedocs.io`, 200); тестовая пирамида — много модульных, мало end-to-end
+(`martinfowler.com/bliki/TestPyramid.html`, 200); Google прямо предупреждает, что избыток e2e хуже
+отсутствия (`testing.googleblog.com/.../just-say-no-to-more-end-to-end-tests.html`, 200).
+
+**Дальше:** зелёный прогон держится; следующий шаг — не «больше тестов», а первый живой платёж.

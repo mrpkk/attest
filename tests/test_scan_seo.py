@@ -47,11 +47,13 @@ def test_page_has_readable_content_not_just_a_form():
 
 
 def test_structured_data_is_valid_json():
+    """На странице несколько блоков JSON-LD (FAQPage + WebApplication) — берём нужный по типу."""
     html = scan_page()
-    start = html.index("application/ld+json") + len('application/ld+json">')
-    data = json.loads(html[start:html.index("</script>", start)])
-    assert data["@type"] == "WebApplication"
-    assert data["offers"]["price"] == "0"
+    blocks = re.findall(r'<script type="application/ld\+json">(.*?)</script>', html, re.S)
+    parsed = [json.loads(b) for b in blocks]
+    web = next(p for p in parsed if p.get("@type") == "WebApplication")
+    assert web["offers"]["price"] == "0"
+    assert any(p.get("@type") == "FAQPage" for p in parsed)
 
 
 def test_internal_links_carry_ref():
