@@ -1402,3 +1402,39 @@ local /scan → 200 · live sitemap содержит /scan (1)
 
 **Дальше:** вписать `ATTEST_SLACK_WEBHOOK` в `~/.env` (владелец) — тогда алерты начнут уходить; до этого
 они видны только в `/health` и логе.
+
+## 23.11.2026 — алерты: «упал» отдельно от «ошибки», видно в /health, доставка проверена
+
+**Что уже было:** `alerts.py` с Slack-webhook (`ATTEST_SLACK_WEBHOOK`), порог 5 ошибок за 5 минут,
+одно сообщение за окно, вызов из `service.py` на 5xx. Метрика «сервис упал» отсутствовала.
+
+**Добавлено:**
+- **`alert_down(reason)`** — отдельный алерт с окном 15 минут: падение сервиса и всплеск 5xx — разные
+  события, глушить одно другим нельзя;
+- **`status()`** — что видно снаружи: настроен ли канал, когда последний раз уходили алерты;
+- `/health` теперь отдаёт `alerts: {slack_webhook, last_error_alert_at, last_down_alert_at}` —
+  «webhook не настроен» видно до аварии, а не после.
+
+**Живая доставка (локальный приёмник, имитация Slack):**
+```
+ошибки:      {'sent': True, 'errors': 5, 'reason': 'sent'}
+падение:     {'sent': True, 'reason': 'sent'}
+повтор:      {'sent': False, 'reason': 'already_sent'}
+доставлено сообщений: 2
+```
+
+**Проверено:**
+```
+pytest tests/test_alerts.py → 12 passed · tests/test_alerts.py+test_service.py → 137 passed
+local /health → 200, {"alerts":{"slack_webhook":false,"last_error_alert_at":null,"last_down_alert_at":null}}
+```
+
+**БЛОКЕР, честно:** публичный домен отдаёт **530/1033** — Cloudflare-туннель жив (`active`), но
+соединение с edge падает по таймауту (`TLS handshake with edge … i/o timeout`, `198.41.200.53:7844`).
+Пробовал: рестарт сервиса, ожидание, SIGKILL+start — 530 остаётся. Значит `https://attest.rta.lat`
+сейчас недоступен не из-за кода: нужен разбор сети/ingress у владельца.
+
+**Рынок (23.11.2026):** алерты разделяют по симптому (падение ≠ рост ошибок) и глушат повторы окном
+(`docs.ilert.com`, `alertops.com`); Slack incoming webhook — простой транспорт `{"text": ...}`
+(`api.slack.com`); health-эндпоинт должен показывать состояние самого мониторинга, иначе «аларм не
+пришёл» неотличим от «аларма нет».
