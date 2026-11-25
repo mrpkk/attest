@@ -62,3 +62,19 @@ def test_hero_has_two_paths():
     hero = html.split('id="products"')[0]
     assert 'href="/scan"' in hero
     assert 'href="/plans"' in hero
+
+
+def test_hero_has_one_primary_action():
+    """Одна главная кнопка: три равных кнопки — это выбор вместо действия (CRO)."""
+    html = store_page()
+    hero = html.split('<div class="wrap hero">')[1].split('id="products"')[0]
+    assert hero.count('data-primary="1"') == 1
+    assert len(re.findall(r'<a class="btn', hero)) == 2, "главная кнопка и один запасной путь"
+    assert "No card, no account, 30 seconds" in hero
+    assert "audit-sample.html" in hero, "пример результата не должен пропасть из первого экрана"
+
+
+def test_store_page_is_cached_for_repeat_visits():
+    """Повторный заход должен брать страницу из кэша браузера, а не ждать сервер."""
+    src = (ROOT / "attest" / "service.py").read_text(encoding="utf-8")
+    assert 'self._send_html(store_page(), cache_seconds=60)' in src

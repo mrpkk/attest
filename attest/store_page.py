@@ -142,6 +142,8 @@ h1{font-size:clamp(34px,5.4vw,58px);line-height:1.04;letter-spacing:-1.4px;margi
 .btn:hover{text-decoration:none;filter:brightness(1.08)}
 .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
 .btn.small{padding:9px 13px;font-size:14px;border-radius:10px}
+.sublink{font-size:14px;color:var(--mut);margin:12px 0 0}
+.sublink a{white-space:nowrap}
 .metrics{display:flex;gap:18px;flex-wrap:wrap;color:var(--mut);font-size:14px;margin-top:22px}
 .metrics b{color:var(--txt)}
 .panel{background:color-mix(in srgb, var(--panel) 92%, transparent);border:1px solid var(--line);
@@ -215,7 +217,8 @@ footer{margin:56px 0 40px;border-top:1px solid var(--line);padding-top:20px;colo
       and whether anything stops them. Then fix it with a receipt, a limit or a kill switch.</p>
       <a class="btn" href="/scan" data-primary="1">Scan free — no account</a>
       <a class="btn ghost" href="/plans">Fix it — from $19</a>
-      <a class="btn ghost" href="https://mrpkk.github.io/nidhipati/audit-sample.html">See a sample audit</a>
+      <p class="sublink">No card, no account, 30 seconds. Want to see the output first?
+      <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">Sample audit →</a></p>
       <div class="metrics">
         <span><b>Free</b> scan</span><span><b>$19</b> founding audit</span>
         <span><b>USDC</b> or card</span><span><b>Nothing found</b> — no fee</span>

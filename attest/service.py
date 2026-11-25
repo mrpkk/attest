@@ -1635,7 +1635,9 @@ class AttestHandler(BaseHTTPRequestHandler):
             self._send_html(hub_page())
         elif path == "/store":
             from .store_page import store_page
-            self._send_html(store_page())
+            # 26.11.2026: витрина не меняется между запросами — даём браузеру 60 секунд кэша,
+            # чтобы повторный заход был мгновенным. Остальные HTML не кэшируем: там живо�� состояние.
+            self._send_html(store_page(), cache_seconds=60)
         elif path == "/health":
             # Состояние алертов видно в healthcheck: если webhook не настроен,
             # «тревога ушла» — это только строчка в логе, и знать об этом надо
@@ -3559,8 +3561,9 @@ document.getElementById('go').onclick = async () => {{
                 break
             remaining -= len(chunk)
 
-    def _send_html(self, html: str) -> None:
-        self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
+    def _send_html(self, html: str, cache_seconds: int = 0) -> None:
+        headers = {"Cache-Control": f"public, max-age={int(cache_seconds)}"} if cache_seconds > 0 else None
+        self._send(200, html.encode("utf-8"), "text/html; charset=utf-8", headers)
 
     def _send_json(
         self, status: int, body: Any, extra_headers: dict[str, str] | None = None
