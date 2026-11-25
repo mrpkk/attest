@@ -1582,3 +1582,41 @@ pytest tests -q → 1018 passed, 4 skipped
 отсутствия (`testing.googleblog.com/.../just-say-no-to-more-end-to-end-tests.html`, 200).
 
 **Дальше:** зелёный прогон держится; следующий шаг — не «больше тестов», а первый живой платёж.
+
+## 26.11.2026 — сторожа attest запустили, и он перестал быть «папкой с файлом»
+
+**Проверяемый пункт 1: нашёл настоящую дырку — сторож никто не запускал.**
+`scripts/watchdog.py` существовал и умел слать алерт, но в `~/.config/systemd/user/` не было ни юнита, ни
+таймера: `systemctl --user list-timers` показывал `autonomy-watchdog` (другой проект) и `attest-funnel`,
+а сторожа attest — нет. То есть «алерт при падении» был кодом без расписания.
+
+**Проверяемый пункт 2: поставил таймером каждые 5 минут, проверил живьём.**
+`deploy/attest-watchdog.service` + `.timer` (5 мин, `Persistent=true`) → установлены и включены:
+```
+symlink timers.target.wants/attest-watchdog.timer → …
+NEXT 00:24:41 LEFT 4min 55s  attest-watchdog.timer
+journal: alert без webhook: 🟢 attest снова отвечает 200.  (Finished)
+```
+Сторож реально сходил на `attest.rta.lat` и записал смену состояния.
+
+**Проверяемый пункт 3: доставка алерта больше не теряется на одной сетевой ошибке.**
+В `alerts.post()` — один повтор на транзиентную причину (сеть, таймаут, 429, 5xx) и **без** повтора на 4xx
+(это наша ошибка формата, повтор бесполезен). Тесты: `test_transient_failure_is_retried_once` (503→200,
+ровно две попытки), `test_client_error_is_not_retried` (400 → одна попытка, `http_400`),
+`test_watchdog_is_scheduled_not_just_written` (юнит запускает именно `scripts/watchdog.py`, таймер 5 мин).
+
+**Проверено:**
+```
+pytest tests -q → 1021 passed, 4 skipped (13 с)
+HTTP: attest.rta.lat/health 200 · /free-scan 200 · /docs/api 200
+git secret guard → чисто (6 файлов)
+```
+
+**Честно про алерт:** в `~/.env` нет `ATTEST_SLACK_WEBHOOK` (grep = 0). Пока его нет, алерт пишется в журнал
+и возвращает `webhook_not_configured` — то есть **тревога видна только в `journalctl`, в чат не приходит**.
+Нужен владелец: адрес webhook (Slack/Mattermost/любой slack-совместимый приёмник) в `~/.env`.
+Проверка доступности приёмника: `python3 scripts/watchdog.py` и `curl -X POST <url> -d '{"text":"test"}'`.
+
+**Рынок (26.11.2026, HTTP):** sentry.io/pricing 403 (автозапросы режутся) · kwork.ru/faq 200 ·
+pypi 200 · наш /health 200. Практика «внешний сторож + one alert per state change» — стандарт (Sentry/UptimeRobot),
+поэтому повтор только на транзиентных и одно сообщение на смену состояния.
