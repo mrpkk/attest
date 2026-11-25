@@ -64,10 +64,12 @@ def test_post_delivers_slack_payload():
 
 
 def test_missing_webhook_is_honest(monkeypatch):
+    """Ни webhook, ни Telegram — значит недоставлено, и это сказано прямо."""
     monkeypatch.delenv(alerts.ENV_KEY, raising=False)
     monkeypatch.setattr(alerts, "_env_value", lambda key: "")
+    monkeypatch.setattr(alerts, "_post_telegram", lambda text, timeout=25: (False, "telegram_not_configured"))
     ok, why = alerts.post("текст")
-    assert ok is False and why == "webhook_not_configured"
+    assert ok is False and why == "telegram_not_configured"
 
 
 def test_error_spike_alerts_once_per_window(monkeypatch):
@@ -274,3 +276,29 @@ def test_products_timer_exists():
     timer = (ROOT / "deploy" / "attest-products.timer").read_text(encoding="utf-8")
     assert "monitor_products.py" in unit and "--alert" in unit
     assert "OnUnitActiveSec=10min" in timer
+
+
+def test_without_webhook_alert_goes_to_telegram(monkeypatch):
+    """Тревога без канала — это тишина. Запасной канал проверяется тестом."""
+    monkeypatch.setattr(alerts, "_env_value", lambda key: "")
+    sent = []
+    monkeypatch.setattr(alerts, "_post_telegram", lambda text, timeout=25: (sent.append(text), (True, ""))[1])
+    ok, why = alerts.post("🟢 тест доставки")
+    assert ok is True and why == ""
+    assert sent and "тест доставки" in sent[0]
+
+
+def test_webhook_wins_when_configured(monkeypatch):
+    with _Receiver() as rec:
+        monkeypatch.setattr(alerts, "_post_telegram",
+                            lambda text, timeout=25: (_ for _ in ()).throw(AssertionError("не должен звонить")))
+        monkeypatch.setattr(alerts, "_env_value", lambda key: rec.url)
+        ok, why = alerts.post("через webhook")
+    assert ok is True and rec.bodies and "webhook" in rec.bodies[0]["text"]
+
+
+def test_telegram_failure_is_reported_not_hidden(monkeypatch):
+    monkeypatch.setattr(alerts, "_env_value", lambda key: "")
+    monkeypatch.setattr(alerts, "_post_telegram", lambda text, timeout=25: (False, "telegram_TimeoutError"))
+    ok, why = alerts.post("не дойдёт")
+    assert ok is False and why.startswith("telegram_")

@@ -47,6 +47,38 @@ def webhook_configured() -> bool:
     return bool(_env_value(ENV_KEY))
 
 
+#: Запасной канал. Slack-webhook владелец ещё не завёл (26.11.2026: в ~/.env ноль совпадений),
+#: поэтому тревога уходила только в journalctl — то есть её никто не видел. Telegram-канал проекта
+#: уже работает, и он честно называется запасным, а не «Slack».
+TG_TOKEN_KEY = "TG_TOKEN"
+TG_CHAT_KEY = "ATTEST_ALERT_CHAT"
+TG_CHAT_DEFAULT = "330822359"  # личный чат владельца, тот же, куда пишут другие сторожа
+TG_API = "https://api.telegram.org"
+
+
+def _post_telegram(text: str, timeout: int = 25) -> tuple[bool, str]:
+    """Отправка в Telegram через Tor. Токен идёт в конфиге curl по stdin, не в argv."""
+    import subprocess
+
+    token = _env_value(TG_TOKEN_KEY)
+    chat = _env_value(TG_CHAT_KEY) or TG_CHAT_DEFAULT
+    if not token:
+        return False, "telegram_not_configured"
+    cfg = ('socks5-hostname = "127.0.0.1:9050"\n'
+           f'url = "{TG_API}/bot{token}/sendMessage"\n'
+           'header = "Content-Type: application/x-www-form-urlencoded"\n'
+           'data-urlencode = "chat_id=' + chat + '"\n'
+           'data-urlencode = "text=' + text[:3500].replace('"', "'") + '"\n'
+           f"silent\nmax-time = {timeout}\n")
+    try:
+        r = subprocess.run(["curl", "-s", "-K", "-"], input=cfg, capture_output=True,
+                           text=True, timeout=timeout + 10)
+        ok = '"ok":true' in r.stdout.replace(" ", "")
+        return ok, "" if ok else f"telegram_{r.stdout[:60].strip() or 'no_response'}"
+    except Exception as exc:  # noqa: BLE001 — тревога не должна ронять сервис
+        return False, f"telegram_{type(exc).__name__}"
+
+
 def _transient(reason: str) -> bool:
     """Стоит ли повторять: сеть, таймаут, 429 и 5xx — да; 4xx (кроме 429) — нет, повтор бесполезен."""
     if reason.startswith("http_"):
@@ -64,8 +96,10 @@ def post(text: str, url: str | None = None, timeout: int = 10,
     """
     target = url or _env_value(ENV_KEY)
     if not target:
-        log.warning("alert без webhook: %s", text[:200])
-        return False, "webhook_not_configured"
+        ok, why = _post_telegram(text)
+        log.warning("alert без webhook, отправлен в Telegram: %s (доставлено=%s %s)",
+                    text[:160], ok, why)
+        return ok, ("" if ok else why)
     payload = json.dumps({"text": text[:1900]}).encode("utf-8")
     req = urllib.request.Request(
         target, data=payload, method="POST",
