@@ -25,6 +25,16 @@ EXTRA_ENDPOINTS = {
     "POST /api/free-scan": "free spend scan: email + CSV (≤200 KB), written reply in one business day",
     "GET /verify-receipt": "human page: paste a receipt, see whether it verifies",
     "GET /pay": "human page: pay 99 USDC from any wallet, token issued in the same response",
+    "POST /verify": "verify one artifact: JSON {artifact, schema?, source?} → verdict, trust score and "
+                    "Ed25519 signature; 5 checks a day free per client, then 402 with the ways forward",
+    "POST /verify-offline": "same check with no network round-trip on our side: the page at /verify-offline "
+                            "runs the public-key check in your browser",
+    "POST /api/receipt/issue": "issue a signed payment receipt: chain facts in, Ed25519-signed receipt out",
+    "POST /api/receipt/verify": "verify a payment receipt without trusting this service — no network is used",
+    "GET /api/funnel": "the numbers we watch ourselves: views, free scans, paywall hits",
+    "GET /metrics": "counters as JSON (requests, verdicts, feedback) — the same numbers /api/funnel shows",
+    "POST /log/register": "append a statement to the transparency log (inclusion proof returned)",
+    "GET /log/head": "current log head: size, root, timestamp and signature — one object to compare against",
 }
 
 LIMITS = [
