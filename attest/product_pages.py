@@ -181,6 +181,7 @@ __PAY__
     <td>Step-by-step self-assessment with the evidence each step needs; article 43 route named as a route, not as a certificate</td></tr>
 </table>
 
+<p><a href="/scan?ref=mcp_security">Scan an MCP server first</a> — 30 seconds, no account. The scan lists tools that can move money or state and flags hidden instructions; the audit goes deeper on what it finds.</p>
 <h2>What this is not</h2>
 <ul>
 <li>Not a legal opinion and not a substitute for your lawyer or a notary.</li>

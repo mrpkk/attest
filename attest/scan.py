@@ -297,6 +297,33 @@ from here.</li>
 read prompts, results or user data. The $19 audit reads a month of spend logs instead.</dd>
 </dl>
 
+<h2>MCP server scan vs. a vulnerability scanner</h2>
+<p>A vulnerability scanner and an MCP server scan answer different questions, and using one where the other
+belongs is how teams end up with a clean report and an incident. A vulnerability scanner looks for known
+weaknesses in code and dependencies. An MCP server scan starts from the public <code>tools/list</code> answer
+and asks what the agent is allowed to do with this server: which tools can move money, write files or delete
+state, which of them declare <code>readOnlyHint</code> or <code>destructiveHint</code>, and whether a tool
+description quietly carries instructions aimed at the model rather than the human reading it.</p>
+<p>That means the scan can be run before you have the source, before there is a repository, and against a
+third-party server you are about to connect — the three cases where a code scanner has nothing to chew on.
+It also means the result is deliberately shallow: a tool can be honest in its description and still be
+implemented badly. The scan reduces the surface you must review; it does not remove the review.</p>
+<h2>What to do with the result</h2>
+<p>Start with the tools that can move money or change state. For each one, decide the answer to a single
+question: what stops this action if the agent is wrong? If the answer is "the model's judgement", you have
+found the real risk. Three answers exist and none of them require rewriting the server:</p>
+<ul>
+<li><b>A receipt</b> — the action leaves a signed, verifiable record that a human can check afterwards.</li>
+<li><b>A limit</b> — an amount or a count beyond which the tool refuses, regardless of intent.</li>
+<li><b>A kill switch</b> — a way to stop the agent in one step, without editing prompts.</li>
+</ul>
+<p>Tools that are read-only need a different check: confirm the annotation is true, because a read-only tool
+that writes is the most common mismatch between description and behaviour we see.</p>
+<h2>How often to scan</h2>
+<p>Scan when the server is new to you, when it changes, and before you raise its permissions. The public tool
+list is what the agent will actually see at runtime, so a scan after a deployment is the cheapest check that
+the deployment did not quietly widen the surface. There is no scheduled monitoring on the free path: this is a
+point-in-time read, not a watchdog.</p>
 <h2>Next steps</h2>
 <p><a href="/docs/scan?ref=scan-page">What a spend scan checks, with limits</a> ·
 <a href="/store?ref=scan-page">All tools and prices</a> ·
