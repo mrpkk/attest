@@ -665,13 +665,10 @@ can decide before you send anything.</p>
 <h2>What is checked</h2>
 <table>
 <tr><th>Check</th><th>What it means</th></tr>
-<tr><td>Duplicates</td><td>The same amount to the same payee at (nearly) the same time — paying twice for one call.</td></tr>
-<tr><td>Failed but charged</td><td>A row that looks like an error or a retry, where money still left the account.</td></tr>
-<tr><td>Quote vs settled</td><td>What the vendor quoted versus what the wallet actually sent.</td></tr>
-<tr><td>Missing refunds</td><td>A charge with a matching credit that never arrived.</td></tr>
-<tr><td>Unapproved payees</td><td>A recipient that does not appear in your own list of vendors, if you send one.</td></tr>
-<tr><td>Gaps</td><td>Periods where the log has no rows although the agent was running.</td></tr>
+__CHECK_ROWS__
 </table>
+<p>Every item above is read by a person on your file. The tool parses rows and columns and counts them;
+the checks themselves are not an automated verdict, and there is no score.</p>
 
 <h2>Limits, exactly</h2>
 <p><b>Free limit: __FREE_LIMIT__ scans per day per client.</b> Counted from the first call of the day (UTC).</p>
@@ -757,7 +754,10 @@ def scan_docs_page(limit: int = 5) -> str:
     Нужна потому, что «пришлите CSV» без описания границ — это просьба поверить
     на слово; здесь границы названы до отправки файла.
     """
-    body = SCAN_DOCS_BODY.replace("__FREE_LIMIT__", str(limit))
+    from .free_scan import CHECKS
+
+    rows = "\n".join(f"<tr><td>{c['title']}</td><td>{c['means']}</td></tr>" for c in CHECKS)
+    body = (SCAN_DOCS_BODY.replace("__FREE_LIMIT__", str(limit)).replace("__CHECK_ROWS__", rows))
     return _shell("Free scan — what is checked, limits, what it does not do",
                   "How the attest free spend scan works: checks, 200 KB and one business day limits, "
                   "a synthetic reply example, and what the scan explicitly does not do.",

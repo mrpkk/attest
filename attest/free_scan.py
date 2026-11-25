@@ -43,6 +43,29 @@ EXPECTED_COLUMNS = ("date", "amount", "asset", "payee", "tx_hash")
 _DATA_CELL = re.compile(r"^(-?\d+(\.\d+)?|\d{4}-\d{2}-\d{2}.*|0x[0-9a-fA-F]+)$")
 
 
+#: Что мы обещаем проверить на файле клиента. Единственный список: страница /docs/scan
+#: и ответ клиенту берут названия отсюда, поэтому «пообещали, но не смотрим» не пройдёт
+#: (тест сверяет страницу с этим кортежем).
+#: status="manual" — читает человек; автоматического вердикта по этим проверкам нет.
+CHECKS = (
+    {"key": "duplicates", "title": "Duplicates",
+     "means": "The same amount to the same payee at (nearly) the same time — paying twice for one call."},
+    {"key": "failed_but_charged", "title": "Failed but charged",
+     "means": "A row that looks like an error or a retry, where money still left the account."},
+    {"key": "quote_vs_settled", "title": "Quote vs settled",
+     "means": "What the vendor quoted versus what the wallet actually sent."},
+    {"key": "missing_refund", "title": "Missing refunds",
+     "means": "A charge with a matching credit that never arrived."},
+    {"key": "unapproved_payee", "title": "Unapproved payees",
+     "means": "A recipient that does not appear in your own list of vendors, if you send one."},
+    {"key": "gaps", "title": "Gaps",
+     "means": "Periods where the log has no rows although the agent was running."},
+)
+
+#: Все проверки сейчас human-reviewed: файл разбираем кодом, выводы называет человек.
+CHECK_STATUS = "manual"
+
+
 class ScanError(ValueError):
     """Отказ до записи. Текст читает человек, поэтому он без кодов."""
 
