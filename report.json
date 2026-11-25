@@ -1,0 +1,9 @@
+{
+ "rows_in": 6,
+ "empty_dropped": 1,
+ "duplicates_dropped": 1,
+ "cells_trimmed": 5,
+ "dates_normalized": 4,
+ "numbers_normalized": 2,
+ "rows_out": 4
+}

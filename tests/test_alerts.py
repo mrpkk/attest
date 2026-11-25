@@ -169,3 +169,58 @@ def test_status_reports_webhook_and_timestamps(monkeypatch):
     monkeypatch.setattr(alerts, "webhook_configured", lambda: True)
     st = alerts.status()
     assert st["webhook_configured"] is True and st["last_error_alert_at"] is None
+
+
+def _flaky_receiver(statuses):
+    """Приёмник, который первые ответы отдаёт не-200 — проверяем повтор."""
+    seen = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802
+            length = int(self.headers.get("Content-Length") or 0)
+            self.rfile.read(length)
+            code = statuses[min(len(seen), len(statuses) - 1)]
+            seen.append(code)
+            self.send_response(code)
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server, f"http://127.0.0.1:{server.server_address[1]}/hook", seen
+
+
+def test_transient_failure_is_retried_once():
+    """503 у приёмника — алерт повторяется: потерянный алерт это тишина вместо тревоги."""
+    server, url, seen = _flaky_receiver([503, 200])
+    try:
+        ok, why = alerts.post("attest: повтор", url=url, retry_delay=0.01)
+    finally:
+        server.shutdown()
+        server.server_close()
+    assert (ok, why) == (True, "")
+    assert seen == [503, 200], "вторая попытка должна быть после 503"
+
+
+def test_client_error_is_not_retried():
+    """400 — это наша ошибка в формате, повтор ничего не даст и только тратит время."""
+    server, url, seen = _flaky_receiver([400, 200])
+    try:
+        ok, why = alerts.post("attest: неверный запрос", url=url, retry_delay=0.01)
+    finally:
+        server.shutdown()
+        server.server_close()
+    assert ok is False and why == "http_400"
+    assert seen == [400], "на 4xx повтора быть не должно"
+
+
+def test_watchdog_is_scheduled_not_just_written():
+    """Сторож, которого никто не запускает, — это файл, а не алерт (26.11.2026)."""
+    unit = (ROOT / "deploy" / "attest-watchdog.service").read_text(encoding="utf-8")
+    timer = (ROOT / "deploy" / "attest-watchdog.timer").read_text(encoding="utf-8")
+    assert "scripts/watchdog.py" in unit
+    assert "OnUnitActiveSec=5min" in timer
+    assert "WantedBy=timers.target" in timer

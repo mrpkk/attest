@@ -1,0 +1,9 @@
+[Unit]
+Description=attest: внешний сторож /health, /free-scan и /api/funnel
+Documentation=https://attest.rta.lat
+
+[Service]
+Type=oneshot
+WorkingDirectory=/media/Sruti/iamthat/work/sales/attest
+ExecStart=/usr/bin/python3 scripts/watchdog.py --quiet
+TimeoutStartSec=120

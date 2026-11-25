@@ -47,8 +47,21 @@ def webhook_configured() -> bool:
     return bool(_env_value(ENV_KEY))
 
 
-def post(text: str, url: str | None = None, timeout: int = 10) -> tuple[bool, str]:
-    """Отправить сообщение. (доставлено, причина отказа) — без исключений наружу."""
+def _transient(reason: str) -> bool:
+    """Стоит ли повторять: сеть, таймаут, 429 и 5xx — да; 4xx (кроме 429) — нет, повтор бесполезен."""
+    if reason.startswith("http_"):
+        code = int(reason.split("_", 1)[1] or 0)
+        return code == 429 or 500 <= code < 600
+    return True
+
+
+def post(text: str, url: str | None = None, timeout: int = 10,
+         attempts: int = 2, retry_delay: float = 2.0) -> tuple[bool, str]:
+    """Отправить сообщение. (доставлено, причина отказа) — без исключений наружу.
+
+    Один повтор на транзиентную ошибку (сеть, 429, 5xx): webhook-приёмники падают и
+    восстанавливаются, а потерянный алерт — это «тишина вместо тревоги» (26.11.2026).
+    """
     target = url or _env_value(ENV_KEY)
     if not target:
         log.warning("alert без webhook: %s", text[:200])
@@ -57,13 +70,22 @@ def post(text: str, url: str | None = None, timeout: int = 10) -> tuple[bool, st
     req = urllib.request.Request(
         target, data=payload, method="POST",
         headers={"Content-Type": "application/json", "User-Agent": "attest-alerts/1"})
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return (200 <= resp.status < 300), "" if resp.status < 300 else f"http_{resp.status}"
-    except urllib.error.HTTPError as exc:
-        return False, f"http_{exc.code}"
-    except Exception as exc:  # noqa: BLE001 — сеть/таймаут: алерт не должен ронять сервис
-        return False, f"{type(exc).__name__}"
+    reason = ""
+    for attempt in range(max(1, attempts)):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                if 200 <= resp.status < 300:
+                    return True, ""
+                reason = f"http_{resp.status}"
+        except urllib.error.HTTPError as exc:
+            reason = f"http_{exc.code}"
+        except Exception as exc:  # noqa: BLE001 — сеть/таймаут: алерт не должен ронять сервис
+            reason = f"{type(exc).__name__}"
+        if attempt + 1 < max(1, attempts) and _transient(reason) and retry_delay > 0:
+            time.sleep(retry_delay)
+        elif not _transient(reason):
+            break
+    return False, reason
 
 
 def alert_errors(count: int = 1, now: float | None = None,
