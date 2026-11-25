@@ -302,3 +302,30 @@ def test_telegram_failure_is_reported_not_hidden(monkeypatch):
     monkeypatch.setattr(alerts, "_post_telegram", lambda text, timeout=25: (False, "telegram_TimeoutError"))
     ok, why = alerts.post("не дойдёт")
     assert ok is False and why.startswith("telegram_")
+
+
+def test_state_updates_even_when_alert_could_not_be_delivered(tmp_path):
+    """Канал молчит — состояние всё равно должно отражать реальность, иначе спам при возврате."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("monitor_products3",
+                                                  ROOT / "scripts" / "monitor_products.py")
+    mp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mp)
+    import attest.alerts as real_alerts
+
+    orig_post = real_alerts.post
+    orig_alert = mp.alert
+    real_alerts.post = lambda text, url=None, **kw: (False, "telegram_TimeoutError")
+    mp.alert = lambda failed: {"sent": False, "reason": "telegram_TimeoutError"}
+
+    up = {"ok": True, "rows": [{"name": "Site Guard", "url": "u", "code": 200, "ok": True}]}
+    down = {"ok": False, "rows": [{"name": "Site Guard", "url": "u", "code": 503, "ok": False}]}
+    state = tmp_path / "s.json"
+    mp.notify(down, state_path=state, now=1000.0)
+    assert mp._load_state(state)["down"] is True
+    mp.notify(up, state_path=state, now=2000.0)          # возврат, но канал молчит
+    saved = mp._load_state(state)
+    assert saved["down"] is False, "после возврата состояние обязано обновиться"
+    mp.alert = orig_alert
+    real_alerts.post = orig_post

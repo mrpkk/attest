@@ -104,8 +104,11 @@ def notify(res: dict, state_path=None, now: float | None = None, repeat_after: f
         ok, why = alerts.post("🟢 продукты снова отвечают 200")
         out = {"sent": ok, "reason": why or "sent"}
 
-    if out.get("sent"):
-        state = {"down": down, "last_alert_at": now,
+    # 26.11.2026: состояние пишем и когда отправка не удалась. Иначе после падения без канала
+    # флаг «down» остаётся навсегда и следующий проход начинает спамить при каждом запуске.
+    if down != was_down or out.get("sent"):
+        state = {"down": down, "last_alert_at": now if out.get("sent") else last,
+                 "last_attempt_at": now,
                  "names": [r["name"] for r in failed] if down else []}
         if state_path:
             _save_state(state_path, state)
