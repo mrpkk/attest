@@ -46,11 +46,13 @@ LIMITS = [
 ]
 
 ERRORS = [
-    ("400", "`invalid JSON` / `artifact must be an object` — тело не разобрано; ничего не списано"),
+    ("400", "тело не разобрано; ничего не списано. Поля: `error` (текст), `code` (`INVALID_JSON` / "
+            "`NOT_AN_OBJECT`), `retryable: false`, `hint` — что именно исправить"),
     ("402", "free limit reached. Body carries `free_remaining: 0`, `resets_at`, and three ways forward: "
             "`free_pack` (100 checks/30 days), `human_review` (one artifact, free), `pay_human` (99 USDC)"),
-    ("413", "body larger than the limit — уменьшите артефакт, квота не тронута"),
-    ("429", "rate limited — `Retry-After` в секундах"),
+    ("413", "`code: BODY_TOO_LARGE` — body larger than the limit; уменьшите артефакт, квота не тронута"),
+    ("429", "rate limited — `Retry-After` в секундах, `retryable: true`; повторять после паузы, а не сразу"),
+    ("404", "путь не существует. Поля: `error`, `path` — проверьте адрес, это не ошибка тела"),
     ("500", "internal — пришлите `X-Request-ID`, по нему находим запрос"),
 ]
 

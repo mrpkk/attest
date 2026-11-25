@@ -3523,6 +3523,14 @@ document.getElementById('go').onclick = async () => {{
             },
         }
 
+    @staticmethod
+    def _err_body(code: str, message: str, hint: str = "", retryable: bool = False) -> dict:
+        """Контракт ошибки: `error`, `code`, `retryable`, `hint` — как обещает /docs/api."""
+        body = {"error": message, "code": code, "retryable": retryable}
+        if hint:
+            body["hint"] = hint
+        return body
+
     def _read_json(self) -> dict[str, Any] | None:
         try:
             length = int(self.headers.get("Content-Length") or 0)
@@ -3534,16 +3542,22 @@ document.getElementById('go').onclick = async () => {{
             return None
         if length > MAX_BODY_BYTES:
             self._drain(length)
-            self._send_json(413, {"error": f"body larger than {MAX_BODY_BYTES} bytes"})
+            self._send_json(413, self._err_body(
+                "BODY_TOO_LARGE", f"body larger than {MAX_BODY_BYTES} bytes",
+                "уменьшите артефакт или отправьте его частями"))
             return None
         raw = self.rfile.read(length)
         try:
             parsed = json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            self._send_json(400, {"error": f"JSON parse failed: {exc}"})
+            self._send_json(400, self._err_body(
+                "INVALID_JSON", f"JSON parse failed: {exc}",
+                "тело запроса должно быть JSON-объектом, например {\"artifact\": {...}}"))
             return None
         if not isinstance(parsed, dict):
-            self._send_json(400, {"error": "expected a JSON object"})
+            self._send_json(400, self._err_body(
+                "NOT_AN_OBJECT", "expected a JSON object",
+                "верхний уровень тела — объект, не массив и не строка"))
             return None
         return parsed
 
