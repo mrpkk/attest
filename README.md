@@ -1,6 +1,10 @@
 # attest — trust layer for agent artifacts
 
-Free scan of an agent's spend log: **<https://attest.rta.lat/free-scan>** — what is checked,
+Scan any MCP server's public tool list in 30 seconds, no account:
+**<https://attest.rta.lat/scan?ref=readme>** — what each tool can move or delete, which annotations are
+missing, and where a description tries to instruct the agent.
+
+Free scan of an agent's spend log: **<https://attest.rta.lat/free-scan?ref=readme>** — what is checked,
 the limits and what the scan does *not* do: **<https://attest.rta.lat/docs/scan>**.
 
 [![M8ven Score](https://m8ven.ai/badge/mcp/mrpkk-attest-70kdum?v=33841343e7786aeebf405effce42c591)](https://m8ven.ai/mcp/mrpkk-attest-70kdum?s=readme)

@@ -3,7 +3,7 @@
 
 def hub_page() -> str:
     tools = [
-        ("Site Guard", "$49/год", "https://nidhipati.ailegal.legal/pay/card?product=site-guard-year",
+        ("Site Guard", "$49/год", "https://nidhipati.ailegal.legal/pay/card?product=site-guard-year&ref=hub",
          "Uptime, SSL и домен. Алерт в Telegram."),
         ("Channel Vault", "$19", "https://nidhipati.ailegal.legal/pay/card?product=channel-vault-export",
          "Бэкап Telegram-канала в ZIP."),
@@ -46,7 +46,7 @@ a{{color:#58a6ff}}
 </style></head><body><main>
 <h1>Инструменты для агентов</h1>
 <p class="s">Проверяем, что агент получил; держим его расходы в рамках; отвечаем по документам с цитатами.</p>
-<a class="scan" href="https://attest.rta.lat/scan">Бесплатно: просканировать MCP-сервер →</a>
+<a class="scan" href="https://attest.rta.lat/scan?ref=hub">Бесплатно: просканировать MCP-сервер →</a>
 <h2>Простые продукты</h2><div class="grid">{tcards}</div>
 <h2>Продукты</h2><div class="grid">{pcards}</div>
 <p class="s" style="margin-top:26px">Оплата картой или USDC. Без подписки там, где можно заплатить разово.</p>
