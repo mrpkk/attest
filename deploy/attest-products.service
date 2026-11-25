@@ -1,0 +1,9 @@
+[Unit]
+Description=attest: живые 200 у Site Guard, Sheet Doctor, Doc Box и витрин
+Documentation=https://attest.rta.lat/store
+
+[Service]
+Type=oneshot
+WorkingDirectory=/media/Sruti/iamthat/work/sales/attest
+ExecStart=/usr/bin/python3 scripts/monitor_products.py --alert --attest https://attest.rta.lat --nip https://nidhipati.ailegal.legal
+TimeoutStartSec=120

@@ -224,3 +224,53 @@ def test_watchdog_is_scheduled_not_just_written():
     assert "scripts/watchdog.py" in unit
     assert "OnUnitActiveSec=5min" in timer
     assert "WantedBy=timers.target" in timer
+
+
+def test_products_monitor_alerts_on_change_not_every_pass(tmp_path):
+    """Таймер запускает новый процесс: без файла состояния алерт уходил бы каждые 10 минут."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("monitor_products",
+                                                  ROOT / "scripts" / "monitor_products.py")
+    mp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mp)
+
+    sent: list[str] = []
+    orig_alert = mp.alert
+    mp.alert = lambda failed: (sent.append(",".join(r["name"] for r in failed)), {"sent": True})[1]
+    import attest.alerts as real_alerts
+    orig_post = real_alerts.post
+    real_alerts.post = lambda text, url=None, **kw: (sent.append("recovered"), (True, ""))[1]
+
+    down = {"ok": False, "rows": [{"name": "Site Guard", "url": "u", "code": 503, "ok": False}]}
+    up = {"ok": True, "rows": [{"name": "Site Guard", "url": "u", "code": 200, "ok": True}]}
+    state = tmp_path / "s.json"
+
+    assert mp.notify(down, state_path=state, now=1000.0)["sent"] is True
+    assert mp.notify(down, state_path=state, now=1060.0)["reason"] == "already_reported"
+    assert mp.notify(down, state_path=state, now=1000.0 + 6 * 3600)["sent"] is True
+    assert mp.notify(up, state_path=state, now=1000.0 + 7 * 3600)["sent"] is True, "возврат — одно сообщение"
+    assert mp.notify(up, state_path=state, now=1000.0 + 8 * 3600)["reason"] == "state_changed"
+    mp.alert = orig_alert
+    real_alerts.post = orig_post
+    assert sent == ["Site Guard", "Site Guard", "recovered"]
+
+
+def test_monitor_covers_the_three_products_directly():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("monitor_products2",
+                                                  ROOT / "scripts" / "monitor_products.py")
+    mp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mp)
+    names = " ".join(n for n, _ in mp.PRODUCTS)
+    for name in ("Site Guard", "Sheet Doctor", "Doc Answer Box"):
+        assert name in names
+    assert "product=site-guard-year" in dict((n, u) for n, u in mp.PRODUCTS)["Site Guard"]
+
+
+def test_products_timer_exists():
+    unit = (ROOT / "deploy" / "attest-products.service").read_text(encoding="utf-8")
+    timer = (ROOT / "deploy" / "attest-products.timer").read_text(encoding="utf-8")
+    assert "monitor_products.py" in unit and "--alert" in unit
+    assert "OnUnitActiveSec=10min" in timer

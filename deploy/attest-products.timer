@@ -1,0 +1,11 @@
+[Unit]
+Description=attest: проверка продуктов каждые 10 минут
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
