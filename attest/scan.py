@@ -332,7 +332,7 @@ point-in-time read, not a watchdog.</p>
 
 <div class="cta" id="cta" hidden>
 <b>Want the full report?</b> One month of logs, one line of evidence per finding.
-<a href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit?ref=scan-page">$19 founding audit (first 10)</a> —
+<a href="https://nidhipati.ailegal.legal/pay/card?product=agent-spend-audit-founding&ref=scan-page">$19 founding audit <s>$199</s> · first 10 teams</a> —
 or reply to the email and we'll send the checklist.
 </div>
 <script>
