@@ -78,3 +78,24 @@ def test_store_page_is_cached_for_repeat_visits():
     """Повторный заход должен брать страницу из кэша браузера, а не ждать сервер."""
     src = (ROOT / "attest" / "service.py").read_text(encoding="utf-8")
     assert 'self._send_html(store_page(), cache_seconds=60)' in src
+
+
+def test_price_is_unambiguous_in_the_hero():
+    """$19 рядом с $199 без пояснения — это вопрос «сколько платить?» вместо покупки."""
+    html = store_page()
+    hero = html.split('<div class="wrap hero">')[1].split('id="products"')[0]
+    assert "$19" in hero and "$199" in hero
+    assert "first 10 teams" in hero, "условие founding-цены должно быть рядом с ценой"
+    assert "<s>$199</s>" in hero, "старая цена показывается зачёркнутой, а не вместо новой"
+
+
+def test_hero_links_to_what_the_scan_checks():
+    """Доказательство до клика: что проверяет скан и чего не делает — со ссылкой и меткой."""
+    hero = store_page().split('<div class="wrap hero">')[1].split('id="products"')[0]
+    assert "/docs/scan?ref=store" in hero
+
+
+def test_page_weight_budget_stays_honest():
+    """После правок страница не должна расползтись: 22 КБ — потолок, выше него скорость станет обещанием."""
+    size = len(store_page().encode("utf-8"))
+    assert size < 22_000, f"{size} байт — страница выросла"

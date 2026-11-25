@@ -218,9 +218,10 @@ footer{margin:56px 0 40px;border-top:1px solid var(--line);padding-top:20px;colo
       <a class="btn" href="/scan" data-primary="1">Scan free — no account</a>
       <a class="btn ghost" href="/plans">Fix it — from $19</a>
       <p class="sublink">No card, no account, 30 seconds. Want to see the output first?
-      <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">Sample audit →</a></p>
+      <a href="https://mrpkk.github.io/nidhipati/audit-sample.html">Sample audit →</a><br>
+      <a href="/docs/scan?ref=store">What the free scan checks, and what it does not →</a></p>
       <div class="metrics">
-        <span><b>Free</b> scan</span><span><b>$19</b> founding audit</span>
+        <span><b>Free</b> scan</span><span><b>$19</b> founding audit <s>$199</s> · first 10 teams</span>
         <span><b>USDC</b> or card</span><span><b>Nothing found</b> — no fee</span>
       </div>
       <p class="proof">{proof}</p>
