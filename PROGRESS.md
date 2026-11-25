@@ -1760,3 +1760,34 @@ journal: «Finished attest-products.service» · таймер: следующи�
 
 **Что осталось владельцу:** webhook-адрес в `~/.env` — тогда алерты пойдут в чат; и `loginctl enable-linger`
 для пользовательских таймеров, если хочешь, чтобы они работали до входа в систему.
+
+## 26.11.2026 — /docs/api: главный эндпоинт `/verify` в документации отсутствовал
+
+**Проверяемый пункт 1: дрейф проверялся в одну сторону.**
+Тест `test_every_documented_path_exists_in_service` ловил «описали путь, которого нет». Обратного не было:
+маршрут мог появиться в сервисе и никогда не попасть в документацию. Добавил
+`test_every_public_service_route_is_documented_or_explicitly_excluded`: каждый публичный путь либо описан,
+либо явно перечислен в `NOT_API_DOCS` (страницы, ассеты, заказы конкретных продуктов, служебные
+`.well-known`). Молча спрятать новый маршрут больше нельзя.
+
+**Проверяемый пункт 2: тест сразу нашёл дырку — не было `POST /verify`.**
+Того самого эндпоинта, ради которого продукт существует. В документации были `/api/scan`, `/mcp`, `/health`,
+`/stats`, `/api/free-scan`, а проверки артефакта — нет. Добавлены: `POST /verify` (вердикт, trust score,
+подпись; 5 проверок в сутки, потом 402), `POST /verify-offline`, `POST /api/receipt/issue`,
+`POST /api/receipt/verify`, `GET /api/funnel`, `GET /metrics`, `POST /log/register`, `GET /log/head`.
+
+**Проверяемый пункт 3: пример из документации выполнен вживую.**
+```
+POST https://attest.rta.lat/verify {"artifact":{"findings":[{"id":"f1","title":"checked the schema"}]}}
+→ 200 · verdict accept · trust_score 100.0
+HTTP: /docs/api 200 · /log/head 200 · /api/funnel 200 · /metrics 200
+pytest tests -q → 1035 passed, 4 skipped
+```
+Коммит 8ead343.
+
+**Рынок (26.11.2026, HTTP):** docs.stripe.com/api/errors 200 · platform.openai.com ошибки 200 ·
+rfc-editor.org/rfc/rfc9457 200 · pypi 200. Практика у обоих: страница ошибок с кодом → что значит → что делать,
+и один набор примеров, которые копируют. Наши 402/429/400 описаны так же, включая «402 — не тупик».
+
+**Что осталось:** `/verify-offline` описан как «проверка в браузере», но саму страницу сканера в этом
+срезе не проверял — она отдельная и в документации только упомянута.
