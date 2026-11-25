@@ -60,3 +60,25 @@ def test_size_limit_matches_the_parser():
 
 def test_page_stays_light():
     assert len(scan_docs_page().encode("utf-8")) < 30_000
+
+
+def test_docs_scan_has_hindi_and_russian_blocks():
+    """Индия — первый класс интерфейса: страница без хинди не считается готовой."""
+    from attest.service import FREE_DAILY_LIMIT
+
+    html = scan_docs_page()
+    assert "हिन्दी — सारांश" in html, "нет блока на хинди"
+    assert "Русский — коротко" in html, "нет блока на русском"
+    hindi = html.split("हिन्दी — सारांश")[1].split("Русский")[0]
+    russian = html.split("Русский — коротко")[1]
+    for block, label in ((hindi, "hi"), (russian, "ru")):
+        assert str(FREE_DAILY_LIMIT) in block, f"{label}: лимит не совпадает с кодом"
+        assert "6" in block, f"{label}: не названо число проверок"
+        assert "200" in block, f"{label}: не назван размер файла"
+
+
+def test_all_three_languages_agree_on_numbers():
+    """Числа в трёх языках должны совпадать, иначе перевод врёт."""
+    html = scan_docs_page()
+    assert html.count(str(__import__("attest.service", fromlist=["FREE_DAILY_LIMIT"]).FREE_DAILY_LIMIT)) >= 3
+    assert html.count("200 KB") + html.count("200 КБ") >= 2
