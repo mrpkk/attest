@@ -987,11 +987,12 @@ BAZAAR_TAGS = ["verification", "security", "mcp", "agent-safety"]
 
 # Манифесты (Д6): агент находит продукт по стандартным путям, без README
 # и без регистрации. Файлы лежат в корне репозитория, сервис отдаёт их же.
-MANIFEST_FILES = ("llms.txt", "SKILL.md", "openapi.json")
+MANIFEST_FILES = ("llms.txt", "SKILL.md", "openapi.json", "68386b0744656ef453a51fc0e54e69be.txt")
 MANIFEST_MIME = {
     "llms.txt": "text/plain; charset=utf-8",
     "SKILL.md": "text/markdown; charset=utf-8",
     "openapi.json": "application/json; charset=utf-8",
+    "68386b0744656ef453a51fc0e54e69be.txt": "text/plain; charset=utf-8",
 }
 VERIFY_DESCRIPTION = (
     "Verify an AI agent artifact before you accept or pay for it. Checks: "
