@@ -2100,3 +2100,36 @@ RFC 9110 §15.5 — 200 (402 Payment Required как статус, а не те�
 **Что осталось:** путь «оплата прошла, а выдача упала» по-прежнему не покрыт: сейчас при исключении внутри
 `_verify_result` клиент получит обрыв, и запись об оплате потеряется. Это следующий дефект того же класса,
 и он требует решения: 500 с `paid: true` + повтор или сохранение квитанции до выдачи.
+
+## 26.11.2026 — каталоги уже индексируются, но в описании не было скана
+
+**Проверяемый пункт 1: проверил индексацию и каталоги — картина другая, чем кажется.**
+`site:attest.rta.lat` по-прежнему даёт `/review`, `/start`, `/catalogs`, `/docs`, `/deny-evidence`, `/demo` —
+**`/scan` всё ещё не в индексе Google**. Зато по запросу «attest mcp server scan» в выдаче есть **четыре
+каталога**, которые нас уже проиндексировали: `mcpi.app`, `mcp.so`, `glama.ai`, `midi.mocopo.ai`.
+
+**Проверяемый пункт 2: нашёл, что именно каталоги показывают вместо скана.**
+`mcp.so/servers/attest` (200) ссылается на `attest.rta.lat/mcp` **11 раз и на `/scan` — ни разу**: каталог
+берёт описание из нашего `server.json`, а там было «Verify artifacts… schema, emptiness, provenance» —
+про бесплатный скан ни слова. Описание обновлено: **«Scan an MCP server's tools, then verify agent
+artifacts: schema, emptiness, provenance»** — 87 символов, лимит реестра 100 соблюдён.
+
+**Проверяемый пункт 3: одна формулировка в трёх местах.**
+README начинается с «**MCP server scan** — any public tool list in 30 seconds», `llms.txt` и раньше говорил
+той же фразой; тест `test_llms_and_readme_use_the_same_query_phrase` требует совпадения, а
+`test_registry_description_fits_and_names_the_scan` — чтобы описание реестра укладывалось в 100 символов и
+не теряло вторую половину продукта (проверку артефактов).
+
+**Проверено:**
+```
+pytest tests/test_catalog_listing.py → 3 passed · pytest tests -q → 1066 passed, 4 skipped
+HTTP: /scan 200 · IndexNow 200 (4 адреса)
+```
+Коммит $H.
+
+**Рынок (26.11.2026):** mcp.so/servers/attest 200 · glama.ai/mcp/servers/mrpkk/attest 200 ·
+mcpi.app/servers/attest… 200 · midi.mocopo.ai/servers/io.github.mrpkk--attest 200 ·
+modelcontextprotocol/registry (лимит description 100) 200.
+
+**Что осталось:** Google не индексирует `/scan` — это решает Search Console (твоё действие), а не разметка.
+Директории ведут на `/mcp`; изменить их ссылки мы не можем — зато теперь их текст называет скан.
