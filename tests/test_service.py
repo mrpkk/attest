@@ -1518,3 +1518,58 @@ def test_registry_manifest_takes_version_from_package():
     doc = mod.manifest("attest")
     assert doc["name"] == "io.github.mrpkk/attest"
     assert doc["remotes"][0]["url"].startswith("https://attest.rta.lat")
+
+
+class TestPaidPathAfterFreeTier:
+    """Оплаченный запрос не должен упираться в бесплатную квоту (26.11.2026)."""
+
+    def _exhaust(self, monkeypatch):
+        AttestHandler.free_tier.reset("ip:127.0.0.1")
+        monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 0)
+
+    def test_paid_request_passes_when_free_tier_is_exhausted(self, server, monkeypatch):
+        from types import SimpleNamespace
+
+        self._exhaust(monkeypatch)
+        monkeypatch.setattr(AttestHandler, "x402_pay_to", "0x" + "aa" * 20)
+
+        def paid(self, header, amount_atoms=None):
+            self._last_settlement = None
+            return SimpleNamespace(amount_atoms=5000, payer="0xpayer", pay_to=self.x402_pay_to,
+                                   nonce="0xnonce")
+
+        monkeypatch.setattr(AttestHandler, "_verify_payment", paid)
+        try:
+            status, body = post(f"{server}/verify", {"artifact": {"a": 1}},
+                                headers={"X-PAYMENT": "paid-ok"})
+            assert status == 200, body
+            assert body.get("verdict") in ("accept", "review", "reject")
+        finally:
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
+
+    def test_bad_payment_after_exhaustion_says_paid_false(self, server, monkeypatch):
+        from attest.payment import PaymentError
+
+        self._exhaust(monkeypatch)
+
+        monkeypatch.setattr(AttestHandler, "x402_pay_to", "0x" + "aa" * 20)
+
+        def bad(self, header, amount_atoms=None):
+            raise PaymentError("signature does not verify", status=402)
+
+        monkeypatch.setattr(AttestHandler, "_verify_payment", bad)
+        try:
+            status, body = post(f"{server}/verify", {"artifact": {"a": 1}},
+                                headers={"X-PAYMENT": "broken"})
+            assert status == 402, body
+            assert body.get("paid") is False
+        finally:
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
+
+    def test_no_payment_header_after_exhaustion_is_still_402(self, server, monkeypatch):
+        self._exhaust(monkeypatch)
+        try:
+            status, body = post(f"{server}/verify", {"artifact": {"a": 1}})
+            assert status == 402 and body["free_remaining"] == 0
+        finally:
+            AttestHandler.free_tier.reset("ip:127.0.0.1")
