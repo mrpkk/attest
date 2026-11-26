@@ -79,3 +79,52 @@ def test_paid_call_does_not_depend_on_free_quota():
     assert all(v > -1 for v in order.values()), order
     assert order["_entitlement_access"] < order["X-PAYMENT"] < order["free_tier"], \
         f"порядок ветвей сломан: {order}"
+
+
+def test_paid_but_delivery_failure_returns_paid_proof(monkeypatch):
+    """Деньги приняли, выдача упала: клиент должен получить доказательство оплаты, а не обрыв."""
+    import json
+    import urllib.error
+    import urllib.request
+    from types import SimpleNamespace
+
+    from attest.service import AttestHandler
+
+    AttestHandler.free_tier.reset("ip:127.0.0.1")
+    AttestHandler.free_tier.daily_limit = 0
+    monkeypatch.setattr(AttestHandler, "x402_pay_to", "0x" + "aa" * 20)
+
+    def paid(self, header, amount_atoms=None):
+        return SimpleNamespace(amount_atoms=5000, payer="0xpayer", pay_to=self.x402_pay_to,
+                               nonce="0xnonce")
+
+    def boom(self, payload, source, paid):
+        raise RuntimeError("delivery exploded")
+
+    monkeypatch.setattr(AttestHandler, "_verify_payment", paid)
+    monkeypatch.setattr(AttestHandler, "_verify_result", boom)
+    try:
+        # тот же приём, что в tests/test_service.py: поднимаем сервер на свободном порту
+        import threading
+        from http.server import ThreadingHTTPServer
+
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), AttestHandler)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        url = f"http://127.0.0.1:{srv.server_address[1]}/verify"
+        req = urllib.request.Request(url, data=json.dumps({"artifact": {"a": 1}}).encode(),
+                                     headers={"Content-Type": "application/json",
+                                              "X-PAYMENT": "ok"}, method="POST")
+        try:
+            urllib.request.urlopen(req, timeout=10)
+            raise AssertionError("должен был вернуться 500")
+        except urllib.error.HTTPError as exc:
+            body = json.loads(exc.read().decode())
+            assert exc.code == 500, body
+            assert body["paid"] is True
+            assert body["code"] == "DELIVERY_FAILED" and body["retryable"] is True
+            assert body["payment"]["nonce"] == "0xnonce"
+        finally:
+            srv.shutdown()
+            srv.server_close()
+    finally:
+        AttestHandler.free_tier.reset("ip:127.0.0.1")

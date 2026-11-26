@@ -2284,7 +2284,26 @@ class AttestHandler(BaseHTTPRequestHandler):
                     pass
                 self._send_json(exc.status, {"error": exc.reason, "paid": False})
                 return
-            body = self._verify_result(payload, source, paid=payment)
+            # 26.11.2026: деньги уже приняты. Если выдача падает, клиент обязан получить
+            # 500 с `paid: true` и данными платежа (доказательство оплаты), а не обрыв соединения.
+            try:
+                body = self._verify_result(payload, source, paid=payment)
+            except Exception as exc:  # noqa: BLE001 — платёж принят, выдачу можно повторить
+                import logging as _logging
+                _logging.getLogger("attest.service").exception("оплата принята, выдача упала")
+                failure = self._err_body(
+                    "DELIVERY_FAILED", "payment accepted, the check failed",
+                    hint="повторите с тем же заголовком оплаты: платёж уже учтён, "
+                         "второй раз деньги не спишутся",
+                    retryable=True)
+                failure["paid"] = True
+                failure["payment"] = {
+                    "payer": getattr(payment, "payer", None),
+                    "amount_atoms": getattr(payment, "amount_atoms", 0),
+                    "nonce": getattr(payment, "nonce", None),
+                }
+                self._send_json(500, failure)
+                return
             self._send_json(200, body)
             return
 
