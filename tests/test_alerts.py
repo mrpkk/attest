@@ -364,3 +364,18 @@ def test_payment_alert_never_breaks_the_response(monkeypatch):
             alerts.alert_payment_failure("x", now=2000.0 + i)
         except RuntimeError:
             pass
+
+
+def test_monitor_checks_price_on_the_payment_page():
+    """200 на странице оплаты — не доказательство: цена и форма должны быть на месте."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("monitor_products4",
+                                                  ROOT / "scripts" / "monitor_products.py")
+    mp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mp)
+
+    good = '<title>Pay by card — Sheet Doctor</title><div class="p">19 USD</div>'
+    assert mp.content_problems("Sheet Doctor", good) == []
+    assert "нет цены 19 USD" in mp.content_problems("Sheet Doctor", "<div>ошибка</div>")[0]
+    assert any("формы оплаты" in p for p in mp.content_problems("Doc Answer Box", "49 USD"))

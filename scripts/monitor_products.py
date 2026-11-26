@@ -29,6 +29,26 @@ PRODUCTS = (
 )
 
 
+#: Ожидаемая цена на странице оплаты. 26.11.2026: статус 200 ничего не говорит о содержимом —
+#: страница может отдать «неизвестный товар» или цену без товара. Здесь фиксируем то, что видит покупатель.
+EXPECTED_PRICE = {
+    "Site Guard": "49 USD",
+    "Sheet Doctor": "19 USD",
+    "Doc Answer Box": "49 USD",
+}
+
+
+def content_problems(name: str, body: str) -> list[str]:
+    """Что не так с содержимым страницы оплаты (пустой список — всё в порядке)."""
+    problems = []
+    price = EXPECTED_PRICE.get(name)
+    if price and price not in body:
+        problems.append(f"нет цены {price}")
+    if "Pay by card" not in body and "pay" not in body.lower():
+        problems.append("нет формы оплаты")
+    return problems
+
+
 def check_one(url: str, timeout: int = 8) -> tuple[int, str]:
     # 26.11.2026: свой же сторож получал 403 на /scan и /store — фильтр режет `Python-urllib`.
     # Монитор ходит под своим именем, как watchdog, иначе он врёт про падение продукта.
@@ -47,7 +67,19 @@ def run(attest: str, nip: str, fetch=check_one) -> dict:
     for name, tpl in PRODUCTS:
         url = tpl.format(attest=attest, nip=nip)
         code, err = fetch(url)
-        rows.append({"name": name, "url": url, "code": code, "ok": code == 200, "error": err})
+        row = {"name": name, "url": url, "code": code, "ok": code == 200, "error": err}
+        if code == 200 and name in EXPECTED_PRICE and fetch is check_one:
+            try:
+                import urllib.request
+                with urllib.request.urlopen(urllib.request.Request(
+                        url, headers={"User-Agent": "attest-products-monitor/1"}), timeout=8) as resp:
+                    body = resp.read().decode("utf-8", "ignore")
+                issues = content_problems(name, body)
+                if issues:
+                    row.update({"ok": False, "error": "; ".join(issues)})
+            except Exception as exc:  # noqa: BLE001 — сеть: это и есть проблема
+                row.update({"ok": False, "error": type(exc).__name__})
+        rows.append(row)
     bad = [r for r in rows if not r["ok"]]
     return {"checked": len(rows), "down": len(bad), "rows": rows, "ok": not bad}
 
