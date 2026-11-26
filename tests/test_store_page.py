@@ -99,3 +99,23 @@ def test_page_weight_budget_stays_honest():
     """После правок страница не должна расползтись: 22 КБ — потолок, выше него скорость станет обещанием."""
     size = len(store_page().encode("utf-8"))
     assert size < 22_000, f"{size} байт — страница выросла"
+
+
+def test_buttons_are_big_enough_for_a_finger():
+    """Кнопки в карточках были ~36 px: на телефоне в них трудно попасть (WCAG 2.5.8)."""
+    html = store_page()
+    import re
+
+    small = re.search(r"\.btn\.small\{([^}]*)\}", html)
+    assert small and "min-height:44px" in small.group(1), small.group(0) if small else "нет правила"
+    main = re.search(r"\.btn\{([^}]*)\}", html)
+    assert main and "padding:13px" in main.group(1), "главная кнопка не должна уменьшаться"
+
+
+def test_no_fixed_width_that_can_overflow_a_phone():
+    """Фиксированная ширина больше 360 px даёт горизонтальный скролл на телефоне."""
+    import re
+
+    html = store_page()
+    bad = [w for w in re.findall(r"(?:^|[;{ ])width:(\d{3,})px", html) if int(w) > 360]
+    assert not bad, f"фиксированные ширины: {bad}"

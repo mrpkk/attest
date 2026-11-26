@@ -141,7 +141,7 @@ h1{font-size:clamp(34px,5.4vw,58px);line-height:1.04;letter-spacing:-1.4px;margi
   padding:13px 20px;border-radius:12px;font-weight:700;border:0;cursor:pointer;font-size:15px}
 .btn:hover{text-decoration:none;filter:brightness(1.08)}
 .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
-.btn.small{padding:9px 13px;font-size:14px;border-radius:10px}
+.btn.small{padding:9px 13px;font-size:14px;border-radius:10px;min-height:44px} /* 26.11.2026: 36px не хватало для пальца — WCAG 2.5.8 и мобильная практика */
 .sublink{font-size:14px;color:var(--mut);margin:12px 0 0}
 .sublink a{white-space:nowrap}
 .metrics{display:flex;gap:18px;flex-wrap:wrap;color:var(--mut);font-size:14px;margin-top:22px}
