@@ -128,3 +128,18 @@ def test_paid_but_delivery_failure_returns_paid_proof(monkeypatch):
             srv.server_close()
     finally:
         AttestHandler.free_tier.reset("ip:127.0.0.1")
+
+
+def test_paid_check_is_counted_as_paid_not_only_as_payment(monkeypatch):
+    """На проде было successful_paid_actions=1 при checks_paid=0 — счётчик проверок отставал."""
+    from attest.metrics import METRICS
+
+    if not METRICS.enabled:                       # тестовый прогон может выключить метрики
+        import pytest
+        pytest.skip("METRICS выключены в этом окружении")
+    METRICS.check("unit-test", paid=True, client="c1", agent="test")
+    snap = METRICS.snapshot()
+    assert snap["checks_paid"] >= 1
+    assert snap["checks_total"] >= snap["checks_free"] + snap["checks_paid"]
+    src = (ROOT / "attest" / "service.py").read_text(encoding="utf-8")
+    assert "METRICS.check(_channel, paid=True" in src, "оплаченный путь обязан считать проверку"

@@ -2271,10 +2271,14 @@ class AttestHandler(BaseHTTPRequestHandler):
             try:
                 METRICS.pay_attempt()
                 payment = self._verify_payment(payment_header)
-                METRICS.payment(
-                    channel_of(self.path, self.headers.get("Referer")),
-                    int(getattr(payment, "amount_atoms", 0) or 0),
-                    payer=getattr(payment, "payer", None))
+                _channel = channel_of(self.path, self.headers.get("Referer"))
+                METRICS.payment(_channel,
+                                int(getattr(payment, "amount_atoms", 0) or 0),
+                                payer=getattr(payment, "payer", None))
+                # 26.11.2026: оплаченная проверка не попадала в `checks` вовсе — на проде было
+                # successful_paid_actions=1 при checks_paid=0, то есть «оплата есть, проверки нет».
+                METRICS.check(_channel, paid=True, client=self.client_id(),
+                              agent=self.headers.get("User-Agent"))
             except PaymentError as exc:
                 # 26.11.2026: молчаливый отказ кассы выглядит как «нет продаж». Тревога отдельно.
                 try:
