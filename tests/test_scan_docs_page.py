@@ -82,3 +82,22 @@ def test_all_three_languages_agree_on_numbers():
     html = scan_docs_page()
     assert html.count(str(__import__("attest.service", fromlist=["FREE_DAILY_LIMIT"]).FREE_DAILY_LIMIT)) >= 3
     assert html.count("200 KB") + html.count("200 КБ") >= 2
+
+
+def test_page_documents_the_api_path_with_real_error_text():
+    """Агенту нужен машинный путь, и он должен совпадать с тем, что сервис реально отвечает."""
+    from attest.free_scan import MAX_CSV_BYTES
+
+    html = scan_docs_page()
+    assert "/api/free-scan" in html
+    assert "curl -s -X POST" in html
+    assert f"{MAX_CSV_BYTES // 1024} KB" in html
+    src = (ROOT / "attest" / "service.py").read_text(encoding="utf-8")
+    for text in ("a valid email is required", "csv must be a string"):
+        assert text in src, f"сообщение изменилось в коде: {text}"
+        assert text in html, f"документация не называет актуальный текст: {text}"
+    assert "429" in html
+
+
+def test_page_still_fits_the_weight_budget_after_api_section():
+    assert len(scan_docs_page().encode("utf-8")) < 32_000

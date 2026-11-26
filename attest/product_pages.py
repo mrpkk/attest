@@ -725,6 +725,18 @@ what was read, what was found, what is unknown, and what would make the answer b
 <p><a class="btn" href="/free-scan?ref=docs-scan">Open the free scan form</a>
  <a class="btn" href="/sample-audit?ref=docs-scan">See a six-page synthetic audit sample</a>
  <a class="btn" href="/plans?ref=docs-scan">The $199 audit — scope and price</a></p>
+<h3>Send it from a script</h3>
+<p>The same scan accepts a CSV over the API, so an agent can send its own spend log:</p>
+<pre>curl -s -X POST https://attest.rta.lat/api/free-scan \
+  -H 'Content-Type: application/json' \
+  -d '{"email": "you@example.com", "csv": "date,amount,payee\n2026-11-01,0.05,vendor"}'
+# 200 {"request_id": "…", "rows": 1, "columns": […]}</pre>
+<ul>
+<li><code>400</code> — <code>a valid email is required</code> или <code>csv must be a string</code>;</li>
+<li><code>400</code> — <code>CSV is larger than 200 KB</code> (лимит тот же, что у формы);</li>
+<li><code>429</code> — дневной лимит сканов исчерпан для этого клиента.</li>
+</ul>
+
 <p class="meta">Questions before sending a file: <a href="mailto:maxim.pkk@gmail.com?subject=attest%20free%20scan%20question">ask first</a>.
 No file needed for that.</p>
 """
