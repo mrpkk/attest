@@ -1420,7 +1420,7 @@ def _sitemap() -> str:
                      "/start", "/privacy", "/health", "/deny-evidence",
                      "/eu-ai-act-evidence", "/mcp-security-pass",
                      "/eu-ai-act", "/mcp-security", "/trust-desk", "/proof-of-place", "/suite.json",
-                     "/scan", "/free-scan", "/docs/scan", "/docs/api", "/store",
+                     "/scan", "/free-scan", "/docs/scan", "/docs/api", "/store", "/mcp-scan-guide",
                      "/sample-audit",
                      "/verify-receipt",
                      "/mcp/mcp-security-audit", "/mcp/mcp-server-authentication",
@@ -1728,6 +1728,9 @@ class AttestHandler(BaseHTTPRequestHandler):
             from .product_pages import mcp_security_page
             pay_to = self.x402_pay_to or "USDC address on request (email maxim.pkk@gmail.com)"
             self._send_html(mcp_security_page(pay_to))
+        elif path == "/mcp-scan-guide":
+            from .scan_article import scan_article_page
+            self._send_html(scan_article_page())
         elif path in ("/free-scan", "/docs/scan"):
             if path == "/docs/scan":
                 from .product_pages import scan_docs_page

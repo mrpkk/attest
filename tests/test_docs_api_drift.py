@@ -38,6 +38,7 @@ NOT_API_DOCS = {
     "/pay", "/pricing", "/subscribe", "/login", "/logout", "/admin", "/stats",
     # страницы и ассеты, не API
     "/docs", "/hub", "/tools", "/receipts", "/checkpoints", "/deny", "/scitt", "/thanks",
+    "/mcp-scan-guide",          # статья под поисковый запрос, а не API
     "/feedback", "/feedback.js", "/favicon.ico", "/og.png", "/robots.txt", "/sitemap.xml",
     "/eu-ai-act-evidence/sample.pdf",
     # заказы конкретных продуктов: описаны на своих страницах
