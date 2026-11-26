@@ -1,6 +1,6 @@
 # attest — trust layer for agent artifacts
 
-Scan any MCP server's public tool list in 30 seconds, no account:
+MCP server scan — any public tool list in 30 seconds, no account:
 **<https://attest.rta.lat/scan?ref=readme>** — what each tool can move or delete, which annotations are
 missing, and where a description tries to instruct the agent.
 

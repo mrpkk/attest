@@ -1,18 +1,18 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.mrpkk/attest",
-  "title": "attest — verification for AI agent artifacts",
-  "description": "Verify artifacts produced by AI agents: schema, emptiness, provenance, authority.",
-  "repository": {
-    "url": "https://github.com/mrpkk/attest",
-    "source": "github"
-  },
-  "version": "0.2.0",
-  "remotes": [
-    {
-      "type": "streamable-http",
-      "url": "https://attest.rta.lat/mcp"
-    }
-  ],
-  "websiteUrl": "https://attest.rta.lat/pricing"
+ "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+ "name": "io.github.mrpkk/attest",
+ "title": "attest — verification for AI agent artifacts",
+ "description": "Scan an MCP server's tools, then verify agent artifacts: schema, emptiness, provenance.",
+ "repository": {
+  "url": "https://github.com/mrpkk/attest",
+  "source": "github"
+ },
+ "version": "0.2.0",
+ "remotes": [
+  {
+   "type": "streamable-http",
+   "url": "https://attest.rta.lat/mcp"
+  }
+ ],
+ "websiteUrl": "https://attest.rta.lat/pricing"
 }
