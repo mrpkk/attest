@@ -91,7 +91,7 @@ def test_paid_but_delivery_failure_returns_paid_proof(monkeypatch):
     from attest.service import AttestHandler
 
     AttestHandler.free_tier.reset("ip:127.0.0.1")
-    AttestHandler.free_tier.daily_limit = 0
+    monkeypatch.setattr(AttestHandler.free_tier, "daily_limit", 0)   # monkeypatch, чтобы вернуть после теста
     monkeypatch.setattr(AttestHandler, "x402_pay_to", "0x" + "aa" * 20)
 
     def paid(self, header, amount_atoms=None):
