@@ -1,5 +1,6 @@
 """HTTP-сервис: клиент проверяет артефакт бесплатно, потом платит за вызов.
 
+
 Зачем сервис, если есть `attest()`: библиотекой пользуются разработчики, а
 проверять чужой артефакт должен заказчик, у которого нет кода. Пока сервиса
 не было, продукт был недоступен никому, кроме нас, то есть зарабатывать
@@ -16,6 +17,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import os
 import hashlib
 import hmac
@@ -39,6 +41,8 @@ from .core import attest, _coerce_json_field
 from .metrics import METRICS, STATE_PATH, channel_of, spent_nonces
 from .receipt import cose as _cose
 from .receipt import log as _tlog
+
+log = logging.getLogger("attest.service")
 
 
 def _tlog_public_key(private_key) -> str:
@@ -1967,7 +1971,10 @@ class AttestHandler(BaseHTTPRequestHandler):
         elif path.lstrip("/") in MANIFEST_FILES:
             self._serve_manifest(path.lstrip("/"))
         else:
-            self._send_json(404, {"error": "no such path", "path": path})
+            not_found = self._err_body("NOT_FOUND", "no such path",
+                                       hint="проверьте адрес; список путей — /docs/api")
+            not_found["path"] = path
+            self._send_json(404, not_found)
 
     def _dict_pricing(self) -> dict[str, Any]:
         """Тарифы с настоящим лимитом: объявлять 20 при реальных 3 — враньё."""
@@ -2121,7 +2128,12 @@ class AttestHandler(BaseHTTPRequestHandler):
                 with self.leads_path.open("a", encoding="utf-8") as fh:
                     fh.write(json.dumps(record, ensure_ascii=False) + "\n")
             except OSError as exc:
-                self._send_json(500, {"error": f"could not store the request: {exc}"})
+                # 26.11.2026: текст исключения уходил клиенту и мог содержать пути и права.
+                log.exception("не удалось сохранить заявку")
+                self._send_json(500, self._err_body(
+                    "STORAGE_FAILED", "could not store the request",
+                    hint="повторите через минуту; если повторяется — напишите на почту из подвала",
+                    retryable=True))
                 return
             METRICS.lead()
             if email:
@@ -2168,7 +2180,10 @@ class AttestHandler(BaseHTTPRequestHandler):
         if path == "/subscribe":
             return self._handle_subscribe()
         if path != "/verify":
-            self._send_json(404, {"error": "no such path", "path": path})
+            not_found = self._err_body("NOT_FOUND", "no such path",
+                                       hint="проверьте адрес; список путей — /docs/api")
+            not_found["path"] = path
+            self._send_json(404, not_found)
             return
         client = self.client_id()
         try:
@@ -2726,7 +2741,11 @@ document.getElementById('go').onclick = async () => {{
                 self.free_scans_dir,
             )
         except OSError as exc:
-            self._send_json(500, {"error": f"could not store the request: {exc}"})
+            log.exception("не удалось сохранить заявку")
+            self._send_json(500, self._err_body(
+                "STORAGE_FAILED", "could not store the request",
+                hint="повторите через минуту; если повторяется — напишите на почту из подвала",
+                retryable=True))
             return
         # 21.11.2026: свои проверки не должны выглядеть клиентским интересом.
         # QA-скан помечается заголовком X-Attest-QA: 1 (или ?qa=1) и в воронку не идёт.

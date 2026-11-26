@@ -52,8 +52,8 @@ ERRORS = [
             "`free_pack` (100 checks/30 days), `human_review` (one artifact, free), `pay_human` (99 USDC)"),
     ("413", "`code: BODY_TOO_LARGE` — body larger than the limit; уменьшите артефакт, квота не тронута"),
     ("429", "rate limited — `Retry-After` в секундах, `retryable: true`; повторять после паузы, а не сразу"),
-    ("404", "путь не существует. Поля: `error`, `path` — проверьте адрес, это не ошибка тела"),
-    ("500", "internal — пришлите `X-Request-ID`, по нему находим запрос"),
+    ("404", "путь не существует. Поля: `error`, `code: NOT_FOUND`, `retryable: false`, `hint`, `path`"),
+    ("500", "`code: STORAGE_FAILED`, `retryable: true` — внутренний текст не раскрывается; детали в логах по `X-Request-ID`. internal — пришлите `X-Request-ID`, по нему находим запрос"),
 ]
 
 CURL = [
