@@ -329,3 +329,38 @@ def test_state_updates_even_when_alert_could_not_be_delivered(tmp_path):
     assert saved["down"] is False, "после возврата состояние обязано обновиться"
     mp.alert = orig_alert
     real_alerts.post = orig_post
+
+
+def test_payment_failure_alerts_once_per_window(monkeypatch):
+    """Платёжный отказ — не 5xx: без отдельной тревоги он выглядит как «нет продаж»."""
+    alerts.reset_payment_state()
+    sent = []
+    monkeypatch.setattr(alerts, "post", lambda text, url=None, **kw: (sent.append(text), (True, ""))[1])
+    assert alerts.alert_payment_failure("bad signature", now=1000.0)["sent"] is False
+    assert alerts.alert_payment_failure("bad signature", now=1010.0)["sent"] is False
+    third = alerts.alert_payment_failure("bad signature", now=1020.0)
+    assert third["sent"] is True and len(sent) == 1
+    assert "отказов оплаты" in sent[0]
+    again = alerts.alert_payment_failure("bad signature", now=1030.0)
+    assert again["reason"] == "already_sent"
+    # после окна нужно снова набрать порог: одно событие — ещё не тревога
+    after = 1000.0 + 2 * alerts.PAYMENT_WINDOW_SECONDS
+    assert alerts.alert_payment_failure("again", now=after)["sent"] is False
+    assert alerts.alert_payment_failure("again", now=after + 1)["sent"] is False
+    later = alerts.alert_payment_failure("again", now=after + 2)
+    assert later["sent"] is True and len(sent) == 2
+
+
+def test_payment_alert_never_breaks_the_response(monkeypatch):
+    """Алерт падает — клиент всё равно должен получить свой 402."""
+    alerts.reset_payment_state()
+
+    def boom(*a, **k):
+        raise RuntimeError("webhook down")
+
+    monkeypatch.setattr(alerts, "post", boom)
+    for i in range(3):
+        try:
+            alerts.alert_payment_failure("x", now=2000.0 + i)
+        except RuntimeError:
+            pass

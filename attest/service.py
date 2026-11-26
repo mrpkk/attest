@@ -2258,6 +2258,12 @@ class AttestHandler(BaseHTTPRequestHandler):
                     int(getattr(payment, "amount_atoms", 0) or 0),
                     payer=getattr(payment, "payer", None))
             except PaymentError as exc:
+                # 26.11.2026: молчаливый отказ кассы выглядит как «нет продаж». Тревога отдельно.
+                try:
+                    from .alerts import alert_payment_failure
+                    alert_payment_failure(str(exc.reason))
+                except Exception:  # noqa: BLE001 — алерт не должен мешать ответу клиенту
+                    pass
                 self._send_json(exc.status, {"error": exc.reason, "paid": False})
                 return
             body = self._verify_result(payload, source, paid=payment)

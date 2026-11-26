@@ -158,6 +158,40 @@ def alert_down(reason: str = "", now: float | None = None,
     return {"sent": ok, "reason": why or "sent"}
 
 
+#: Отдельный счётчик для платёжных отказов: это не 5xx и не падение сервиса, но деньги не приходят.
+PAYMENT_WINDOW_SECONDS = 900.0
+PAYMENT_THRESHOLD = 3
+_payment_state = {"fails": [], "sent_at": 0.0}
+
+
+def alert_payment_failure(reason: str = "", now: float | None = None,
+                          threshold: int = PAYMENT_THRESHOLD, url: str | None = None) -> dict:
+    """Платёж не проходит N раз за окно — одно сообщение.
+
+    Зачем отдельно. Молчаливый отказ кассы выглядит как «нет продаж»: клиент уходит, метрики
+    остаются ровными. Тревога по 5xx этого не ловит, потому что отказ платёжный — 402/400.
+    """
+    now = time.time() if now is None else now
+    recent = [t for t in _payment_state["fails"] if now - t <= PAYMENT_WINDOW_SECONDS]
+    recent.append(now)
+    _payment_state["fails"] = recent
+    if len(recent) < threshold:
+        return {"sent": False, "reason": "below_threshold", "fails": len(recent)}
+    if now - _payment_state["sent_at"] < PAYMENT_WINDOW_SECONDS:
+        return {"sent": False, "reason": "already_sent", "fails": len(recent)}
+    ok, why = post(f"💳 attest: {len(recent)} отказов оплаты за "
+                   f"{int(PAYMENT_WINDOW_SECONDS // 60)} мин ({reason[:80]}). "
+                   f"Проверить: https://attest.rta.lat/api/funnel и /stats", url=url)
+    if ok:
+        _payment_state["sent_at"] = now
+    return {"sent": ok, "fails": len(recent), "reason": why or "sent"}
+
+
+def reset_payment_state() -> None:
+    _payment_state["fails"] = []
+    _payment_state["sent_at"] = 0.0
+
+
 def status() -> dict:
     """Что видно снаружи: настроен ли канал и когда последний раз что-то уходило."""
     return {"webhook_configured": webhook_configured(),
