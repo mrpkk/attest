@@ -3,6 +3,15 @@
 Формат: [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 версии по [SemVer](https://semver.org/lang/ru/).
 
+## [Unreleased]
+
+### Добавлено
+
+- `poison.py` — поле `confidence` (l1–l5) у каждой находки: детерминированное правило
+  `critical → l5, high → l4, medium → l3, low → l2, остальное → l1`. Попадает в JSON
+  рядом с `severity`; вердикт и подпись остаются воспроизводимыми.
+  Взято из практики Lakera (AI Agent Security, 2026), без ML и без изменения вердикта.
+
 ## [0.1.0] — 2026-10-06
 
 Первый публичный релиз. Подпись версии — зелёный прогон тестов:

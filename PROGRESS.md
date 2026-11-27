@@ -2384,3 +2384,9 @@ docs.stripe.com «idempotency» — 200 (счётчики должны совп�
 **Что осталось:** счётчики денег в памяти — рестарт их обнуляет. Это надо чинить: `revenue_atoms` и
 `paid_actions` должны переживать перезапуск (файл или append-only журнал), иначе каждая правка кода стирает
 историю выручки.
+
+## 28.11.2026 — confidence l1–l5 у находок (взято из Lakera)
+
+Добавлено поле `confidence` в `PoisonSignal.as_dict()`: детерминированное правило
+`critical → l5, high → l4, medium → l3, low → l2, иначе l1`. Без ML, вердикт не меняется.
+Тесты: `tests/test_confidence.py` (5), полный прогон **1086 passed, 5 skipped**.

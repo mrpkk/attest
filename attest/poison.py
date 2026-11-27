@@ -115,8 +115,20 @@ class PoisonSignal:
     where: str
     evidence: str
 
+    @property
+    def confidence(self) -> str:
+        """l1-l5: насколько мы уверены, что это находка, а не совпадение.
+
+        Уровень выводится из severity детерминированно: critical -> l5,
+        high -> l4, medium -> l3, low -> l2, остальное -> l1. Никакой модели,
+        только правило — вердикт остаётся воспроизводимым.
+        """
+        return {"critical": "l5", "high": "l4", "medium": "l3",
+                "low": "l2"}.get(self.severity, "l1")
+
     def as_dict(self) -> dict[str, str]:
-        return {"kind": self.kind, "severity": self.severity, "where": self.where, "evidence": self.evidence[:200]}
+        return {"kind": self.kind, "severity": self.severity, "confidence": self.confidence,
+                "where": self.where, "evidence": self.evidence[:200]}
 
 
 def _normalize(text: str) -> str:
